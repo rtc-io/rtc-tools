@@ -1,17 +1,29 @@
 var EventEmitter = require('events').EventEmitter,
+    RTCPeerConnection = require('./lib/detect')('RTCPeerConnection'),
     util = require('util'),
     extend = require('cog/extend'),
     uuid = require('uuid'),
     defaultOpts = {
-        host: 'signalstream.appspot.com',
-        signaller: require('./signaller/sse')
+        dataChannels: ['chat'],
+        iceServers: [
+            { url: 'stun:stun.l.google.com:19302' }
+        ],
+
+        signaller: {
+            host: 'signalstream.appspot.com',
+            type: require('./signaller/sse')
+        }
     };
 
 /**
 # Conversation
 */
 function Conversation(id, options) {
-    var opts;
+    var opts,
+        peerConfig,
+        peerOpts,
+        dataChannels,
+        signaller;
 
     // check constructor called correctly
     if (! (this instanceof Conversation)) {
@@ -24,11 +36,38 @@ function Conversation(id, options) {
     // initialise opts
     opts = extend({}, defaultOpts, options);
 
+    // initialise the peer config
+    peerConfig = {
+        iceServers: opts.iceServers
+    };
+
+    // initialise the peer Opts
+    peerOpts = {
+        optional: []
+    };
+
+    // initialise data channels
+    dataChannels = [].concat(opts.dataChannels || []);
+
+    // if we have data channels, then ensure we specifiy the required extra opts
+    if (dataChannels.length > 0) {
+        peerOpts.optional.push({ RtpDataChannels: true });
+    }
+
+    // initialise the signaller
+    signaller = opts.signaller.type;
+
     // initialise the id
     this.id = id || uuid.v4();
 
+    // use the connection id if supplied
+    this.cid = opts.cid || null;
+
+    // create the peer connection
+    this.peer = new RTCPeerConnection(peerConfig, peerOpts);
+
     // initialise signalling
-    this.signaller = typeof opts.signaller == 'function' ? opts.signaller(opts) : null;
+    this.signaller = typeof signaller == 'function' ? signaller(opts.signaller) : null;
 }
 
 util.inherits(Conversation, EventEmitter);
@@ -47,10 +86,10 @@ Conversation.prototype.start = function(callback) {
 
     // initialise the signalling connection
     signaller
-        .connect()
         .on('error', callback.bind(this))
         .on('handshake', this._handshake.bind(this))
-        .on('change', this._change.bind(this));
+        .on('change', this._change.bind(this))
+        .connect();
 };
 
 /* private methods */
