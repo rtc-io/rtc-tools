@@ -14,14 +14,14 @@ Displayed below is an example of the data structure that is stored on the server
         "name": "Fred Flintstone",
         "p_id": "dbfa7cd5-2ea2-483a-b148-cf97a9befcfe",
         "p_instances": [
-            { "d": "" }
+            { "sdp": "" }
         ],
         "p_ice": []
     }, {
         "name": "Barney Rubble",
         "p_id": "47918146-b232-416b-9c96-fa974b7305a7",
         "p_instances": [
-            { "d": "" }
+            { "sdp": "" }
         ],
         "p_ice": []
     }]
@@ -45,7 +45,7 @@ Consider the following example:
     "name": "Barney Rubble",
     "p_id": "47918146-b232-416b-9c96-fa974b7305a7",
     "p_instances": [
-        { "d": "" }
+        { "sdp": "" }
     ],
     "p_ice": []
 }

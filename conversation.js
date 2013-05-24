@@ -84,6 +84,23 @@ Conversation.prototype.start = function(callback) {
         function(desc) {
             // we have a session description (hooray)
             console.log('succcess, got session description', desc);
+
+            // set the local description
+            conv.connection.setLocalDescription(desc);
+
+            // initialise the signalling connection
+            signaller
+                .on('error', callback.bind(conv))
+                .on('handshake', function(data) {
+                    // pass handshake data onto the callback
+                    conv._handshake(data, callback);
+                })
+                .on('change', conv._change.bind(this))
+                .connect({
+                    conversation: conv.id,
+                    cid: conv.cid,
+                    sdp: desc.sdp
+                });            
         },
 
         function() {
@@ -92,16 +109,6 @@ Conversation.prototype.start = function(callback) {
 
         this.mediaConstraints
     );
-
-    // initialise the signalling connection
-    signaller
-        .on('error', callback.bind(this))
-        .on('handshake', function(data) {
-            // pass handshake data onto the callback
-            conv._handshake(data, callback);
-        })
-        .on('change', this._change.bind(this))
-        .connect();
 };
 
 /* private methods */
