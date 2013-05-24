@@ -37,6 +37,13 @@ function Media(opts) {
     // if a name has been specified in the opts, save it to the media
     this.name = opts.name;
 
+    // initialise the stream to null
+    this.stream = null;
+
+    // create a bindings array so we have a rough idea of where we have been attached to
+    // TODO: revisit whether this is the best way to manage this
+    this._bindings = [];
+
     // if we are autostarting, then start
     if (opts.start) {
         this.start();
@@ -72,7 +79,7 @@ Media.prototype.render = function(targets, opts, stream) {
     }
 
     // bind the stream to all the identified targets
-    targets.filter(Boolean).forEach(this._bindStream.bind(this, stream));
+    targets.filter(Boolean).forEach(this._bindStream.bind(this, stream, opts));
 };
 
 /**
@@ -99,12 +106,45 @@ Media.prototype.start = function(constraints, callback) {
     navigator.getUserMedia(
         constraints || this.constraints,
         function(stream) {
+            // handle the "ended" event of the stream
+            stream.addEventListener('ended', function(evt) {
+                console.log('captured ended event', evt);
+                media.emit('stop', stream);
+            });
+
             // save the stream and emit the start method
             media.stream = stream;
             media.emit('start', stream);
         },
         this._handleFail.bind(this)
     );
+};
+
+/**
+## stop()
+
+Stop the media stream
+*/
+Media.prototype.stop = function(opts) {
+    var media = this;
+
+    if (! this.stream) return;
+
+    // remove bindings
+    this._unbind(opts);
+
+    // stop the stream, and tell the world
+    this.stream.stop();
+
+    // on start rebind
+    this.once('start', function(stream) {
+        media._bindings.forEach(function(binding) {
+            media._bindStream(stream, binding.opts, binding.el);
+        });
+    });
+
+    // remove the reference to the stream
+    this.stream = null;
 };
 
 /**
@@ -121,13 +161,10 @@ Media.prototype.tx = function(peer) {
 /**
 ## _bindStream(element, stream)
 */
-Media.prototype._bindStream = function(stream, element, opts) {
+Media.prototype._bindStream = function(stream, opts, element) {
     var parent, objectUrl,
         validElement = (element instanceof HTMLVideoElement) || 
             (element instanceof HTMLAudioElement);
-
-    // ensure we have opts
-    opts = opts || {};
 
     // if the element is not a video element, then create one
     if (! validElement) {
@@ -158,6 +195,40 @@ Media.prototype._bindStream = function(stream, element, opts) {
     if (typeof element.play == 'function') {
         element.play();
     }
+
+    // flag the element as bound
+    this._bindings.push({
+        el: element,
+        opts: opts
+    });
+};
+
+/**
+## _unbind()
+
+Gracefully detach elements that are using the stream from the current stream
+*/
+Media.prototype._unbind = function(opts) {
+    // ensure we have opts
+    opts = opts || {};
+
+    // iterate through the bindings and detach streams
+    this._bindings.forEach(function(binding) {
+        var element = binding.el;
+
+        // remove the source
+        element.src = null;
+
+        // check for moz
+        if (element.mozSrcObject) {
+            element.mozSrcObject = null;
+        }
+
+        // check for currentSrc
+        if (element.currentSrc) {
+            element.currentSrc = null;
+        }
+    });
 };
 
 /**

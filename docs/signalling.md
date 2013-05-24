@@ -12,18 +12,18 @@ Displayed below is an example of the data structure that is stored on the server
     "room": "testroomid",
     "peers": [{
         "name": "Fred Flintstone",
-        "p_id": "dbfa7cd5-2ea2-483a-b148-cf97a9befcfe",
-        "p_instances": [
+        "peer_id": "dbfa7cd5-2ea2-483a-b148-cf97a9befcfe",
+        "peer_instances": [
             { "sdp": "" }
         ],
-        "p_ice": []
+        "peer_ice": []
     }, {
         "name": "Barney Rubble",
-        "p_id": "47918146-b232-416b-9c96-fa974b7305a7",
-        "p_instances": [
+        "peer_id": "47918146-b232-416b-9c96-fa974b7305a7",
+        "peer_instances": [
             { "sdp": "" }
         ],
-        "p_ice": []
+        "peer_ice": []
     }]
 }
 ```
@@ -43,25 +43,25 @@ Consider the following example:
 ```json
 {
     "name": "Barney Rubble",
-    "p_id": "47918146-b232-416b-9c96-fa974b7305a7",
-    "p_instances": [
+    "peer_id": "47918146-b232-416b-9c96-fa974b7305a7",
+    "peer_instances": [
         { "sdp": "" }
     ],
-    "p_ice": []
+    "peer_ice": []
 }
 ```
 
-Peer description data has a number of reserved control fields which are prefixed with the character p and an underscore (`p_`).  Additionally, it has a number of custom fields that are either provided by the the client when it connects to the signalling server or determined programmatically at connection time and initialized.
+Peer description data has a number of reserved control fields which are prefixed with `peer_`.  Additionally, it has a number of custom fields that are either provided by the the client when it connects to the signalling server or determined programmatically at connection time and initialized.
 
 The reserved fields are:
 
-- `p_id` - The id generated for a peer by the signalling server.
-- `p_instances` - The local description of the peer connection instances running on the servers.
-- `p_ice` - ICE candidates for the peer.
+- `peer_id` - The id generated for a peer by the signalling server.
+- `peer_instances` - The local description of the peer connection instances running on the servers.
+- `peer_ice` - ICE candidates for the peer.
 
 ### Peer IDs and Multiple Peer Connections from a Single Client
 
 In some situations it will be desirable to create multiple peer connections available from a single client.  In the case that a client is aware of it's peer id already (from a previous) interaction with a signalling server, then this can be resent to the signalling server for a new connection.
 
-This will result in a new instance entry being added to the `p_instances` entry for the peer.
+This will result in a new instance entry being added to the `peer_instances` entry for the peer.
 

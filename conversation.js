@@ -40,7 +40,7 @@ function Conversation(id, options) {
     this.id = id || uuid.v4();
 
     // use the connection id if supplied
-    this.cid = opts.cid || null;
+    this.peerId = opts.peerId || uuid.v4();
 
     // initialise media constraints
     this.mediaConstraints = extend({}, {
@@ -53,7 +53,11 @@ function Conversation(id, options) {
     }, opts.mediaConstraints);
 
     // initialise signalling
+    this.connected = false;
     this.signaller = typeof signaller == 'function' ? signaller(opts.signaller) : null;
+
+    // have a concept of identity
+    this._identity = {};
 
     // initialise the webrtc connection elements
     this._initWebRTC(opts);
@@ -63,24 +67,49 @@ util.inherits(Conversation, EventEmitter);
 module.exports = Conversation;
 
 /**
+## identify(data)
+
+TODO: handle identity changes after the connection with the signalling server has been established
+*/
+Conversation.prototype.identify = function(data) {
+    // if we have no data, then reset the identity
+    if (typeof data == 'undefined') {
+        this._identity = {};
+    }
+
+    // if the data is a string, then do a set of the identity data
+    if (typeof data == 'string' || (data instanceof String)) {
+        this._identity[data] = arguments[1];
+    }
+    // update the identity data
+    else {
+        extend(this._identity, data);
+    }
+
+    // chainable
+    return this;
+};
+
+/**
 ## start
 */
-Conversation.prototype.start = function(callback) {
+Conversation.prototype.start = function(data) {
     var conv = this,
         signaller = this.signaller;
 
     // if we have no signaller, then return an error
     if (! signaller) {
-        return callback(new Error('No signaller available - unable to connect'));
+        return this.emit('error', new Error('No signaller available - unable to connect'));
     }
 
     // if we have no peer connection, then also complain
     if (! this.connection) {
-        return callback(new Error('No peer connection, unable to connect'));
+        return this.emit('error', new Error('No peer connection, unable to connect'));
     }
 
     // create the offer on the peer connection
     this.connection.createOffer(
+        // handle connection success
         function(desc) {
             // we have a session description (hooray)
             console.log('succcess, got session description', desc);
@@ -90,26 +119,35 @@ Conversation.prototype.start = function(callback) {
 
             // initialise the signalling connection
             signaller
-                .on('error', callback.bind(conv))
-                .on('handshake', function(data) {
-                    // pass handshake data onto the callback
-                    conv._handshake(data, callback);
-                })
+                .on('error', conv.emit.bind(conv, 'error'))
+                .on('handshake', conv._handshake.bind(conv))
                 .on('change', conv._change.bind(this))
-                .connect({
-                    conversation: conv.id,
-                    cid: conv.cid,
-                    sdp: desc.sdp
-                });            
+                .connect(conv.id, extend({
+                    peerId:  conv.peerId,
+                    peerSdp: desc.sdp
+                }, data));      
         },
 
-        function() {
-            console.log('fail', arguments);
-        },
+        // handle errors
+        conv.emit.bind(conv, 'error'),
 
+        // send through the media constraints
         this.mediaConstraints
     );
+
+    // chainable
+    return this;
 };
+
+// patch in the addStream and removeStream methods
+['addStream', 'removeStream'].forEach(function(method) {
+    Conversation.prototype[method] = function() {
+        // if we have no connection then bail
+        if (! this.connection) return;
+
+        this.connection[method].apply(this.connection, arguments);
+    };
+});
 
 /* private methods */
 
@@ -129,13 +167,12 @@ The internal _handshake method is called in response to the signalling server
 reporting a successful connection.  The initial handshake contains data of all the entities
 currently in the same logical room on the signalling server.
 */
-Conversation.prototype._handshake = function(data, callback) {
+Conversation.prototype._handshake = function(data) {
     console.log('handshake complete with data: ', data);
 
-    // trigger the callback
-    if (typeof callback == 'function') {
-        callback(null, data);        
-    }
+    // flag as connected
+    this.connected = true;
+    this.emit('ready', data);
 };
 
 /**
@@ -161,9 +198,23 @@ Conversation.prototype._initWebRTC = function(opts) {
     // create the peer connection
     conn = this.connection = new RTCPeerConnection(peerConfig, peerOpts);
 
+    // handle renogotiation
+    conn.addEventListener('negotiationneeded', this._negotiate.bind(this));
+
     // create the data channels
     // TODO: allow customization of data channel dict ops
     this.dataChannels = dataChannels.map(function(name) {
         return conn.createDataChannel(name, { reliable: false });
     });
+};
+
+/**
+## _negotiate()
+
+This method is used to call 
+*/
+Conversation.prototype._negotiate = function() {
+    if (this.connection && this.connection.localDescription) {
+        console.log(this.connection.localDescription);        
+    }
 };

@@ -16,10 +16,18 @@ html, body {
 .row {
     display: -webkit-flex;
 }
+
+.row button {
+    display: block;
+}
 </style>
 </head>
 <body>
 <div class="grid">
+    <div class="row">
+        <button data-action="start">Start</button>
+        <button data-action="stop">Stop</button>
+    </div>
     <div class="row">
         <div class="video"></div>
         <div class="video"></div>
