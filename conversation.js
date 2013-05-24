@@ -20,9 +20,6 @@ var EventEmitter = require('events').EventEmitter,
 */
 function Conversation(id, options) {
     var opts,
-        peerConfig,
-        peerOpts,
-        dataChannels,
         signaller;
 
     // check constructor called correctly
@@ -36,24 +33,6 @@ function Conversation(id, options) {
     // initialise opts
     opts = extend({}, defaultOpts, options);
 
-    // initialise the peer config
-    peerConfig = {
-        iceServers: opts.iceServers
-    };
-
-    // initialise the peer Opts
-    peerOpts = {
-        optional: []
-    };
-
-    // initialise data channels
-    dataChannels = [].concat(opts.dataChannels || []);
-
-    // if we have data channels, then ensure we specifiy the required extra opts
-    if (dataChannels.length > 0) {
-        peerOpts.optional.push({ RtpDataChannels: true });
-    }
-
     // initialise the signaller
     signaller = opts.signaller.type;
 
@@ -63,11 +42,21 @@ function Conversation(id, options) {
     // use the connection id if supplied
     this.cid = opts.cid || null;
 
-    // create the peer connection
-    this.peer = new RTCPeerConnection(peerConfig, peerOpts);
+    // initialise media constraints
+    this.mediaConstraints = extend({}, {
+        mandatory: {
+            OfferToReceiveAudio: true,
+            OfferToReceiveVideo: true
+        },
+
+        optional: []
+    }, opts.mediaConstraints);
 
     // initialise signalling
     this.signaller = typeof signaller == 'function' ? signaller(opts.signaller) : null;
+
+    // initialise the webrtc connection elements
+    this._initWebRTC(opts);
 }
 
 util.inherits(Conversation, EventEmitter);
@@ -77,17 +66,40 @@ module.exports = Conversation;
 ## start
 */
 Conversation.prototype.start = function(callback) {
-    var signaller = this.signaller;
+    var conv = this,
+        signaller = this.signaller;
 
     // if we have no signaller, then return an error
     if (! signaller) {
         return callback(new Error('No signaller available - unable to connect'));
     }
 
+    // if we have no peer connection, then also complain
+    if (! this.connection) {
+        return callback(new Error('No peer connection, unable to connect'));
+    }
+
+    // create the offer on the peer connection
+    this.connection.createOffer(
+        function(desc) {
+            // we have a session description (hooray)
+            console.log('succcess, got session description', desc);
+        },
+
+        function() {
+            console.log('fail', arguments);
+        },
+
+        this.mediaConstraints
+    );
+
     // initialise the signalling connection
     signaller
         .on('error', callback.bind(this))
-        .on('handshake', this._handshake.bind(this))
+        .on('handshake', function(data) {
+            // pass handshake data onto the callback
+            conv._handshake(data, callback);
+        })
         .on('change', this._change.bind(this))
         .connect();
 };
@@ -110,6 +122,41 @@ The internal _handshake method is called in response to the signalling server
 reporting a successful connection.  The initial handshake contains data of all the entities
 currently in the same logical room on the signalling server.
 */
-Conversation.prototype._handshake = function(data) {
+Conversation.prototype._handshake = function(data, callback) {
+    console.log('handshake complete with data: ', data);
 
+    // trigger the callback
+    if (typeof callback == 'function') {
+        callback(null, data);        
+    }
+};
+
+/**
+## _initWebRTC(dataChannels)
+
+The _initWebRTC function is used to initialise the peer connection.
+*/
+Conversation.prototype._initWebRTC = function(opts) {
+    var peerConfig = {
+            iceServers: opts.iceServers
+        },
+        peerOpts = {
+            optional: []
+        },
+        dataChannels = [].concat(opts.dataChannels || []),
+        conn;
+
+    // if we have data channels, then ensure we specifiy the required extra opts
+    if (dataChannels.length > 0) {
+        peerOpts.optional.push({ RtpDataChannels: true });
+    }
+
+    // create the peer connection
+    conn = this.connection = new RTCPeerConnection(peerConfig, peerOpts);
+
+    // create the data channels
+    // TODO: allow customization of data channel dict ops
+    this.dataChannels = dataChannels.map(function(name) {
+        return conn.createDataChannel(name, { reliable: false });
+    });
 };
