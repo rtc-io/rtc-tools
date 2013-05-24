@@ -1,5 +1,5 @@
 var crel = require('crel'),
-    defaults = require('cog/defaults'),
+    extend = require('cog/extend'),
     qsa = require('cog/qsa'),
     detect = require('./lib/detect'),
     EventEmitter = require('events').EventEmitter,
@@ -14,20 +14,33 @@ window.URL = window.URL || detect('URL');
 /**
 # Media
 */
-function Media(constraints) {
+function Media(opts) {
     if (! (this instanceof Media)) {
-        return new Media(constraints);
+        return new Media(opts);
     }
 
     // inherited
     EventEmitter.call(this);
 
-    // get user media
-    navigator.getUserMedia(
-        defaults(constraints, { video: true, audio: true }),
-        this._handleSuccess.bind(this),
-        this._handleFail.bind(this)
-    );
+    // ensure we have opts
+    opts = extend({}, {
+        start: true,
+        constraints: {
+            video: true,
+            audio: true
+        }
+    }, opts);
+
+    // save the constraints
+    this.constraints = opts.constraints;
+
+    // if a name has been specified in the opts, save it to the media
+    this.name = opts.name;
+
+    // if we are autostarting, then start
+    if (opts.start) {
+        this.start();
+    }
 }
 
 util.inherits(Media, EventEmitter);
@@ -46,7 +59,7 @@ Media.prototype.render = function(targets, opts, stream) {
 
     // if no stream was specified, wait for the stream to initialize
     if (! stream) {
-        return this.once('stream', this.render.bind(this, targets, opts));
+        return this.once('start', this.render.bind(this, targets, opts));
     }
 
     // use qsa to get the targets
@@ -60,6 +73,38 @@ Media.prototype.render = function(targets, opts, stream) {
 
     // bind the stream to all the identified targets
     targets.filter(Boolean).forEach(this._bindStream.bind(this, stream));
+};
+
+/**
+## start(constraints, callback)
+
+Start the media capture.  If constraints are provided, then they will override the default 
+constraints that were used when the media object was created.
+*/
+Media.prototype.start = function(constraints, callback) {
+    var media = this;
+
+    // if no constraints have been provided, but we have a callback, deal with it
+    if (typeof constraints == 'function') {
+        callback = constraints;
+        constraints = this.constraints;
+    }
+
+    // if we have a callback, bind to the start event
+    if (typeof callback == 'function') {
+        this.once('start', callback.bind(this));
+    }
+
+    // get user media, using either the provided constraints or the default constraints
+    navigator.getUserMedia(
+        constraints || this.constraints,
+        function(stream) {
+            // save the stream and emit the start method
+            media.stream = stream;
+            media.emit('start', stream);
+        },
+        this._handleFail.bind(this)
+    );
 };
 
 /**
