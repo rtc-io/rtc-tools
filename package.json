@@ -1,6 +1,6 @@
 {
   "name": "rtc",
-  "description": "The Easiest WebRTC",
+  "description": "Cross-browser WebRTC helpers",
   "author": "Damon Oehlman <damon.oehlman@nicta.com.au>",
   "tags": [
     "webrtc"
