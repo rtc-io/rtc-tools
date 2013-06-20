@@ -7,8 +7,8 @@
   ],
   "version": "0.0.0",
   "dependencies": {
-    "rtc-detect": "https://github.it.nicta.com.au/doehlman/rtc-detect/archive/master.tar.gz",
-    "rtc-signaller": "https://github.it.nicta.com.au/doehlman/rtc-signaller/archive/master.tar.gz"
+    "rtc-detect": "git://github.it.nicta.com.au/doehlman/rtc-detect.git",
+    "rtc-signaller": "git://github.it.nicta.com.au/doehlman/rtc-signaller.git"
   },
   "devDependencies": {
   },
