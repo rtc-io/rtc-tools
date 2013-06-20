@@ -7,17 +7,12 @@
   ],
   "version": "0.0.0",
   "dependencies": {
-    "cog": "0.1.x",
-    "crel": "1.0.x",
-    "through": "2.3.x",
-    "uuid": "1.4.x"
+    "rtc-detect": "https://github.it.nicta.com.au/doehlman/rtc-detect/archive/master.tar.gz",
+    "rtc-signaller": "https://github.it.nicta.com.au/doehlman/rtc-signaller/archive/master.tar.gz"
   },
   "devDependencies": {
-    "random-name": "0.1.x",
-    "tape": "1.0.x"
   },
   "scripts": {
-    "test": "./node_modules/.bin/tape test/all.js"
   },
   "contributors": []
 }

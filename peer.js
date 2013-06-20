@@ -1,1 +1,1 @@
-module.exports = require('./lib/detect')('RTCPeerConnection');
+module.exports = require('rtc-detect/peer');
