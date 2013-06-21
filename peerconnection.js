@@ -22,7 +22,7 @@ var defaults = require('./defaults'),
         'getStreamById',
         'addStream',
         'removeStream',
-        'close',
+        // 'close', -- don't include close as we need to do some custom stuff
 
         // add event listener passthroughs
         'addEventListener',
@@ -31,7 +31,7 @@ var defaults = require('./defaults'),
     PASSTHROUGH_ATTRIBUTES = [
         'localDescription',
         'remoteDescription',
-        'signallingState',
+        'signalingState',
         'iceGatheringState',
         'iceConnectionState'
     ],
@@ -55,6 +55,13 @@ function PeerConnection(constraints, opts) {
 	// initialise constraints (use defaults if none provided)
 	this.constraints = constraints || defaults.constraints;
 
+    // set the tunnelid and targetid to null (no relationship)
+    this.targetid = null;
+    this.tunnelid = null;
+
+    // create a _listeners object to hold listener function instances
+    this._listeners = {};
+
 	// initialise the opts
 	this.opts = opts || {};
 
@@ -72,113 +79,65 @@ util.inherits(PeerConnection, EventEmitter);
 module.exports = PeerConnection;
 
 /**
-## initiate(targetId, callback)
+## close()
+
+Cleanup the peer connection.
+*/
+PeerConnection.prototype.close = function() {
+    // first close the underlying base connection if it exists
+    if (this._basecon) {
+        this._basecon.close();
+    }
+
+    // set the channel to null to remove event listeners
+    this.setChannel(null);
+};
+
+/**
+## initiate(targetid, callback)
 
 Initiate a connection to the specified target peer id.  Once the offer/accept
 dance has been completed, then trigger the callback.  If we have been unable
 to connect for any reason the callback will contain an error as the first
 argument.
 */
-PeerConnection.prototype.initiate = function(targetId, callback) {
-	var channel = this.channel,
-		connection = this,
-        basecon;
-
-	function finalize() {
-		// stop listening for messages
-        channel.removeListener('offer', checkOffer);
-        channel.removeListener('answer', checkAnswer);
-
-		// trigger the callback
-		callback.apply(this, arguments);
-        finalize = null;
-	}
-
-    function checkAnswer(sdp, remoteId) {
-        if (remoteId && remoteId === targetId) {
-            basecon.setRemoteDescription(new RTCSessionDescription({
-                type: 'answer',
-                sdp: sdp
-            }));
-
-            // tell the channel to clean up the handshake
-            channel.send('/dialend ' + targetId);
-            finalize();
-        }
-    }
-
-    function checkOffer(sdp, remoteId) {
-        // if we have a remote and the remote matches the target, then talk
-        if (remoteId && remoteId === targetId) {
-            createAnswer(sdp);
-        }
-    }
-
-    function createAnswer(remoteSdp) {
-        basecon.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: remoteSdp }));
-
-        // TODO: consider adding constraints
-        basecon.createAnswer(
-            function(desc) {
-                basecon.setLocalDescription(desc);
-
-                // send the answer
-                console.log('sending answer');
-                channel.send('/to ' + targetId, 'answer', desc.sdp, channel.id);
-
-                // finalize the connection
-                finalize();
-            },
-
-            function() {
-                channel.send('/to  ' + targetId, 'answer:fail', channel.id);
-                finalize(new Error('Could not create answer'));
-            }
-        );
-    }
-
-    function createOffer() {
-        // TODO: consider adding constraints
-        basecon.createOffer(
-            function(desc) {
-                console.log(desc);
-
-                // set the local description of the instance
-                basecon.setLocalDescription(desc);
-
-                // send the offer
-                console.log('sending offer');
-                channel.send('/to ' + targetId, 'offer', desc.sdp, channel.id);
-            },
-
-            finalize.bind(this, new Error('Could not create a RTCPeerConnection offer'))
-        );
-    }
+PeerConnection.prototype.initiate = function(targetid, callback) {
+	var connection = this;
 
 	// if we have no channel to talk over then trigger the callback with an 
 	// error condition
-	if (! channel) return callback(new Error('A channel is required to initiate a peer connection'));
+	if (! this.channel) return callback(new Error('A channel is required to initiate a peer connection'));
+
+    // reset the tunnelid
+    this.tunnelId = null;
+
+    // save the target id
+    this.targetid = targetid;
 
 	// create a new browser peer connection instance
-	basecon = this._basecon = new RTCPeerConnection(this.constraints, this.opts);
+	this._createBaseConnection();
 
-	// listen for messages
-	// channel.on('message', messageHandler);
-    channel.on('offer', checkOffer);
-    channel.on('answer', checkAnswer);
+    // once we have a stable connection, trigger the callback
+    this.once('stable', callback);
 
 	// dial our peer
-	channel.dial(targetId, function(err) {
+	this.channel.dial(targetid, function(err, data) {
         // if we received an error, and it is not a simulatenous dial error, abort
 		if (err && err.code !== errorcodes.SIMULTANEOUS_DIAL) {
 			return finalize(err);
 		}
         else if (err) {
-            // simulatenous dial, do nothing
+            // simulatenous dial, set the tunnel id and then bail
+            connection.tunnelid = err.tunnelid;
+
             return;
         }
 
-        createOffer();
+        // initialise the tunnel id from the data
+        connection.tunnelid = data.tunnelid;
+
+        // create the offer
+        connection._createOffer();
 	});
 };
 
@@ -189,10 +148,154 @@ Initialise the signalling channel that will be used to communicate
 the actual RTCPeerConnection state to it's friend.
 */
 PeerConnection.prototype.setChannel = function(channel) {
+    // if no change then return
+    if (this.channel === channel) return;
+
+    // if we have an existing channel, then remove event listeners
+    if (this.channel) {
+        this.channel.removeListener('offer', this._listeners.offer);
+        this.channel.removeListener('answer', this._listeners.answer);
+    }
+
+    // update the channel
 	this.channel = channel;
+
+    // if we have a new channel, then bind listeners
+    if (channel) {
+        channel.on('offer', this._listeners.offer = this._handleOffer.bind(this));
+        channel.on('answer', this._listeners.answer = this._handleAnswer.bind(this));
+    }
 };
 
 /* internal methods */
+
+/**
+## _createBaseConnection()
+
+Used to create an underlying RTCPeerConnection as per the W3C specification.
+*/
+PeerConnection.prototype._createBaseConnection = function() {
+    var basecon = this._basecon;
+
+    // if we have an existing base connection, remove event listeners
+    if (basecon) {
+        basecon.removeEventListener('signalingstatechange', this._listeners.signalingstatechange);
+    }
+
+    // create the new base connection
+    basecon = this._basecon = new RTCPeerConnection(this.constraints, this.opts);
+
+    // attach event listeners for core behaviour
+    basecon.addEventListener(
+        'signalingstatechange',
+        this._listeners.signalingstatechange = this._handleSignalingStateChange.bind(this)
+    );
+
+    return basecon;
+};
+
+/**
+## _createAnswer(sdp)
+
+Once we have received an offer from a remote peerconnection, we need to 
+send that connection an answer with our own capabilities.
+*/
+PeerConnection.prototype._createAnswer = function(sdp) {
+    var channel = this.channel,
+        basecon = this._basecon,
+        targetid = this.targetid;
+
+    // if no base connection, abort
+    if (! basecon) return;
+
+    // TODO: consider adding constraints
+    basecon.createAnswer(
+        function(desc) {
+            basecon.setLocalDescription(desc);
+
+            // send the answer
+            console.log('sending answer');
+            channel.send('/to ' + targetid, 'answer', desc.sdp, channel.id);
+        },
+
+        function() {
+            channel.send('/to  ' + targetid, 'answer:fail', channel.id);
+
+            // finalize(new Error('Could not create answer'));
+            // TODO: relay an error
+        }
+    );
+};
+
+/**
+## _createOffer()
+*/
+PeerConnection.prototype._createOffer = function() {
+    var basecon = this._basecon,
+        channel = this.channel,
+        targetid = this.targetid;
+
+    // if we have no base connection, abort
+    if (! basecon) return;
+
+    // TODO: consider adding constraints
+    basecon.createOffer(
+        function(desc) {
+            // set the local description of the instance
+            basecon.setLocalDescription(desc);
+
+            // send the offer
+            console.log('sending offer');
+            channel.send('/to ' + targetid, 'offer', desc.sdp, channel.id);
+        },
+
+        function(err) {
+            // TODO: handle error
+        }
+    );
+};
+
+/**
+## _handleAnswer(sdp, remoteid)
+*/
+PeerConnection.prototype._handleAnswer = function(sdp, remoteid) {
+    if (this._basecon && remoteid && remoteid === this.targetid) {
+        this._basecon.setRemoteDescription(new RTCSessionDescription({
+            type: 'answer',
+            sdp: sdp
+        }));
+
+        // tell the channel to clean up the handshake
+        this.channel.send('/dialend ' + this.targetid);
+    }
+};
+
+/**
+## _handleOffer(sdp, remoteid)
+
+When we receive connection offers, see if they are for our target connection.
+If so then handle the connection, otherwise ignore
+*/
+PeerConnection.prototype._handleOffer = function(sdp, remoteid) {
+    // if we have a remote and the remote matches the target, then talk
+    if (this._basecon && remoteid && remoteid === this.targetid) {
+        this._basecon.setRemoteDescription(new RTCSessionDescription({
+            type: 'offer',
+            sdp: sdp
+        }));
+
+        this._createAnswer(sdp);
+    }
+};
+
+/**
+## _handleSignalingStateChange
+*/
+PeerConnection.prototype._handleSignalingStateChange = function() {
+    if (this._basecon && this._basecon.signalingState === 'stable') {
+        this.emit('stable');
+    }
+};
 
 /* RTCPeerConnection passthroughs */
 
