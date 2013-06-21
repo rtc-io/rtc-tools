@@ -7,6 +7,7 @@
   ],
   "version": "0.0.0",
   "dependencies": {
+    "rtc-core": "git://github.it.nicta.com.au/doehlman/rtc-core.git",
     "rtc-detect": "git://github.it.nicta.com.au/doehlman/rtc-detect.git",
     "rtc-signaller": "git://github.it.nicta.com.au/doehlman/rtc-signaller.git"
   },
