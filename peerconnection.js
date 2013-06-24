@@ -201,7 +201,7 @@ Once we have received an offer from a remote peerconnection, we need to
 send that connection an answer with our own capabilities.
 */
 PeerConnection.prototype._createAnswer = function(sdp) {
-    var channel = this.channel,
+    var connection = this,
         basecon = this._basecon,
         targetid = this.targetid;
 
@@ -215,11 +215,20 @@ PeerConnection.prototype._createAnswer = function(sdp) {
 
             // send the answer
             console.log('sending answer');
-            channel.send('/to ' + targetid, 'answer', desc.sdp, channel.id);
+            connection.channel.send(
+                '/to ' + targetid,
+                'answer',
+                desc.sdp,
+                connection.tunnelid
+            );
         },
 
         function() {
-            channel.send('/to  ' + targetid, 'answer:fail', channel.id);
+            connection.channel.send(
+                '/to  ' + targetid,
+                'answer:fail',
+                connection.tunnelid
+            );
 
             // finalize(new Error('Could not create answer'));
             // TODO: relay an error
@@ -231,8 +240,8 @@ PeerConnection.prototype._createAnswer = function(sdp) {
 ## _createOffer()
 */
 PeerConnection.prototype._createOffer = function() {
-    var basecon = this._basecon,
-        channel = this.channel,
+    var connection = this,
+        basecon = this._basecon,
         targetid = this.targetid;
 
     // if we have no base connection, abort
@@ -246,7 +255,12 @@ PeerConnection.prototype._createOffer = function() {
 
             // send the offer
             console.log('sending offer');
-            channel.send('/to ' + targetid, 'offer', desc.sdp, channel.id);
+            connection.channel.send(
+                '/to ' + targetid,
+                'offer',
+                desc.sdp,
+                connection.tunnelid
+            );
         },
 
         function(err) {
@@ -258,8 +272,8 @@ PeerConnection.prototype._createOffer = function() {
 /**
 ## _handleAnswer(sdp, remoteid)
 */
-PeerConnection.prototype._handleAnswer = function(sdp, remoteid) {
-    if (this._basecon && remoteid && remoteid === this.targetid) {
+PeerConnection.prototype._handleAnswer = function(sdp, tunnelid) {
+    if (this._basecon && tunnelid && tunnelid === this.tunnelid) {
         this._basecon.setRemoteDescription(new RTCSessionDescription({
             type: 'answer',
             sdp: sdp
@@ -276,9 +290,9 @@ PeerConnection.prototype._handleAnswer = function(sdp, remoteid) {
 When we receive connection offers, see if they are for our target connection.
 If so then handle the connection, otherwise ignore
 */
-PeerConnection.prototype._handleOffer = function(sdp, remoteid) {
+PeerConnection.prototype._handleOffer = function(sdp, tunnelid) {
     // if we have a remote and the remote matches the target, then talk
-    if (this._basecon && remoteid && remoteid === this.targetid) {
+    if (this._basecon && tunnelid && tunnelid === this.tunnelid) {
         this._basecon.setRemoteDescription(new RTCSessionDescription({
             type: 'offer',
             sdp: sdp
