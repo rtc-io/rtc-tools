@@ -55,9 +55,9 @@ function PeerConnection(constraints, opts) {
 	// initialise constraints (use defaults if none provided)
 	this.constraints = constraints || defaults.constraints;
 
-    // set the tunnelid and targetid to null (no relationship)
-    this.targetid = null;
-    this.tunnelid = null;
+    // set the tunnelId and targetid to null (no relationship)
+    this.targetId = null;
+    this.tunnelId = null;
 
     // create a _listeners object to hold listener function instances
     this._listeners = {};
@@ -67,6 +67,9 @@ function PeerConnection(constraints, opts) {
 
 	// initialise underlying W3C connection instance to null
 	this._basecon = null;
+
+    // create a defered requests array
+    this._deferedRequests = [];
 
 	// if we have a channel defined in options, then initialise the channel
 	this.channel = null;
@@ -108,7 +111,7 @@ PeerConnection.prototype.initiate = function(targetid, callback) {
 	// error condition
 	if (! this.channel) return callback(new Error('A channel is required to initiate a peer connection'));
 
-    // reset the tunnelid
+    // reset the tunnelId
     this.tunnelId = null;
 
     // save the target id
@@ -128,13 +131,13 @@ PeerConnection.prototype.initiate = function(targetid, callback) {
 		}
         else if (err) {
             // simulatenous dial, set the tunnel id and then bail
-            connection.tunnelid = err.tunnelid;
+            connection.setTunnelId(err.tunnelId);
 
             return;
         }
 
         // initialise the tunnel id from the data
-        connection.tunnelid = data.tunnelid;
+        connection.setTunnelId(data.tunnelId);
 
         // create the offer
         connection._createOffer();
@@ -164,6 +167,31 @@ PeerConnection.prototype.setChannel = function(channel) {
     if (channel) {
         channel.on('offer', this._listeners.offer = this._handleOffer.bind(this));
         channel.on('answer', this._listeners.answer = this._handleAnswer.bind(this));
+    }
+};
+
+/**
+## setTunnelId(value)
+*/
+PeerConnection.prototype.setTunnelId = function(value) {
+    var handler,
+        data;
+
+    if (this.tunnedId !== value) {
+        this.tunnelId = value;
+
+        // if we have a value, then process defered requests
+        if (value) {
+            while (this._deferedRequests.length > 0) {
+                data = this._deferedRequests.shift();
+                handler = PeerConnection.prototype['_handle' + data.type];
+
+                // if we have a handler, then run it
+                if (typeof handler == 'function') {
+                    handler.call(this, data.sdp, data.tunnelId);
+                }
+            }
+        }
     }
 };
 
@@ -219,7 +247,7 @@ PeerConnection.prototype._createAnswer = function(sdp) {
                 '/to ' + targetid,
                 'answer',
                 desc.sdp,
-                connection.tunnelid
+                connection.tunnelId
             );
         },
 
@@ -227,7 +255,7 @@ PeerConnection.prototype._createAnswer = function(sdp) {
             connection.channel.send(
                 '/to  ' + targetid,
                 'answer:fail',
-                connection.tunnelid
+                connection.tunnelId
             );
 
             // finalize(new Error('Could not create answer'));
@@ -259,7 +287,7 @@ PeerConnection.prototype._createOffer = function() {
                 '/to ' + targetid,
                 'offer',
                 desc.sdp,
-                connection.tunnelid
+                connection.tunnelId
             );
         },
 
@@ -270,10 +298,31 @@ PeerConnection.prototype._createOffer = function() {
 };
 
 /**
+## _defer(type, sdp, tunnelId)
+
+In the instance that we receive an offer or answer request when we don't have
+a tunnelId (which uniquely identies our A -> B signalling relationship) we
+need to defer handling until such point that we do.  These queued requests
+are stored in an array that is processed when a tunnelId is set using the 
+`setTunnelId` method.
+*/
+PeerConnection.prototype._defer = function(type, sdp, tunnelId) {
+    return this._deferedRequests.push({
+        type: type,
+        sdp: sdp,
+        tunnelId: tunnelId
+    });
+};
+
+/**
 ## _handleAnswer(sdp, remoteid)
 */
-PeerConnection.prototype._handleAnswer = function(sdp, tunnelid) {
-    if (this._basecon && tunnelid && tunnelid === this.tunnelid) {
+PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
+    // if we don't have a tunnel id yet, defer the answer handling
+    if (! this.tunnelId) return this._defer('Answer', sdp, tunnelId);
+
+    // normal answer handling
+    if (this._basecon && tunnelId && tunnelId === this.tunnelId) {
         this._basecon.setRemoteDescription(new RTCSessionDescription({
             type: 'answer',
             sdp: sdp
@@ -290,9 +339,12 @@ PeerConnection.prototype._handleAnswer = function(sdp, tunnelid) {
 When we receive connection offers, see if they are for our target connection.
 If so then handle the connection, otherwise ignore
 */
-PeerConnection.prototype._handleOffer = function(sdp, tunnelid) {
+PeerConnection.prototype._handleOffer = function(sdp, tunnelId) {
+    // if we don't yet have a tunnel id, then defer handling the offer
+    if (! this.tunnelId) return this._defer('Offer', sdp, tunnelId);
+
     // if we have a remote and the remote matches the target, then talk
-    if (this._basecon && tunnelid && tunnelid === this.tunnelid) {
+    if (this._basecon && tunnelId && tunnelId === this.tunnelId) {
         this._basecon.setRemoteDescription(new RTCSessionDescription({
             type: 'offer',
             sdp: sdp
