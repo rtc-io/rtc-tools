@@ -9,6 +9,7 @@
   "dependencies": {
     "rtc-core": "git://github.it.nicta.com.au/doehlman/rtc-core.git",
     "rtc-detect": "git://github.it.nicta.com.au/doehlman/rtc-detect.git",
+    "rtc-media": "git://github.it.nicta.com.au/doehlman/rtc-media.git",
     "rtc-signaller": "git://github.it.nicta.com.au/doehlman/rtc-signaller.git"
   },
   "devDependencies": {
