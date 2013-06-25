@@ -226,8 +226,10 @@ PeerConnection.prototype._createBaseConnection = function() {
     if (basecon) {
         basecon.removeEventListener('signalingstatechange', this._listeners.signalingstatechange);
         basecon.removeEventListener('icecandidate', this._listeners.icecandidate);
+        basecon.removeEventListener('iceconnectionstatechange', this._listeners.iceconnectionstatechange);
         basecon.removeEventListener('addstream', this._listeners.addstream);
         basecon.removeEventListener('removestream', this._listeners.removestream);
+        basecon.removeEventListener('negotiationneeded', this._listeners.negotiationneeded);
     }
 
     // create the new base connection
@@ -239,9 +241,16 @@ PeerConnection.prototype._createBaseConnection = function() {
         this._listeners.signalingstatechange = this._handleSignalingStateChange.bind(this)
     );
 
+    // handle new ice candidates being added
     basecon.addEventListener(
         'icecandidate',
         this._listeners.icecandidate = this._handleIceCandidate.bind(this)
+    );
+
+    // handle ice connection state changes
+    basecon.addEventListener(
+        'iceconnectionstatechange',
+        this._listeners.iceconnectionstatechange = this._handleIceConnectionStateChange.bind(this)
     );
 
     // listen for new remote streams
@@ -254,6 +263,12 @@ PeerConnection.prototype._createBaseConnection = function() {
     basecon.addEventListener(
         'removestream',
         this._listeners.removestream = this._handleRemoteRemove.bind(this)
+    );
+
+    // handle when the connection requires renegotiation (a new stream has been added, etc)
+    basecon.addEventListener(
+        'negotiationneeded',
+        this._listeners.negotiationneeded = this._handleNegotiationNeeded.bind(this)
     );
 
     return basecon;
@@ -386,6 +401,23 @@ PeerConnection.prototype._handleIceCandidate = function(evt) {
     }
 };
 
+PeerConnection.prototype._handleIceConnectionStateChange = function(evt) {
+    console.log('ice connection state changed: ' + this._basecon.iceConnectionState);
+};
+
+/**
+## _handleNegotiationNeeded
+
+Trigger when the peer connection and it's remote counterpart need to 
+renegotiate due to streams being added, removed, etc.
+*/
+PeerConnection.prototype._handleNegotiationNeeded = function() {
+    console.log('!!! anyone else want to negotiate?');
+
+    // create a new offer
+    // this._createOffer();
+};
+
 /**
 ## _handleOffer(sdp, remoteid)
 
@@ -410,10 +442,18 @@ PeerConnection.prototype._handleOffer = function(sdp, tunnelId) {
 /**
 ## _handleRemoteAdd()
 */
-PeerConnection.prototype._handleRemoteAdd = function() {
-    console.log('remote stream added', arguments);
+PeerConnection.prototype._handleRemoteAdd = function(evt) {
+    if (evt.stream) return this.emit('stream:add', evt.stream);
 };
 
+/**
+## _handleRemoteIceCandidates(candidates)
+
+This event is triggered in response to receiving the `candidates` event via
+the signalling channel.  Once ice candidates have been received and
+synchronized we are able to properly establish the communication between two
+peer connections.
+*/
 PeerConnection.prototype._handleRemoteIceCandidates = function(candidates) {
     var basecon = this._basecon;
 
@@ -422,7 +462,17 @@ PeerConnection.prototype._handleRemoteIceCandidates = function(candidates) {
 
     // add the candidates to the base connection
     candidates.forEach(function(data) {
-        basecon.addIceCandidate(new RTCIceCandidate(data));
+        try {
+            var candidate = new RTCIceCandidate({ candidate: data.candidate.replace(/\n/g, '') });
+
+            candidate.sdpMid = data.sdpMid;
+            candidate.sdpMLineIndex = data.sdpMLineIndex;
+
+            basecon.addIceCandidate(candidate);
+        }
+        catch (e) {
+            console.log('invalid ice candidate: ', data, e);
+        }
     });
 };
 
