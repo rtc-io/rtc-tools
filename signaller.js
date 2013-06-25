@@ -61,8 +61,7 @@ PeerConnectionSignallingChannel.prototype._handlePeerLeave = function(peerId) {
     // remove any dead connections
     this.connections = this.connections.map(function(conn) {
         if (conn && conn.targetId === peerId) {
-            console.log('found dead connection, removing');
-            return;
+            return conn.close();
         }
 
         return conn;

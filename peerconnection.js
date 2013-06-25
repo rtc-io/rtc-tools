@@ -91,9 +91,13 @@ module.exports = PeerConnection;
 Cleanup the peer connection.
 */
 PeerConnection.prototype.close = function() {
+    var basecon = this._basecon;
+    console.log('attempting to close underlying peer connection: ', basecon);
+
     // first close the underlying base connection if it exists
-    if (this._basecon) {
-        this._basecon.close();
+    if (basecon) {
+        this._setBaseConnection(null);
+        basecon.close();
     }
 
     // set the channel to null to remove event listeners
@@ -122,10 +126,15 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
     this.targetId = targetId;
 
 	// create a new browser peer connection instance
-	this._createBaseConnection();
+	this._setBaseConnection(new RTCPeerConnection(this.constraints, this.opts));
 
     // once we have a stable connection, trigger the callback
     this.once('stable', callback);
+
+    // wait for streams
+    process.nextTick(function() {
+
+    });
 
 	// dial our peer
 	this.channel.dial(targetId, function(err, data) {
@@ -162,7 +171,7 @@ PeerConnection.prototype.setChannel = function(channel) {
     if (this.channel) {
         this.channel.removeListener('offer', this._listeners.offer);
         this.channel.removeListener('answer', this._listeners.answer);
-        this.channel.removeListener('ice', this._listeners.ice);
+        this.channel.removeListener('candidates', this._listeners.candidates);
     }
 
     // update the channel
@@ -174,7 +183,7 @@ PeerConnection.prototype.setChannel = function(channel) {
         channel.on('answer', this._listeners.answer = this._handleAnswer.bind(this));
 
         // handle ice candidate communications
-        channel.on('candidates', this._listeners.ice = this._handleRemoteIceCandidates.bind(this));
+        channel.on('candidates', this._listeners.candidates = this._handleRemoteIceCandidates.bind(this));
     }
 };
 
@@ -183,7 +192,11 @@ PeerConnection.prototype.setChannel = function(channel) {
 */
 PeerConnection.prototype.setIceCandidates = function(newCandidates) {
     // send the ice candidates
-    this.channel.send('/to ' + this.targetId, 'candidates', newCandidates);
+    // TODO: check whether this naive 0 length test is ok
+    if (newCandidates && newCandidates.length > 0) {
+        this.channel.send('/to ' + this.targetId, 'candidates', newCandidates);
+    }
+    
     this.iceCandidates = [].concat(newCandidates);
 };
 
@@ -215,63 +228,66 @@ PeerConnection.prototype.setTunnelId = function(value) {
 /* internal methods */
 
 /**
-## _createBaseConnection()
+## _setBaseConnection()
 
-Used to create an underlying RTCPeerConnection as per the W3C specification.
+Used to update the underlying base connection.
 */
-PeerConnection.prototype._createBaseConnection = function() {
-    var basecon = this._basecon;
+PeerConnection.prototype._setBaseConnection = function(value) {
+    // if the same, then abort
+    if (this._basecon === value) return;
 
     // if we have an existing base connection, remove event listeners
-    if (basecon) {
-        basecon.removeEventListener('signalingstatechange', this._listeners.signalingstatechange);
-        basecon.removeEventListener('icecandidate', this._listeners.icecandidate);
-        basecon.removeEventListener('iceconnectionstatechange', this._listeners.iceconnectionstatechange);
-        basecon.removeEventListener('addstream', this._listeners.addstream);
-        basecon.removeEventListener('removestream', this._listeners.removestream);
-        basecon.removeEventListener('negotiationneeded', this._listeners.negotiationneeded);
+    if (this._basecon) {
+        this._basecon.removeEventListener('signalingstatechange', this._listeners.signalingstatechange);
+        this._basecon.removeEventListener('icecandidate', this._listeners.icecandidate);
+        this._basecon.removeEventListener('iceconnectionstatechange', this._listeners.iceconnectionstatechange);
+        this._basecon.removeEventListener('addstream', this._listeners.addstream);
+        this._basecon.removeEventListener('removestream', this._listeners.removestream);
+        this._basecon.removeEventListener('negotiationneeded', this._listeners.negotiationneeded);
     }
 
-    // create the new base connection
-    basecon = this._basecon = new RTCPeerConnection(this.constraints, this.opts);
+    // update the base connection
+    this._basecon = value;
 
-    // attach event listeners for core behaviour
-    basecon.addEventListener(
-        'signalingstatechange',
-        this._listeners.signalingstatechange = this._handleSignalingStateChange.bind(this)
-    );
+    if (value) {
+        // attach event listeners for core behaviour
+        value.addEventListener(
+            'signalingstatechange',
+            this._listeners.signalingstatechange = this._handleSignalingStateChange.bind(this)
+        );
 
-    // handle new ice candidates being added
-    basecon.addEventListener(
-        'icecandidate',
-        this._listeners.icecandidate = this._handleIceCandidate.bind(this)
-    );
+        // handle new ice candidates being added
+        value.addEventListener(
+            'icecandidate',
+            this._listeners.icecandidate = this._handleIceCandidate.bind(this)
+        );
 
-    // handle ice connection state changes
-    basecon.addEventListener(
-        'iceconnectionstatechange',
-        this._listeners.iceconnectionstatechange = this._handleIceConnectionStateChange.bind(this)
-    );
+        // handle ice connection state changes
+        value.addEventListener(
+            'iceconnectionstatechange',
+            this._listeners.iceconnectionstatechange = this._handleIceConnectionStateChange.bind(this)
+        );
 
-    // listen for new remote streams
-    basecon.addEventListener(
-        'addstream',
-        this._listeners.addstream = this._handleRemoteAdd.bind(this)
-    );
+        // listen for new remote streams
+        value.addEventListener(
+            'addstream',
+            this._listeners.addstream = this._handleRemoteAdd.bind(this)
+        );
 
-    // listen for remote streams being removed
-    basecon.addEventListener(
-        'removestream',
-        this._listeners.removestream = this._handleRemoteRemove.bind(this)
-    );
+        // listen for remote streams being removed
+        value.addEventListener(
+            'removestream',
+            this._listeners.removestream = this._handleRemoteRemove.bind(this)
+        );
 
-    // handle when the connection requires renegotiation (a new stream has been added, etc)
-    basecon.addEventListener(
-        'negotiationneeded',
-        this._listeners.negotiationneeded = this._handleNegotiationNeeded.bind(this)
-    );
+        // handle when the connection requires renegotiation (a new stream has been added, etc)
+        value.addEventListener(
+            'negotiationneeded',
+            this._listeners.negotiationneeded = this._handleNegotiationNeeded.bind(this)
+        );
+    }
 
-    return basecon;
+    return value;
 };
 
 /**
@@ -372,6 +388,7 @@ PeerConnection.prototype._defer = function(type, sdp, tunnelId) {
 PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
     // if we don't have a tunnel id yet, defer the answer handling
     if (! this.tunnelId) return this._defer('Answer', sdp, tunnelId);
+    console.log('received answer');
 
     // normal answer handling
     if (this._basecon && tunnelId && tunnelId === this.tunnelId) {
@@ -379,6 +396,8 @@ PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
             type: 'answer',
             sdp: sdp
         }));
+
+        console.log('set remote desc in answer', this._basecon.getRemoteStreams());
 
         // tell the channel to clean up the handshake
         this.channel.send('/dialend ' + this.targetId);
@@ -412,7 +431,17 @@ Trigger when the peer connection and it's remote counterpart need to
 renegotiate due to streams being added, removed, etc.
 */
 PeerConnection.prototype._handleNegotiationNeeded = function() {
+    // wait for stable and then create the new offer
     console.log('!!! anyone else want to negotiate?');
+
+    /*
+    if (this._basecon && this._basecon.signalingState === 'stable') {
+        this._createOffer();
+    }
+    else {
+        this.once('stable', this._createOffer.bind(this));
+    }
+    */
 
     // create a new offer
     // this._createOffer();
@@ -434,6 +463,8 @@ PeerConnection.prototype._handleOffer = function(sdp, tunnelId) {
             type: 'offer',
             sdp: sdp
         }));
+
+        console.log('set remote desc in offer', this._basecon.getRemoteStreams());
 
         this._createAnswer(sdp);
     }
