@@ -55,7 +55,7 @@ function PeerConnection(constraints, opts) {
 	// initialise constraints (use defaults if none provided)
 	this.constraints = constraints || defaults.constraints;
 
-    // set the tunnelId and targetid to null (no relationship)
+    // set the tunnelId and targetId to null (no relationship)
     this.targetId = null;
     this.tunnelId = null;
 
@@ -101,14 +101,14 @@ PeerConnection.prototype.close = function() {
 };
 
 /**
-## initiate(targetid, callback)
+## initiate(targetId, callback)
 
 Initiate a connection to the specified target peer id.  Once the offer/accept
 dance has been completed, then trigger the callback.  If we have been unable
 to connect for any reason the callback will contain an error as the first
 argument.
 */
-PeerConnection.prototype.initiate = function(targetid, callback) {
+PeerConnection.prototype.initiate = function(targetId, callback) {
 	var connection = this;
 
 	// if we have no channel to talk over then trigger the callback with an 
@@ -119,7 +119,7 @@ PeerConnection.prototype.initiate = function(targetid, callback) {
     this.tunnelId = null;
 
     // save the target id
-    this.targetid = targetid;
+    this.targetId = targetId;
 
 	// create a new browser peer connection instance
 	this._createBaseConnection();
@@ -128,7 +128,7 @@ PeerConnection.prototype.initiate = function(targetid, callback) {
     this.once('stable', callback);
 
 	// dial our peer
-	this.channel.dial(targetid, function(err, data) {
+	this.channel.dial(targetId, function(err, data) {
         // if we received an error, and it is not a simulatenous dial error, abort
 		if (err && err.code !== errorcodes.SIMULTANEOUS_DIAL) {
 			return finalize(err);
@@ -183,7 +183,7 @@ PeerConnection.prototype.setChannel = function(channel) {
 */
 PeerConnection.prototype.setIceCandidates = function(newCandidates) {
     // send the ice candidates
-    this.channel.send('/to ' + this.targetid, 'candidates', newCandidates);
+    this.channel.send('/to ' + this.targetId, 'candidates', newCandidates);
     this.iceCandidates = [].concat(newCandidates);
 };
 
@@ -283,7 +283,7 @@ send that connection an answer with our own capabilities.
 PeerConnection.prototype._createAnswer = function(sdp) {
     var connection = this,
         basecon = this._basecon,
-        targetid = this.targetid;
+        targetId = this.targetId;
 
     // if no base connection, abort
     if (! basecon) return;
@@ -296,7 +296,7 @@ PeerConnection.prototype._createAnswer = function(sdp) {
             // send the answer
             console.log('sending answer');
             connection.channel.send(
-                '/to ' + targetid,
+                '/to ' + targetId,
                 'answer',
                 desc.sdp,
                 connection.tunnelId
@@ -305,7 +305,7 @@ PeerConnection.prototype._createAnswer = function(sdp) {
 
         function() {
             connection.channel.send(
-                '/to  ' + targetid,
+                '/to  ' + targetId,
                 'answer:fail',
                 connection.tunnelId
             );
@@ -322,7 +322,7 @@ PeerConnection.prototype._createAnswer = function(sdp) {
 PeerConnection.prototype._createOffer = function() {
     var connection = this,
         basecon = this._basecon,
-        targetid = this.targetid;
+        targetId = this.targetId;
 
     // if we have no base connection, abort
     if (! basecon) return;
@@ -336,7 +336,7 @@ PeerConnection.prototype._createOffer = function() {
             // send the offer
             console.log('sending offer');
             connection.channel.send(
-                '/to ' + targetid,
+                '/to ' + targetId,
                 'offer',
                 desc.sdp,
                 connection.tunnelId
@@ -381,7 +381,7 @@ PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
         }));
 
         // tell the channel to clean up the handshake
-        this.channel.send('/dialend ' + this.targetid);
+        this.channel.send('/dialend ' + this.targetId);
     }
 };
 
