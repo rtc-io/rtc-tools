@@ -71,6 +71,10 @@ function PeerConnection(constraints, opts) {
     // create a defered requests array
     this._deferedRequests = [];
 
+    // initialise known ice candidates
+    this.iceCandidates = [];
+    this._newIceCandidates = [];
+
 	// if we have a channel defined in options, then initialise the channel
 	this.channel = null;
 	if (this.opts.channel) {
@@ -158,6 +162,7 @@ PeerConnection.prototype.setChannel = function(channel) {
     if (this.channel) {
         this.channel.removeListener('offer', this._listeners.offer);
         this.channel.removeListener('answer', this._listeners.answer);
+        this.channel.removeListener('ice', this._listeners.ice);
     }
 
     // update the channel
@@ -167,7 +172,19 @@ PeerConnection.prototype.setChannel = function(channel) {
     if (channel) {
         channel.on('offer', this._listeners.offer = this._handleOffer.bind(this));
         channel.on('answer', this._listeners.answer = this._handleAnswer.bind(this));
+
+        // handle ice candidate communications
+        channel.on('candidates', this._listeners.ice = this._handleRemoteIceCandidates.bind(this));
     }
+};
+
+/**
+## setIceCandidates
+*/
+PeerConnection.prototype.setIceCandidates = function(newCandidates) {
+    // send the ice candidates
+    this.channel.send('/to ' + this.targetid, 'candidates', newCandidates);
+    this.iceCandidates = [].concat(newCandidates);
 };
 
 /**
@@ -208,6 +225,9 @@ PeerConnection.prototype._createBaseConnection = function() {
     // if we have an existing base connection, remove event listeners
     if (basecon) {
         basecon.removeEventListener('signalingstatechange', this._listeners.signalingstatechange);
+        basecon.removeEventListener('icecandidate', this._listeners.icecandidate);
+        basecon.removeEventListener('addstream', this._listeners.addstream);
+        basecon.removeEventListener('removestream', this._listeners.removestream);
     }
 
     // create the new base connection
@@ -217,6 +237,23 @@ PeerConnection.prototype._createBaseConnection = function() {
     basecon.addEventListener(
         'signalingstatechange',
         this._listeners.signalingstatechange = this._handleSignalingStateChange.bind(this)
+    );
+
+    basecon.addEventListener(
+        'icecandidate',
+        this._listeners.icecandidate = this._handleIceCandidate.bind(this)
+    );
+
+    // listen for new remote streams
+    basecon.addEventListener(
+        'addstream',
+        this._listeners.addstream = this._handleRemoteAdd.bind(this)
+    );
+
+    // listen for remote streams being removed
+    basecon.addEventListener(
+        'removestream',
+        this._listeners.removestream = this._handleRemoteRemove.bind(this)
     );
 
     return basecon;
@@ -334,6 +371,22 @@ PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
 };
 
 /**
+## _handleICECandidate()
+*/
+PeerConnection.prototype._handleIceCandidate = function(evt) {
+    if (evt.candidate) {
+        this._newIceCandidates.push(evt.candidate);
+    }
+    else {
+        // save the current ice candidates
+        this.setIceCandidates(this._newIceCandidates);
+
+        // reset the new iceCandidates array
+        this._newIceCandidates = [];
+    }
+};
+
+/**
 ## _handleOffer(sdp, remoteid)
 
 When we receive connection offers, see if they are for our target connection.
@@ -355,9 +408,36 @@ PeerConnection.prototype._handleOffer = function(sdp, tunnelId) {
 };
 
 /**
+## _handleRemoteAdd()
+*/
+PeerConnection.prototype._handleRemoteAdd = function() {
+    console.log('remote stream added', arguments);
+};
+
+PeerConnection.prototype._handleRemoteIceCandidates = function(candidates) {
+    var basecon = this._basecon;
+
+    // if we don't have a base connection (which would be weird...) abort
+    if (! basecon) return;
+
+    // add the candidates to the base connection
+    candidates.forEach(function(data) {
+        basecon.addIceCandidate(new RTCIceCandidate(data));
+    });
+};
+
+/**
+## _handleRemoteRemove()
+*/
+PeerConnection.prototype._handleRemoteRemove = function() {
+    console.log('remote stream removed', arguments);
+};
+
+/**
 ## _handleSignalingStateChange
 */
 PeerConnection.prototype._handleSignalingStateChange = function() {
+    console.log('signalling state change: ' + this._basecon.signalingState);
     if (this._basecon && this._basecon.signalingState === 'stable') {
         this.emit('stable');
     }
@@ -368,7 +448,7 @@ PeerConnection.prototype._handleSignalingStateChange = function() {
 PASSTHROUGH_METHODS.forEach(function(method) {
     PeerConnection.prototype[method] = function() {
         if (this._basecon) {
-            return this._basecon[method].apply(this.instance, arguments);
+            return this._basecon[method].apply(this._basecon, arguments);
         }
     };
 });
