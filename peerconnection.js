@@ -44,7 +44,7 @@ var defaults = require('./defaults'),
         'oniceconnectionstatechange'
     ];
 
-function PeerConnection(constraints, opts) {
+function PeerConnection(config, opts) {
 	if (! (this instanceof PeerConnection)) {
 		return new PeerConnection(constraints, optional);
 	}
@@ -53,7 +53,8 @@ function PeerConnection(constraints, opts) {
 	EventEmitter.call(this);
 
 	// initialise constraints (use defaults if none provided)
-	this.constraints = constraints || defaults.constraints;
+	this.config = config || defaults.config;
+    console.log(this.config); 
 
     // set the tunnelId and targetId to null (no relationship)
     this.targetId = null;
@@ -126,7 +127,7 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
     this.targetId = targetId;
 
 	// create a new browser peer connection instance
-	this._setBaseConnection(new RTCPeerConnection(this.constraints, this.opts));
+	this._setBaseConnection(new RTCPeerConnection(this.config, this.opts));
 
     // once we have a stable connection, trigger the callback
     this.once('stable', callback);
@@ -171,7 +172,7 @@ PeerConnection.prototype.setChannel = function(channel) {
     if (this.channel) {
         this.channel.removeListener('offer', this._listeners.offer);
         this.channel.removeListener('answer', this._listeners.answer);
-        this.channel.removeListener('candidates', this._listeners.candidates);
+        this.channel.removeListener('candidate', this._listeners.candidate);
     }
 
     // update the channel
@@ -183,21 +184,8 @@ PeerConnection.prototype.setChannel = function(channel) {
         channel.on('answer', this._listeners.answer = this._handleAnswer.bind(this));
 
         // handle ice candidate communications
-        channel.on('candidates', this._listeners.candidates = this._handleRemoteIceCandidates.bind(this));
+        channel.on('candidate', this._listeners.candidate = this._handleRemoteIceCandidate.bind(this));
     }
-};
-
-/**
-## setIceCandidates
-*/
-PeerConnection.prototype.setIceCandidates = function(newCandidates) {
-    // send the ice candidates
-    // TODO: check whether this naive 0 length test is ok
-    if (newCandidates && newCandidates.length > 0) {
-        this.channel.send('/to ' + this.targetId, 'candidates', newCandidates);
-    }
-    
-    this.iceCandidates = [].concat(newCandidates);
 };
 
 /**
@@ -233,14 +221,17 @@ PeerConnection.prototype.setTunnelId = function(value) {
 Used to update the underlying base connection.
 */
 PeerConnection.prototype._setBaseConnection = function(value) {
+    var onStateChange;
+
     // if the same, then abort
     if (this._basecon === value) return;
 
     // if we have an existing base connection, remove event listeners
     if (this._basecon) {
-        this._basecon.removeEventListener('signalingstatechange', this._listeners.signalingstatechange);
+        this._basecon.removeEventListener('signalingstatechange', this._listeners.stateChange);
+        this._basecon.removeEventListener('iceconnectionstatechange', this._listeners.stateChange);
+
         this._basecon.removeEventListener('icecandidate', this._listeners.icecandidate);
-        this._basecon.removeEventListener('iceconnectionstatechange', this._listeners.iceconnectionstatechange);
         this._basecon.removeEventListener('addstream', this._listeners.addstream);
         this._basecon.removeEventListener('removestream', this._listeners.removestream);
         this._basecon.removeEventListener('negotiationneeded', this._listeners.negotiationneeded);
@@ -250,22 +241,15 @@ PeerConnection.prototype._setBaseConnection = function(value) {
     this._basecon = value;
 
     if (value) {
-        // attach event listeners for core behaviour
-        value.addEventListener(
-            'signalingstatechange',
-            this._listeners.signalingstatechange = this._handleSignalingStateChange.bind(this)
-        );
+        // attach event listeners for state changes
+        onStateChange = this._listeners.stateChange = this._handleStateChange.bind(this);
+        value.addEventListener('signalingstatechange', onStateChange);
+        value.addEventListener('iceconnectionstatechange', onStateChange);
 
         // handle new ice candidates being added
         value.addEventListener(
             'icecandidate',
             this._listeners.icecandidate = this._handleIceCandidate.bind(this)
-        );
-
-        // handle ice connection state changes
-        value.addEventListener(
-            'iceconnectionstatechange',
-            this._listeners.iceconnectionstatechange = this._handleIceConnectionStateChange.bind(this)
         );
 
         // listen for new remote streams
@@ -409,19 +393,9 @@ PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
 */
 PeerConnection.prototype._handleIceCandidate = function(evt) {
     if (evt.candidate) {
-        this._newIceCandidates.push(evt.candidate);
+        console.log('received ice candidate: ' + evt.candidate.candidate);
+        this.channel.send('/to ' + this.targetId, 'candidate', evt.candidate.candidate);
     }
-    else {
-        // save the current ice candidates
-        this.setIceCandidates(this._newIceCandidates);
-
-        // reset the new iceCandidates array
-        this._newIceCandidates = [];
-    }
-};
-
-PeerConnection.prototype._handleIceConnectionStateChange = function(evt) {
-    console.log('ice connection state changed: ' + this._basecon.iceConnectionState);
 };
 
 /**
@@ -478,33 +452,21 @@ PeerConnection.prototype._handleRemoteAdd = function(evt) {
 };
 
 /**
-## _handleRemoteIceCandidates(candidates)
+## _handleRemoteIceCandidate(candidate)
 
-This event is triggered in response to receiving the `candidates` event via
-the signalling channel.  Once ice candidates have been received and
-synchronized we are able to properly establish the communication between two
-peer connections.
+This event is triggered in response to receiving a candidate from its
+peer connection via the signalling channel.  Once ice candidates have been 
+received and synchronized we are able to properly establish the communication 
+between two peer connections.
 */
-PeerConnection.prototype._handleRemoteIceCandidates = function(candidates) {
-    var basecon = this._basecon;
-
-    // if we don't have a base connection (which would be weird...) abort
-    if (! basecon) return;
-
-    // add the candidates to the base connection
-    candidates.forEach(function(data) {
-        try {
-            var candidate = new RTCIceCandidate({ candidate: data.candidate.replace(/\n/g, '') });
-
-            candidate.sdpMid = data.sdpMid;
-            candidate.sdpMLineIndex = data.sdpMLineIndex;
-
-            basecon.addIceCandidate(candidate);
-        }
-        catch (e) {
-            console.log('invalid ice candidate: ', data, e);
-        }
-    });
+PeerConnection.prototype._handleRemoteIceCandidate = function(sdp) {
+    console.log('received remote ice candidate: ' + sdp);
+    try {
+        this._basecon.addIceCandidate(new RTCIceCandidate({ candidate: sdp }));
+    }
+    catch (e) {
+        console.error('invalidate ice candidate: ' + sdp);
+    }
 };
 
 /**
@@ -515,13 +477,19 @@ PeerConnection.prototype._handleRemoteRemove = function() {
 };
 
 /**
-## _handleSignalingStateChange
+## _handleStateChange(evt)
+
+This is a generate state change handler that will inspect the various states
+of the peer connection and make a determination on whether the connection is
+ready for use.  In the event that the connection is ready, it will trigger
+a `ready` event.
 */
-PeerConnection.prototype._handleSignalingStateChange = function() {
-    console.log('signalling state change: ' + this._basecon.signalingState);
-    if (this._basecon && this._basecon.signalingState === 'stable') {
-        this.emit('stable');
-    }
+PeerConnection.prototype._handleStateChange = function(evt) {
+    console.log(
+        'checking peer connection state',
+        this._basecon.signalingState,
+        this._basecon.iceGatheringState
+    );
 };
 
 /* RTCPeerConnection passthroughs */
