@@ -54,7 +54,6 @@ function PeerConnection(config, opts) {
 
 	// initialise constraints (use defaults if none provided)
 	this.config = config || defaults.config;
-    console.log(this.config); 
 
     // set the tunnelId and targetId to null (no relationship)
     this.targetId = null;
@@ -72,9 +71,8 @@ function PeerConnection(config, opts) {
     // create a defered requests array
     this._deferedRequests = [];
 
-    // initialise known ice candidates
-    this.iceCandidates = [];
-    this._newIceCandidates = [];
+    // create a queued ice candidates array
+    this._queuedCandidates = [];
 
 	// if we have a channel defined in options, then initialise the channel
 	this.channel = null;
@@ -376,14 +374,7 @@ PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
 
     // normal answer handling
     if (this._basecon && tunnelId && tunnelId === this.tunnelId) {
-        this._basecon.setRemoteDescription(new RTCSessionDescription({
-            type: 'answer',
-            sdp: sdp
-        }));
-
-        console.log('set remote desc in answer', this._basecon.getRemoteStreams());
-
-        // tell the channel to clean up the handshake
+        this._setRemote(sdp, 'answer');
         this.channel.send('/dialend ' + this.targetId);
     }
 };
@@ -408,14 +399,12 @@ PeerConnection.prototype._handleNegotiationNeeded = function() {
     // wait for stable and then create the new offer
     console.log('!!! anyone else want to negotiate?');
 
-    /*
     if (this._basecon && this._basecon.signalingState === 'stable') {
         this._createOffer();
     }
     else {
         this.once('stable', this._createOffer.bind(this));
     }
-    */
 
     // create a new offer
     // this._createOffer();
@@ -433,13 +422,7 @@ PeerConnection.prototype._handleOffer = function(sdp, tunnelId) {
 
     // if we have a remote and the remote matches the target, then talk
     if (this._basecon && tunnelId && tunnelId === this.tunnelId) {
-        this._basecon.setRemoteDescription(new RTCSessionDescription({
-            type: 'offer',
-            sdp: sdp
-        }));
-
-        console.log('set remote desc in offer', this._basecon.getRemoteStreams());
-
+        this._setRemote(sdp, 'offer');
         this._createAnswer(sdp);
     }
 };
@@ -460,12 +443,20 @@ received and synchronized we are able to properly establish the communication
 between two peer connections.
 */
 PeerConnection.prototype._handleRemoteIceCandidate = function(sdp) {
-    console.log('received remote ice candidate: ' + sdp);
+    var haveRemoteDesc = this._basecon && this._basecon.remoteDescription;
+
+    // if we have no remote description for the base connection
+    // then queue the ice candidate
+    if (! haveRemoteDesc) {
+        return this._queuedCandidates.push(sdp);
+    }
+
     try {
         this._basecon.addIceCandidate(new RTCIceCandidate({ candidate: sdp }));
     }
     catch (e) {
         console.error('invalidate ice candidate: ' + sdp);
+        console.error(e);
     }
 };
 
@@ -490,6 +481,24 @@ PeerConnection.prototype._handleStateChange = function(evt) {
         this._basecon.signalingState,
         this._basecon.iceGatheringState
     );
+};
+
+/**
+## _setRemote(sdp, type)
+
+Set the remote description of the base connection.
+*/
+PeerConnection.prototype._setRemote = function(sdp, type) {
+    if (! this._basecon) return;
+
+    // set the remote description
+    this._basecon.setRemoteDescription(new RTCSessionDescription({
+        type: type,
+        sdp: sdp
+    }));
+
+    // apply any remote ice candidates
+    this._queuedCandidates.splice(0).forEach(this._handleIceCandidate.bind(this));
 };
 
 /* RTCPeerConnection passthroughs */
