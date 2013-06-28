@@ -21,7 +21,7 @@ var defaults = require('./defaults'),
         'getLocalStreams',
         'getRemoteStreams',
         'getStreamById',
-        // 'addStream', --> inject a xp platform implementation that triggers renegotiation events for firefox
+        'addStream',
         'removeStream',
         // 'close', -- don't include close as we need to do some custom stuff
 
@@ -161,6 +161,9 @@ PeerConnection.prototype.negotiate = function(callback) {
     // once stable trigger the callback
     this.once('stable', callback);
 
+    // if we have no local streams, then wait until we do and try again
+    if (this._basecon.getLocalStreams().length === 0) return;
+
     // create a new offer
     this._basecon.createOffer(
         function(desc) {
@@ -203,42 +206,6 @@ PeerConnection.prototype.setChannel = function(channel) {
     }
 };
 
-/* cross-browser patches */
-
-/**
-## addStream(stream)
-*/
-PeerConnection.prototype.addStream = function(stream) {
-    // if we don't have a base connection, abort
-    if (! this._basecon) return;
-
-    // add the stream
-    this._basecon.addStream(stream);
-
-    // if we don't have a onnegotiationneeded event for the base connection
-    // trigger our handler manually
-    if (typeof this._basecon.onnegotiationneeded == 'undefined') {
-        this._handleNegotiationNeeded();
-    }
-};
-
-/**
-## removeStream(stream)
-*/
-PeerConnection.prototype.removeStream = function(stream) {
-    // if we don't have a base connection, abort
-    if (! this._basecon) return;
-
-    // add the stream
-    this._basecon.removeStream(stream);
-
-    // if we don't have a onnegotiationneeded event for the base connection
-    // trigger our handler manually
-    if (typeof this._basecon.onnegotiationneeded == 'undefined') {
-        this._handleNegotiationNeeded();
-    }
-};
-
 /* internal methods */
 
 /**
@@ -254,16 +221,13 @@ PeerConnection.prototype._setBaseConnection = function(value) {
 
     // if we have an existing base connection, remove event listeners
     if (this._basecon) {
-        this._basecon.onsignalingstatechange = this._basecon.onstatechange = null;
-        this._basecon.oniceconnectionstatechange = this._basecon.onicechange = null;
+        this._basecon.onsignalingstatechange = null;
+        this._basecon.oniceconnectionstatechange = null;
 
         this._basecon.onicecandidate = null;
         this._basecon.onaddstream = null;
         this._basecon.onremovestream = null;
-
-        if (typeof this._basecon.onnegotiationneeded != 'undefined') {
-            this._basecon.onnegotiationneeded = null;
-        }
+        this._basecon.onnegotiationneeded = null;
     }
 
     // update the base connection
@@ -272,18 +236,15 @@ PeerConnection.prototype._setBaseConnection = function(value) {
     if (value) {
         // attach event listeners for state changes
         value.onsignalingstatechange = 
-        value.onstatechange = 
-        value.oniceconnectionstatechange =
-        value.onicechange = this._handleStateChange.bind(this);
+        value.oniceconnectionstatechange = this._handleStateChange.bind(this);
 
         value.onicecandidate = this._handleIceCandidate.bind(this)
         value.onaddstream = this._handleRemoteAdd.bind(this);
         value.onremovestream = this._handleRemoteRemove.bind(this);
+        value.onnegotiationneeded = this._handleNegotiationNeeded.bind(this);
 
-        // if onnegotiationneeded supported, attach a handler
-        if (typeof value.onnegotiationneeded != 'undefined') {
-            value.onnegotiationneeded = this._handleNegotiationNeeded.bind(this);
-        }
+        // update the stable flag
+        this.stable = this.signalingState === 'stable';
     }
 
     return value;
@@ -315,9 +276,6 @@ PeerConnection.prototype._handleNegotiationNeeded = function() {
     else {
         this.once('stable', this.negotiate.bind(this));
     }
-
-    // create a new offer
-    // this._createOffer();
 };
 
 /**
