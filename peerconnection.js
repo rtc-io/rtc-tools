@@ -1,6 +1,7 @@
 var defaults = require('./defaults'),
 	EventEmitter = require('events').EventEmitter,
 	RTCPeerConnection = require('rtc-detect/peerconnection'),
+    RTCSessionDescription = require('rtc-detect').RTCSessionDescription,
     errorcodes = require('rtc-core/errorcodes'),
 	signaller = require('./signaller'),
 	util = require('util'),
@@ -20,21 +21,28 @@ var defaults = require('./defaults'),
         'getLocalStreams',
         'getRemoteStreams',
         'getStreamById',
-        'addStream',
+        // 'addStream', --> inject a xp platform implementation that triggers renegotiation events for firefox
         'removeStream',
         // 'close', -- don't include close as we need to do some custom stuff
 
         // add event listener passthroughs
-        'addEventListener',
-        'removeEventListener'    
+        // NOTE: not implemented in moz so have to fudge it outselves
+        // 'addEventListener',
+        // 'removeEventListener'    
     ],
     PASSTHROUGH_ATTRIBUTES = [
         'localDescription',
         'remoteDescription',
-        'signalingState',
+        // 'signalingState', --> create a cross-platform compatible attribute
         'iceGatheringState',
         'iceConnectionState'
     ],
+
+    PASSTHROUGH_EVENTS = [],
+
+    /*
+    Temporarily disable pass through events
+
     PASSTHROUGH_EVENTS = [
         'onnegotiationneeded',
         'onicecandidate',
@@ -42,7 +50,11 @@ var defaults = require('./defaults'),
         'onaddstream',
         'onremovestream',
         'oniceconnectionstatechange'
-    ];
+    ], */
+
+    STATE_MAPPINGS = {
+        active: 'stable'
+    };
 
 function PeerConnection(config, opts) {
 	if (! (this instanceof PeerConnection)) {
@@ -58,6 +70,9 @@ function PeerConnection(config, opts) {
     // set the tunnelId and targetId to null (no relationship)
     this.targetId = null;
     this.tunnelId = null;
+
+    // flag as not stable
+    this.stable = false;
 
     // create a _listeners object to hold listener function instances
     this._listeners = {};
@@ -101,6 +116,9 @@ PeerConnection.prototype.close = function() {
 
     // set the channel to null to remove event listeners
     this.setChannel(null);
+
+    // emit the close event
+    this.emit('close');
 };
 
 /**
@@ -119,7 +137,7 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
 	if (! this.channel) return callback(new Error('A channel is required to initiate a peer connection'));
 
     // reset the tunnelId
-    this.tunnelId = null;
+    this.callId = null;
 
     // save the target id
     this.targetId = targetId;
@@ -127,33 +145,34 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
 	// create a new browser peer connection instance
 	this._setBaseConnection(new RTCPeerConnection(this.config, this.opts));
 
-    // once we have a stable connection, trigger the callback
+    // negotiate
+    this.negotiate(callback);
+};
+
+/**
+## negotiate
+*/
+PeerConnection.prototype.negotiate = function(callback) {
+    var connection = this;
+
+    // ensure we have a callback
+    callback = callback || function() {};
+
+    // once stable trigger the callback
     this.once('stable', callback);
 
-    // wait for streams
-    process.nextTick(function() {
+    // create a new offer
+    this._basecon.createOffer(
+        function(desc) {
+            // set the local description of the instance
+            connection._basecon.setLocalDescription(desc);
 
-    });
+            // send a negotiate command to the signalling server
+            connection.channel.negotiate(connection.targetId, desc.sdp);
+        },
 
-	// dial our peer
-	this.channel.dial(targetId, function(err, data) {
-        // if we received an error, and it is not a simulatenous dial error, abort
-		if (err && err.code !== errorcodes.SIMULTANEOUS_DIAL) {
-			return finalize(err);
-		}
-        else if (err) {
-            // simulatenous dial, set the tunnel id and then bail
-            connection.setTunnelId(err.tunnelId);
-
-            return;
-        }
-
-        // initialise the tunnel id from the data
-        connection.setTunnelId(data.tunnelId);
-
-        // create the offer
-        connection._createOffer();
-	});
+        callback
+    );
 };
 
 /**
@@ -168,8 +187,7 @@ PeerConnection.prototype.setChannel = function(channel) {
 
     // if we have an existing channel, then remove event listeners
     if (this.channel) {
-        this.channel.removeListener('offer', this._listeners.offer);
-        this.channel.removeListener('answer', this._listeners.answer);
+        this.channel.removeListener('negotiate', this._listeners.negotiate);
         this.channel.removeListener('candidate', this._listeners.candidate);
     }
 
@@ -178,36 +196,46 @@ PeerConnection.prototype.setChannel = function(channel) {
 
     // if we have a new channel, then bind listeners
     if (channel) {
-        channel.on('offer', this._listeners.offer = this._handleOffer.bind(this));
-        channel.on('answer', this._listeners.answer = this._handleAnswer.bind(this));
+        channel.on('negotiate', this._listeners.negotiate = this._handleRemoteUpdate.bind(this));
 
         // handle ice candidate communications
         channel.on('candidate', this._listeners.candidate = this._handleRemoteIceCandidate.bind(this));
     }
 };
 
+/* cross-browser patches */
+
 /**
-## setTunnelId(value)
+## addStream(stream)
 */
-PeerConnection.prototype.setTunnelId = function(value) {
-    var handler,
-        data;
+PeerConnection.prototype.addStream = function(stream) {
+    // if we don't have a base connection, abort
+    if (! this._basecon) return;
 
-    if (this.tunnedId !== value) {
-        this.tunnelId = value;
+    // add the stream
+    this._basecon.addStream(stream);
 
-        // if we have a value, then process defered requests
-        if (value) {
-            while (this._deferedRequests.length > 0) {
-                data = this._deferedRequests.shift();
-                handler = PeerConnection.prototype['_handle' + data.type];
+    // if we don't have a onnegotiationneeded event for the base connection
+    // trigger our handler manually
+    if (typeof this._basecon.onnegotiationneeded == 'undefined') {
+        this._handleNegotiationNeeded();
+    }
+};
 
-                // if we have a handler, then run it
-                if (typeof handler == 'function') {
-                    handler.call(this, data.sdp, data.tunnelId);
-                }
-            }
-        }
+/**
+## removeStream(stream)
+*/
+PeerConnection.prototype.removeStream = function(stream) {
+    // if we don't have a base connection, abort
+    if (! this._basecon) return;
+
+    // add the stream
+    this._basecon.removeStream(stream);
+
+    // if we don't have a onnegotiationneeded event for the base connection
+    // trigger our handler manually
+    if (typeof this._basecon.onnegotiationneeded == 'undefined') {
+        this._handleNegotiationNeeded();
     }
 };
 
@@ -226,13 +254,16 @@ PeerConnection.prototype._setBaseConnection = function(value) {
 
     // if we have an existing base connection, remove event listeners
     if (this._basecon) {
-        this._basecon.removeEventListener('signalingstatechange', this._listeners.stateChange);
-        this._basecon.removeEventListener('iceconnectionstatechange', this._listeners.stateChange);
+        this._basecon.onsignalingstatechange = this._basecon.onstatechange = null;
+        this._basecon.oniceconnectionstatechange = this._basecon.onicechange = null;
 
-        this._basecon.removeEventListener('icecandidate', this._listeners.icecandidate);
-        this._basecon.removeEventListener('addstream', this._listeners.addstream);
-        this._basecon.removeEventListener('removestream', this._listeners.removestream);
-        this._basecon.removeEventListener('negotiationneeded', this._listeners.negotiationneeded);
+        this._basecon.onicecandidate = null;
+        this._basecon.onaddstream = null;
+        this._basecon.onremovestream = null;
+
+        if (typeof this._basecon.onnegotiationneeded != 'undefined') {
+            this._basecon.onnegotiationneeded = null;
+        }
     }
 
     // update the base connection
@@ -240,143 +271,22 @@ PeerConnection.prototype._setBaseConnection = function(value) {
 
     if (value) {
         // attach event listeners for state changes
-        onStateChange = this._listeners.stateChange = this._handleStateChange.bind(this);
-        value.addEventListener('signalingstatechange', onStateChange);
-        value.addEventListener('iceconnectionstatechange', onStateChange);
+        value.onsignalingstatechange = 
+        value.onstatechange = 
+        value.oniceconnectionstatechange =
+        value.onicechange = this._handleStateChange.bind(this);
 
-        // handle new ice candidates being added
-        value.addEventListener(
-            'icecandidate',
-            this._listeners.icecandidate = this._handleIceCandidate.bind(this)
-        );
+        value.onicecandidate = this._handleIceCandidate.bind(this)
+        value.onaddstream = this._handleRemoteAdd.bind(this);
+        value.onremovestream = this._handleRemoteRemove.bind(this);
 
-        // listen for new remote streams
-        value.addEventListener(
-            'addstream',
-            this._listeners.addstream = this._handleRemoteAdd.bind(this)
-        );
-
-        // listen for remote streams being removed
-        value.addEventListener(
-            'removestream',
-            this._listeners.removestream = this._handleRemoteRemove.bind(this)
-        );
-
-        // handle when the connection requires renegotiation (a new stream has been added, etc)
-        value.addEventListener(
-            'negotiationneeded',
-            this._listeners.negotiationneeded = this._handleNegotiationNeeded.bind(this)
-        );
+        // if onnegotiationneeded supported, attach a handler
+        if (typeof value.onnegotiationneeded != 'undefined') {
+            value.onnegotiationneeded = this._handleNegotiationNeeded.bind(this);
+        }
     }
 
     return value;
-};
-
-/**
-## _createAnswer(sdp)
-
-Once we have received an offer from a remote peerconnection, we need to 
-send that connection an answer with our own capabilities.
-*/
-PeerConnection.prototype._createAnswer = function(sdp) {
-    var connection = this,
-        basecon = this._basecon,
-        targetId = this.targetId;
-
-    // if no base connection, abort
-    if (! basecon) return;
-
-    // TODO: consider adding constraints
-    basecon.createAnswer(
-        function(desc) {
-            basecon.setLocalDescription(desc);
-
-            // send the answer
-            console.log('sending answer');
-            connection.channel.send(
-                '/to ' + targetId,
-                'answer',
-                desc.sdp,
-                connection.tunnelId
-            );
-        },
-
-        function() {
-            connection.channel.send(
-                '/to  ' + targetId,
-                'answer:fail',
-                connection.tunnelId
-            );
-
-            // finalize(new Error('Could not create answer'));
-            // TODO: relay an error
-        }
-    );
-};
-
-/**
-## _createOffer()
-*/
-PeerConnection.prototype._createOffer = function() {
-    var connection = this,
-        basecon = this._basecon,
-        targetId = this.targetId;
-
-    // if we have no base connection, abort
-    if (! basecon) return;
-
-    // TODO: consider adding constraints
-    basecon.createOffer(
-        function(desc) {
-            // set the local description of the instance
-            basecon.setLocalDescription(desc);
-
-            // send the offer
-            console.log('sending offer');
-            connection.channel.send(
-                '/to ' + targetId,
-                'offer',
-                desc.sdp,
-                connection.tunnelId
-            );
-        },
-
-        function(err) {
-            // TODO: handle error
-        }
-    );
-};
-
-/**
-## _defer(type, sdp, tunnelId)
-
-In the instance that we receive an offer or answer request when we don't have
-a tunnelId (which uniquely identies our A -> B signalling relationship) we
-need to defer handling until such point that we do.  These queued requests
-are stored in an array that is processed when a tunnelId is set using the 
-`setTunnelId` method.
-*/
-PeerConnection.prototype._defer = function(type, sdp, tunnelId) {
-    return this._deferedRequests.push({
-        type: type,
-        sdp: sdp,
-        tunnelId: tunnelId
-    });
-};
-
-/**
-## _handleAnswer(sdp, remoteid)
-*/
-PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
-    // if we don't have a tunnel id yet, defer the answer handling
-    if (! this.tunnelId) return this._defer('Answer', sdp, tunnelId);
-    console.log('received answer');
-
-    // normal answer handling
-    if (this._basecon && tunnelId && tunnelId === this.tunnelId) {
-        this._setRemote(sdp, 'answer');
-        this.channel.send('/dialend ' + this.targetId);
-    }
 };
 
 /**
@@ -385,7 +295,7 @@ PeerConnection.prototype._handleAnswer = function(sdp, tunnelId) {
 PeerConnection.prototype._handleIceCandidate = function(evt) {
     if (evt.candidate) {
         console.log('received ice candidate: ' + evt.candidate.candidate);
-        this.channel.send('/to ' + this.targetId, 'candidate', evt.candidate.candidate);
+        this.channel.send('/to', this.targetId, 'candidate', evt.candidate.candidate);
     }
 };
 
@@ -399,11 +309,11 @@ PeerConnection.prototype._handleNegotiationNeeded = function() {
     // wait for stable and then create the new offer
     console.log('!!! anyone else want to negotiate?');
 
-    if (this._basecon && this._basecon.signalingState === 'stable') {
-        this._createOffer();
+    if (this.signalingState === 'stable') {
+        this.negotiate();
     }
     else {
-        this.once('stable', this._createOffer.bind(this));
+        this.once('stable', this.negotiate.bind(this));
     }
 
     // create a new offer
@@ -411,27 +321,65 @@ PeerConnection.prototype._handleNegotiationNeeded = function() {
 };
 
 /**
-## _handleOffer(sdp, remoteid)
-
-When we receive connection offers, see if they are for our target connection.
-If so then handle the connection, otherwise ignore
-*/
-PeerConnection.prototype._handleOffer = function(sdp, tunnelId) {
-    // if we don't yet have a tunnel id, then defer handling the offer
-    if (! this.tunnelId) return this._defer('Offer', sdp, tunnelId);
-
-    // if we have a remote and the remote matches the target, then talk
-    if (this._basecon && tunnelId && tunnelId === this.tunnelId) {
-        this._setRemote(sdp, 'offer');
-        this._createAnswer(sdp);
-    }
-};
-
-/**
 ## _handleRemoteAdd()
 */
 PeerConnection.prototype._handleRemoteAdd = function(evt) {
     if (evt.stream) return this.emit('stream:add', evt.stream);
+};
+
+/**
+## _handleRemoteUpdate
+
+This method responds to updates in the remote RTCPeerConnection updating
+it's local session description and sending that via the signalling channel.
+*/
+PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
+    var connection = this;
+
+    console.log('captured remote update', arguments);
+
+    // if we have a callid and this is not a match, then abort
+    if (this.callId && this.callId !== callId) return;
+
+    // if we don't have a base connection, then create it
+    if (! this._basecon) {
+        // create a new browser peer connection instance
+        this._setBaseConnection(new RTCPeerConnection(this.config, this.opts));
+    }
+
+    // update the remote session description
+    // set the remote description
+    this._basecon.setRemoteDescription(new RTCSessionDescription({
+        type: type || 'offer',
+        sdp: sdp
+    }));
+
+    // apply any remote ice candidates
+    this._queuedCandidates.splice(0).forEach(this._handleIceCandidate.bind(this));
+
+    // if we received an offer, we need to answer
+    if (this._basecon.remoteDescription.type === 'offer') {
+        // update the call id
+        this.callId = callId;
+
+        this._basecon.createAnswer(
+            function(desc) {
+                connection._basecon.setLocalDescription(desc);
+
+                // send a negotiate command to the signalling server
+                connection.channel.negotiate(
+                    connection.targetId,
+                    desc.sdp,
+                    connection.callId,
+                    'answer'
+                );
+            },
+
+            function() {
+                connection.emit('error', err);
+            }
+        );
+    }
 };
 
 /**
@@ -478,27 +426,17 @@ a `ready` event.
 PeerConnection.prototype._handleStateChange = function(evt) {
     console.log(
         'checking peer connection state',
-        this._basecon.signalingState,
+        this.signalingState,
         this._basecon.iceGatheringState
     );
-};
 
-/**
-## _setRemote(sdp, type)
-
-Set the remote description of the base connection.
-*/
-PeerConnection.prototype._setRemote = function(sdp, type) {
-    if (! this._basecon) return;
-
-    // set the remote description
-    this._basecon.setRemoteDescription(new RTCSessionDescription({
-        type: type,
-        sdp: sdp
-    }));
-
-    // apply any remote ice candidates
-    this._queuedCandidates.splice(0).forEach(this._handleIceCandidate.bind(this));
+    if (! this.stable && this.signalingState === 'stable') {
+        this.stable = true;
+        this.emit('stable');
+    }
+    else if (this.stable) {
+        this.stable = false;
+    }
 };
 
 /* RTCPeerConnection passthroughs */
@@ -517,6 +455,20 @@ PASSTHROUGH_ATTRIBUTES.forEach(function(getter) {
             return this._basecon && this._basecon[getter];
         }
     });
+});
+
+// inject a xp signalling state attribute
+Object.defineProperty(PeerConnection.prototype, 'signalingState', {
+    get: function() {
+        var state = this._basecon && (this._basecon.signalingState || this._basecon.readyState);
+
+        // apply a state mapping if one exists
+        if (state) {
+            state = STATE_MAPPINGS[state] || state;
+        }
+
+        return state;
+    }
 });
 
 PASSTHROUGH_EVENTS.forEach(function(eventName) {
