@@ -168,7 +168,7 @@ PeerConnection.prototype.negotiate = function(callback) {
             connection._basecon.setLocalDescription(desc);
 
             // send a negotiate command to the signalling server
-            connection.channel.negotiate(connection.targetId, desc.sdp);
+            connection.channel.negotiate(connection.targetId, desc.sdp, connection.callId);
         },
 
         callback
@@ -294,7 +294,7 @@ PeerConnection.prototype._setBaseConnection = function(value) {
 */
 PeerConnection.prototype._handleIceCandidate = function(evt) {
     if (evt.candidate) {
-        console.log('received ice candidate: ' + evt.candidate.candidate);
+        // console.log('received ice candidate: ' + evt.candidate.candidate);
         this.channel.send('/to', this.targetId, 'candidate', evt.candidate.candidate);
     }
 };
@@ -336,10 +336,14 @@ it's local session description and sending that via the signalling channel.
 PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
     var connection = this;
 
-    console.log('captured remote update', arguments);
+    console.log('received remote update, callid: ' + callId + ', local call id: ' + this.callId + ', type: ' + type);
 
     // if we have a callid and this is not a match, then abort
     if (this.callId && this.callId !== callId) return;
+    console.log('processing remote update');
+
+    // if we have a callid provided, and no local call id update
+    this.callId = this.callId || callId;
 
     // if we don't have a base connection, then create it
     if (! this._basecon) {
@@ -354,11 +358,8 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
         sdp: sdp
     }));
 
-    // apply any remote ice candidates
-    this._queuedCandidates.splice(0).forEach(this._handleIceCandidate.bind(this));
-
     // if we received an offer, we need to answer
-    if (this._basecon.remoteDescription.type === 'offer') {
+    if (this._basecon.remoteDescription && this._basecon.remoteDescription.type !== 'answer') {
         // update the call id
         this.callId = callId;
 
@@ -380,6 +381,9 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
             }
         );
     }
+
+    // apply any remote ice candidates
+    this._queuedCandidates.splice(0).forEach(this._handleIceCandidate.bind(this));
 };
 
 /**

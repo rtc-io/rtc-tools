@@ -35,7 +35,7 @@ PeerConnectionSignallingChannel.prototype.connect = function(targetId) {
         console.log('connection initiation phase complete');
 
         if (! err) {
-            console.log('connection initiated, tunnel id: ' + connection.tunnelId);
+            console.log('connection initiated, call id: ' + connection.callId);
         }
         else {
             console.log('encountered error: ', err);
