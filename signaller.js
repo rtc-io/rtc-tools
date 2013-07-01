@@ -1,14 +1,14 @@
-var SignallingChannel = require('rtc-signaller'),
+var BaseSignaller = require('rtc-signaller'),
     PeerConnection = require('./peerconnection'),
     util = require('util');
 
-function PeerConnectionSignallingChannel(opts) {
-    if (! (this instanceof PeerConnectionSignallingChannel)) {
-        return new PeerConnectionSignallingChannel(opts);
+function Signaller(opts) {
+    if (! (this instanceof Signaller)) {
+        return new Signaller(opts);
     }
 
     // call inherited
-    SignallingChannel.call(this, opts);
+    BaseSignaller.call(this, opts);
 
     // create a list of monitored connections
     this.connections = [];
@@ -17,17 +17,17 @@ function PeerConnectionSignallingChannel(opts) {
     this.on('peer:leave', this._handlePeerLeave.bind(this));
 }
 
-util.inherits(PeerConnectionSignallingChannel, SignallingChannel);
-module.exports = PeerConnectionSignallingChannel;
+util.inherits(Signaller, BaseSignaller);
+module.exports = Signaller;
 
 /**
-## connect(targetId)
+## dial(targetId)
 
 Connect to the specified target peer.  This method implements some helpful
 connection management logic that will cater for the majority of use cases
 for creating new peer connections.
 */
-PeerConnectionSignallingChannel.prototype.connect = function(targetId) {
+Signaller.prototype.dial = function(targetId) {
     var connection = new PeerConnection();
 
     connection.setChannel(this);
@@ -48,6 +48,16 @@ PeerConnectionSignallingChannel.prototype.connect = function(targetId) {
     return connection;
 };
 
+/** static factory methods (for syntactic sugar) */
+
+Signaller.create = function(opts) {
+    return new Signaller(opts);
+};
+
+Signaller.join = function(name) {
+    return new Signaller().join(name);
+};
+
 /* internal event handlers */
 
 /**
@@ -57,7 +67,7 @@ A peer:leave event has been broadcast through the signalling channel.  We need
 to check if the peer that has left is connected to any of our connections. If
 it is, then those connections should be closed.
 */
-PeerConnectionSignallingChannel.prototype._handlePeerLeave = function(peerId) {
+Signaller.prototype._handlePeerLeave = function(peerId) {
     // remove any dead connections
     this.connections = this.connections.map(function(conn) {
         if (conn && conn.targetId === peerId) {
