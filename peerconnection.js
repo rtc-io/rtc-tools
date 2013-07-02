@@ -80,6 +80,16 @@ function PeerConnection(config, opts) {
 	// initialise the opts
 	this.opts = opts || {};
 
+    // initialise default media constraints
+    this.mediaConstraints = this.opts.mediaConstraints || {
+        mandatory: {
+            OfferToReceiveAudio: true,
+            OfferToReceiveVideo: true
+        },
+
+        optional: []
+    };
+
 	// initialise underlying W3C connection instance to null
 	this._basecon = null;
 
@@ -174,7 +184,8 @@ PeerConnection.prototype.negotiate = function(callback) {
             connection.channel.negotiate(connection.targetId, desc.sdp, connection.callId);
         },
 
-        callback
+        callback,
+        this.mediaConstraints
     );
 };
 
