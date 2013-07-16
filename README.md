@@ -1,6 +1,8 @@
 # rtc
 
-The `rtc` package is a convenience layer for working with the rtc.io toolkit.  Consider it a boxed set of lego of the most common pieces required to build the front-end component of a WebRTC application.
+The `rtc` package is a convenience layer for working with the rtc.io toolkit.
+Consider it a boxed set of lego of the most common pieces required to build
+the front-end component of a WebRTC application.
 
 ## Getting Started
 
@@ -59,6 +61,31 @@ This is a generate state change handler that will inspect the various states
 of the peer connection and make a determination on whether the connection is
 ready for use.  In the event that the connection is ready, it will trigger
 a `ready` event.
+
+# rtc/media
+
+This is a convenience import of the `rtc-media` package into the `rtc`
+package. For example, both of the following `require` statements return
+equivalent modules:
+
+```js
+var media;
+
+// use the rtc/media entry point
+media = require('rtc/media');
+
+// use rtc-media directly
+media = require('rtc-media');
+```
+
+In most cases we would recommend importing `rtc` into your application and
+using that.  In a case that you are writing a web application that does not
+require the full WebRTC suite but only want to work with getUserMedia then
+you may consider using `rtc-media` directly.
+
+For the full rtc-media reference see:
+
+<http://rtc.io/modules/media>
 
 # rtc/signaller
 
