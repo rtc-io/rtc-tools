@@ -2,6 +2,26 @@
 
 'use strict';
 
+/**
+# rtc/detect
+
+A browser detection helper for accessing prefix-free versions of the various
+WebRTC types. 
+
+## Example Usage
+
+If you wanted to get the native `RTCPeerConnection` prototype in any browser
+you could do the following:
+
+```js
+var detect = require('rtc/detect');
+var RTCPeerConnection = detect('RTCPeerConnection');
+```
+
+This would provide whatever the browser prefixed version of the
+RTCPeerConnection is available (`webkitRTCPeerConnection`, 
+`mozRTCPeerConnection`, etc).
+**/
 module.exports = function(target, prefixes) {
   var prefixIdx, prefix, testName;
 
