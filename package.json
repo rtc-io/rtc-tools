@@ -13,6 +13,8 @@
     "rtc-signaller": "git://github.it.nicta.com.au/doehlman/rtc-signaller.git"
   },
   "devDependencies": {},
-  "scripts": {},
+  "scripts": {
+    "gendocs": "cat index.js peerconnection.js signaller.js | emu > README.md"
+  },
   "contributors": []
 }
