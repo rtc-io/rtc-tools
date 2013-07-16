@@ -9,8 +9,8 @@
 
 var defaults = require('./defaults');
 var EventEmitter = require('events').EventEmitter;
-var RTCPeerConnection = require('rtc-detect/peerconnection');
-var RTCSessionDescription = require('rtc-detect').RTCSessionDescription;
+var RTCPeerConnection = require('./detect')('RTCPeerConnection');
+var RTCSessionDescription = require('./detect')('RTCSessionDescription');
 var errorcodes = require('rtc-core/errorcodes');
 var util = require('util');
 

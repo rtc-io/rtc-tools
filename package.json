@@ -14,7 +14,7 @@
   },
   "devDependencies": {},
   "scripts": {
-    "gendocs": "cat index.js peerconnection.js media.js signaller.js | emu > README.md"
+    "gendocs": "cat index.js peerconnection.js media.js signaller.js detect.js | emu > README.md"
   },
   "contributors": []
 }
