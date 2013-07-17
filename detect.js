@@ -23,7 +23,10 @@ RTCPeerConnection is available (`webkitRTCPeerConnection`,
 `mozRTCPeerConnection`, etc).
 **/
 module.exports = function(target, prefixes) {
-  var prefixIdx, prefix, testName;
+  var prefixIdx;
+  var prefix;
+  var testName;
+  var hostObject = this || window;
 
   // initialise to default prefixes 
   // (reverse order as we use a decrementing for loop)
@@ -41,8 +44,8 @@ module.exports = function(target, prefixes) {
                             target.charAt(0).toUpperCase() + target.slice(1) :
                             target);
 
-    if (typeof this[testName] == 'function') {
-      return this[testName];
+    if (typeof hostObject[testName] == 'function') {
+      return hostObject[testName];
     }
   }
 };
