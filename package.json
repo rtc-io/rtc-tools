@@ -7,9 +7,9 @@
   ],
   "version": "0.0.3",
   "dependencies": {
-    "rtc-core": "git://github.it.nicta.com.au/doehlman/rtc-core.git",
-    "rtc-media": "git://github.it.nicta.com.au/doehlman/rtc-media.git",
-    "rtc-signaller": "git://github.it.nicta.com.au/doehlman/rtc-signaller.git"
+    "rtc-core": "git://github.it.nicta.com.au/Telepresence/rtc-core.git",
+    "rtc-media": "git://github.it.nicta.com.au/Telepresence/rtc-media.git",
+    "rtc-signaller": "git://github.it.nicta.com.au/Telepresence/rtc-signaller.git"
   },
   "devDependencies": {},
   "scripts": {
