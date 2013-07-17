@@ -1,4 +1,5 @@
 /* jshint node: true */
+/* global window: false */
 
 'use strict';
 
