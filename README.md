@@ -6,35 +6,16 @@ the front-end component of a WebRTC application.
 
 ## Getting Started
 
+TO BE COMPLETED
+
 ## rtc/detect
 
-Export the [rtc-detect](https://github.com/rtc-io/rtc-core) `detect`
+Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
 functionality.
 
-# rtc/media
+## rtc/media
 
-This is a convenience import of the `rtc-media` package into the `rtc`
-package. For example, both of the following `require` statements return
-equivalent modules:
-
-```js
-var media;
-
-// use the rtc/media entry point
-media = require('rtc/media');
-
-// use rtc-media directly
-media = require('rtc-media');
-```
-
-In most cases we would recommend importing `rtc` into your application and
-using that.  In a case that you are writing a web application that does not
-require the full WebRTC suite but only want to work with getUserMedia then
-you may consider using `rtc-media` directly.
-
-For the full rtc-media reference see:
-
-<http://rtc.io/modules/media>
+Provide the core [rtc-media](https://github.com/rtc-io/rtc-media) for convenience.
 
 ## rtc/peerconnection
 
@@ -46,10 +27,10 @@ Cleanup the peer connection.
 
 ### initiate(targetId, callback)
 
-Initiate a connection to the specified target peer id.  Once the offer/accept
-dance has been completed, then trigger the callback.  If we have been unable
-to connect for any reason the callback will contain an error as the first
-argument.
+Initiate a connection to the specified target peer id.  Once the 
+offer/accept dance has been completed, then trigger the callback.  If we
+have been unable to connect for any reason the callback will contain an
+error as the first argument.
 
 ### negotiate
 
@@ -80,8 +61,8 @@ it's local session description and sending that via the signalling channel.
 
 This event is triggered in response to receiving a candidate from its
 peer connection via the signalling channel.  Once ice candidates have been 
-received and synchronized we are able to properly establish the communication 
-between two peer connections.
+received and synchronized we are able to properly establish the 
+communication between two peer connections.
 
 ### _handleRemoteRemove()
 

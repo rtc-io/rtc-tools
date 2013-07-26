@@ -2,7 +2,7 @@
 /* global RTCIceCandidate: false */
 
 /**
-## rtc/peerconnection
+  ## rtc/peerconnection
 **/
 
 'use strict';
@@ -65,7 +65,7 @@ var STATE_MAPPINGS = {
 };
 
 /**
-### PeerConnection prototype reference
+  ### PeerConnection prototype reference
 **/
 
 function PeerConnection(config, opts) {
@@ -122,9 +122,9 @@ util.inherits(PeerConnection, EventEmitter);
 module.exports = PeerConnection;
 
 /**
-### close()
+  ### close()
 
-Cleanup the peer connection.
+  Cleanup the peer connection.
 **/
 PeerConnection.prototype.close = function() {
   var basecon = this._basecon;
@@ -146,12 +146,12 @@ PeerConnection.prototype.close = function() {
 };
 
 /**
-### initiate(targetId, callback)
+  ### initiate(targetId, callback)
 
-Initiate a connection to the specified target peer id.  Once the offer/accept
-dance has been completed, then trigger the callback.  If we have been unable
-to connect for any reason the callback will contain an error as the first
-argument.
+  Initiate a connection to the specified target peer id.  Once the 
+  offer/accept dance has been completed, then trigger the callback.  If we
+  have been unable to connect for any reason the callback will contain an
+  error as the first argument.
 **/
 PeerConnection.prototype.initiate = function(targetId, callback) {
   // if we have no channel to talk over then trigger the callback with an 
@@ -174,7 +174,7 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
 };
 
 /**
-### negotiate
+  ### negotiate
 **/
 PeerConnection.prototype.negotiate = function(callback) {
   var connection = this;
@@ -208,10 +208,10 @@ PeerConnection.prototype.negotiate = function(callback) {
 };
 
 /**
-### setChannel(channel)
+  ### setChannel(channel)
 
-Initialise the signalling channel that will be used to communicate
-the actual RTCPeerConnection state to it's friend.
+  Initialise the signalling channel that will be used to communicate
+  the actual RTCPeerConnection state to it's friend.
 **/
 PeerConnection.prototype.setChannel = function(channel) {
   // if no change then return
@@ -242,9 +242,9 @@ PeerConnection.prototype.setChannel = function(channel) {
 };
 
 /**
-### _setBaseConnection()
+  ### _setBaseConnection()
 
-Used to update the underlying base connection.
+  Used to update the underlying base connection.
 **/
 PeerConnection.prototype._setBaseConnection = function(value) {
   // if the same, then abort
@@ -282,7 +282,7 @@ PeerConnection.prototype._setBaseConnection = function(value) {
 };
 
 /**
-### _handleICECandidate()
+  ### _handleICECandidate()
 **/
 PeerConnection.prototype._handleIceCandidate = function(evt) {
   if (evt.candidate) {
@@ -295,10 +295,10 @@ PeerConnection.prototype._handleIceCandidate = function(evt) {
 };
 
 /**
-### _handleNegotiationNeeded
+  ### _handleNegotiationNeeded
 
-Trigger when the peer connection and it's remote counterpart need to 
-renegotiate due to streams being added, removed, etc.
+  Trigger when the peer connection and it's remote counterpart need to 
+  renegotiate due to streams being added, removed, etc.
 **/
 PeerConnection.prototype._handleNegotiationNeeded = function() {
   // wait for stable and then create the new offer
@@ -313,7 +313,7 @@ PeerConnection.prototype._handleNegotiationNeeded = function() {
 };
 
 /**
-### _handleRemoteAdd()
+  ### _handleRemoteAdd()
 **/
 PeerConnection.prototype._handleRemoteAdd = function(evt) {
   if (evt.stream) {
@@ -322,10 +322,10 @@ PeerConnection.prototype._handleRemoteAdd = function(evt) {
 };
 
 /**
-### _handleRemoteUpdate
+  ### _handleRemoteUpdate
 
-This method responds to updates in the remote RTCPeerConnection updating
-it's local session description and sending that via the signalling channel.
+  This method responds to updates in the remote RTCPeerConnection updating
+  it's local session description and sending that via the signalling channel.
 **/
 PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
   var connection = this;
@@ -382,12 +382,12 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
 };
 
 /**
-### _handleRemoteIceCandidate(candidate)
+  ### _handleRemoteIceCandidate(candidate)
 
-This event is triggered in response to receiving a candidate from its
-peer connection via the signalling channel.  Once ice candidates have been 
-received and synchronized we are able to properly establish the communication 
-between two peer connections.
+  This event is triggered in response to receiving a candidate from its
+  peer connection via the signalling channel.  Once ice candidates have been 
+  received and synchronized we are able to properly establish the 
+  communication between two peer connections.
 **/
 PeerConnection.prototype._handleRemoteIceCandidate = function(sdp) {
   var haveRemoteDesc = this._basecon && this._basecon.remoteDescription;
@@ -408,19 +408,19 @@ PeerConnection.prototype._handleRemoteIceCandidate = function(sdp) {
 };
 
 /**
-### _handleRemoteRemove()
+  ### _handleRemoteRemove()
 **/
 PeerConnection.prototype._handleRemoteRemove = function() {
   console.log('remote stream removed', arguments);
 };
 
 /**
-### _handleStateChange(evt)
+  ### _handleStateChange(evt)
 
-This is a generate state change handler that will inspect the various states
-of the peer connection and make a determination on whether the connection is
-ready for use.  In the event that the connection is ready, it will trigger
-a `ready` event.
+  This is a generate state change handler that will inspect the various states
+  of the peer connection and make a determination on whether the connection is
+  ready for use.  In the event that the connection is ready, it will trigger
+  a `ready` event.
 **/
 PeerConnection.prototype._handleStateChange = function() {
   console.log(
