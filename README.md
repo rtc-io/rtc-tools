@@ -6,9 +6,39 @@ the front-end component of a WebRTC application.
 
 ## Getting Started
 
-# rtc/peerconnection
+## rtc/detect
 
-## PeerConnection prototype reference
+Export the [rtc-detect](https://github.com/rtc-io/rtc-core) `detect`
+functionality.
+
+# rtc/media
+
+This is a convenience import of the `rtc-media` package into the `rtc`
+package. For example, both of the following `require` statements return
+equivalent modules:
+
+```js
+var media;
+
+// use the rtc/media entry point
+media = require('rtc/media');
+
+// use rtc-media directly
+media = require('rtc-media');
+```
+
+In most cases we would recommend importing `rtc` into your application and
+using that.  In a case that you are writing a web application that does not
+require the full WebRTC suite but only want to work with getUserMedia then
+you may consider using `rtc-media` directly.
+
+For the full rtc-media reference see:
+
+<http://rtc.io/modules/media>
+
+## rtc/peerconnection
+
+### PeerConnection prototype reference
 
 ### close()
 
@@ -62,31 +92,6 @@ of the peer connection and make a determination on whether the connection is
 ready for use.  In the event that the connection is ready, it will trigger
 a `ready` event.
 
-# rtc/media
-
-This is a convenience import of the `rtc-media` package into the `rtc`
-package. For example, both of the following `require` statements return
-equivalent modules:
-
-```js
-var media;
-
-// use the rtc/media entry point
-media = require('rtc/media');
-
-// use rtc-media directly
-media = require('rtc-media');
-```
-
-In most cases we would recommend importing `rtc` into your application and
-using that.  In a case that you are writing a web application that does not
-require the full WebRTC suite but only want to work with getUserMedia then
-you may consider using `rtc-media` directly.
-
-For the full rtc-media reference see:
-
-<http://rtc.io/modules/media>
-
 # rtc/signaller
 
 ## Signaller prototype reference
@@ -112,22 +117,3 @@ Create a new Signaller instance
 ### Signaller.join(name)
 
 Create a new signaller instance, and join the specified channel
-
-# rtc/detect
-
-A browser detection helper for accessing prefix-free versions of the various
-WebRTC types. 
-
-## Example Usage
-
-If you wanted to get the native `RTCPeerConnection` prototype in any browser
-you could do the following:
-
-```js
-var detect = require('rtc/detect');
-var RTCPeerConnection = detect('RTCPeerConnection');
-```
-
-This would provide whatever the browser prefixed version of the
-RTCPeerConnection is available (`webkitRTCPeerConnection`, 
-`mozRTCPeerConnection`, etc).

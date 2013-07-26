@@ -2,7 +2,7 @@
 /* global RTCIceCandidate: false */
 
 /**
-# rtc/peerconnection
+## rtc/peerconnection
 **/
 
 'use strict';
@@ -65,7 +65,7 @@ var STATE_MAPPINGS = {
 };
 
 /**
-## PeerConnection prototype reference
+### PeerConnection prototype reference
 **/
 
 function PeerConnection(config, opts) {

@@ -7,13 +7,32 @@
   ],
   "version": "0.0.4",
   "dependencies": {
-    "rtc-core": "git://github.it.nicta.com.au/Telepresence/rtc-core.git",
-    "rtc-media": "git://github.it.nicta.com.au/Telepresence/rtc-media.git",
-    "rtc-signaller": "git://github.it.nicta.com.au/Telepresence/rtc-signaller.git"
+    "rtc-core": "~0.2.0",
+    "rtc-media": "~0.1.2",
+    "rtc-signaller": "~0.1.2"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "jshint": "~2.1.4",
+    "emu": "0.0.2"
+  },
   "scripts": {
-    "gendocs": "cat index.js peerconnection.js media.js signaller.js detect.js | emu > README.md"
+    "test": "$(npm bin)/jshint *.js",
+    "gendocs": "cat index.js $(find *.js -not -path \"index.js\") | $(npm bin)/emu > README.md"
   },
-  "contributors": []
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rtc-io/rtc.git"
+  },
+  "keywords": [
+    "webrtc",
+    "rtc.io"
+  ],
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/rtc-io/rtc/issues"
+  }
 }
