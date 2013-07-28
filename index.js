@@ -18,6 +18,9 @@
 // export peer connection
 exports.PeerConnection = require('./peerconnection');
 
+// export detect
+exports.detect = require('/detect');
+
 // export media
 exports.media = require('./media');
 

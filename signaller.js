@@ -3,7 +3,13 @@
 'use strict';
 
 /**
-# rtc/signaller
+  ## rtc/signaller
+
+  The `rtc/signaller` provides a higher level signalling implementation than
+  the pure [rtc-signaller](https://github.com/rtc-io/rtc-signaller) package.
+
+  The signaller included in this packge provides some convenience methods for
+  making connections with a peer given a typical rtc.io setup.  
 **/
 
 var BaseSignaller = require('rtc-signaller');
