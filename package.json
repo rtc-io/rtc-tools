@@ -13,10 +13,11 @@
   },
   "devDependencies": {
     "jshint": "~2.1.4",
-    "emu": "0.0.2"
+    "emu": "0.0.2",
+    "tape": "~1.0.4"
   },
   "scripts": {
-    "test": "$(npm bin)/jshint *.js",
+    "test": "$(npm bin)/jshint *.js && node test/all.js",
     "gendocs": "cat index.js $(find *.js -not -path \"index.js\") | $(npm bin)/emu > README.md"
   },
   "main": "index.js",
@@ -26,6 +27,18 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/rtc-io/rtc.git"
+  },
+  "testling": {
+    "files": "test/all.js",
+    "browsers": {
+      "chrome": [
+        29
+      ],
+
+      "firefox": [
+        25
+      ]
+    }
   },
   "keywords": [
     "webrtc",
