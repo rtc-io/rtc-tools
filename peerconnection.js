@@ -61,6 +61,17 @@ var PASSTHROUGH_ATTRIBUTES = [
   'iceConnectionState'
 ];
 
+var EMITTED_EVENTS = [
+  'negotiationneeded',
+  'icecandidate',
+  'signalingstatechange',
+  'addstream',
+  'removestream',
+  'iceconnectionstatechange',
+  'datachannel'
+];
+
+/*
 var PASSTHROUGH_EVENTS = [
   'onnegotiationneeded',
   'onicecandidate',
@@ -70,6 +81,7 @@ var PASSTHROUGH_EVENTS = [
   'oniceconnectionstatechange',
   'ondatachannel'
 ];
+*/
 
 var STATE_MAPPINGS = {
   active: 'stable'
@@ -117,6 +129,15 @@ function PeerConnection(config) {
   if (this.config.channel) {
     this.setChannel(this.config.channel);
   }
+
+  // map event handlers
+  this.on('signalingstatechange', handleStateChange(this));
+  this.on('iceconnectionstatechange', handleStateChange(this));
+  this.on('icecandidate', handleIceCandidate(this));
+  this.on('addstream', handleAddStream(this));
+  this.on('remvestream', handleRemoveStream(this));
+  this.on('negotiationneeded', handleNegotiationNeeded(this));
+
 }
 
 util.inherits(PeerConnection, EventEmitter);
@@ -344,82 +365,33 @@ PeerConnection.prototype._createBaseConnection = function() {
   Used to update the underlying base connection.
 **/
 PeerConnection.prototype._setBaseConnection = function(value) {
+  var conn = this;
+
   // if the same, then abort
   if (this._basecon === value) { return; }
 
   // if we have an existing base connection, remove event listeners
   if (this._basecon) {
-    this._basecon.onsignalingstatechange = null;
-    this._basecon.oniceconnectionstatechange = null;
-
-    this._basecon.onicecandidate = null;
-    this._basecon.onaddstream = null;
-    this._basecon.onremovestream = null;
-    this._basecon.onnegotiationneeded = null;
+    // clear mapped listeners
+    EMITTED_EVENTS.map(function(evtName) {
+      conn._basecon['on' + evtName] = null;
+    });
   }
 
   // update the base connection
   this._basecon = value;
 
   if (value) {
-    // attach event listeners for state changes
-    value.onsignalingstatechange =
-    value.oniceconnectionstatechange = this._handleStateChange.bind(this);
-
-    value.onicecandidate = this._handleIceCandidate.bind(this);
-    value.onaddstream = this._handleRemoteAdd.bind(this);
-    value.onremovestream = this._handleRemoteRemove.bind(this);
-    value.onnegotiationneeded = this._handleNegotiationNeeded.bind(this);
+    // attach event listeners for pass through
+    EMITTED_EVENTS.map(function(evtName) {
+      value['on' + evtName] = conn.emit.bind(conn, evtName);
+    });
 
     // update the stable flag
     this.stable = this.signalingState === 'stable';
   }
 
   return value;
-};
-
-/**
-  ### _handleICECandidate()
-**/
-PeerConnection.prototype._handleIceCandidate = function(evt) {
-  if (evt.candidate) {
-    this.emit('candidate', evt.candidate);
-
-    // if we have a channel, send to the channel
-    if (this.channel) {
-      this.channel.send(
-        '/to',
-        this.targetId, 'candidate', evt.candidate.candidate
-      );
-    }
-  }
-};
-
-/**
-  ### _handleNegotiationNeeded
-
-  Trigger when the peer connection and it's remote counterpart need to 
-  renegotiate due to streams being added, removed, etc.
-**/
-PeerConnection.prototype._handleNegotiationNeeded = function() {
-  this.emit('negotiate');
-  /*
-  if (this.signalingState === 'stable') {
-    this.emit('negotiate');
-  }
-  else {
-    this.once('stable', this.emit.bind(this, 'negotiate'));
-  }
-  */
-};
-
-/**
-  ### _handleRemoteAdd()
-**/
-PeerConnection.prototype._handleRemoteAdd = function(evt) {
-  if (evt.stream) {
-    return this.emit('stream:add', evt.stream);
-  }
 };
 
 /**
@@ -502,37 +474,6 @@ PeerConnection.prototype._handleRemoteIceCandidate = function(sdp) {
   }
 };
 
-/**
-  ### _handleRemoteRemove()
-**/
-PeerConnection.prototype._handleRemoteRemove = function() {
-  console.log('remote stream removed', arguments);
-};
-
-/**
-  ### _handleStateChange(evt)
-
-  This is a generate state change handler that will inspect the various states
-  of the peer connection and make a determination on whether the connection is
-  ready for use.  In the event that the connection is ready, it will trigger
-  a `ready` event.
-**/
-PeerConnection.prototype._handleStateChange = function() {
-  var isStable = this.signalingState === 'stable' &&
-    this._basecon.iceGatheringState === 'complete';
-
-  console.log(
-    'checking peer connection state, isStable = ' + isStable,
-    this.signalingState,
-    this._basecon.iceGatheringState
-  );
-
-  if (this.stable !== isStable) {
-    this.stable = isStable;
-    this.emit(isStable ? 'stable' : 'unstable');
-  }
-};
-
 /* RTCPeerConnection passthroughs */
 
 PASSTHROUGH_METHODS.forEach(function(method) {
@@ -567,6 +508,7 @@ Object.defineProperty(PeerConnection.prototype, 'signalingState', {
   }
 });
 
+/*
 PASSTHROUGH_EVENTS.forEach(function(eventName) {
   Object.defineProperty(PeerConnection.prototype, eventName, {
     set: function(handler) {
@@ -576,3 +518,91 @@ PASSTHROUGH_EVENTS.forEach(function(eventName) {
     }
   });
 });
+*/
+
+/* event handler helpers */
+
+/*
+  ### handleAddStream(connection)
+*/
+function handleAddStream(connection) {
+  return function(evt) {
+    if (evt.stream) {
+      return connection.emit('stream:add', evt.stream);
+    }
+  };
+}
+
+/*
+  ### handleRemoveStream(connection)
+*/
+function handleRemoveStream(connection) {
+  return function(evt) {
+    console.log('remote stream removed', arguments);
+  };
+}
+
+/*
+  ### handleIceCandidate(connection)
+
+  Return an event handler for responding to ice candidate changes
+*/
+function handleIceCandidate(connection) {
+  return function(evt) {
+    if (evt.candidate) {
+      connection.emit('candidate', evt.candidate);
+
+      // if we have a channel, send to the channel
+      if (connection.channel) {
+        connection.channel.send(
+          '/to',
+          connection.targetId, 'candidate', evt.candidate.candidate
+        );
+      }
+    }
+  };
+}
+
+/*
+  ### handleNegotiationNeeded(connection)
+
+  Trigger when the peer connection and it's remote counterpart need to 
+  renegotiate due to streams being added, removed, etc.
+*/
+function handleNegotiationNeeded(connection) {
+  return function(evt) {
+    connection.emit('negotiate');
+
+    /*
+    if (this.signalingState === 'stable') {
+      this.emit('negotiate');
+    }
+    else {
+      this.once('stable', this.emit.bind(this, 'negotiate'));
+    }
+    */
+  };
+};
+
+/*
+  ### handleStateChange(connection)
+
+  Return an event handler for dealing with peer connection state changes.
+*/
+function handleStateChange(connection) {
+  return function(evt) {
+    var isStable = connection.signalingState === 'stable' &&
+      connection._basecon.iceGatheringState === 'complete';
+
+    console.log(
+      'checking peer connection state, isStable = ' + isStable,
+      connection.signalingState,
+      connection._basecon.iceGatheringState
+    );
+
+    if (connection.stable !== isStable) {
+      connection.stable = isStable;
+      connection.emit(isStable ? 'stable' : 'unstable');
+    }
+  };
+}

@@ -50,10 +50,19 @@ error as the first argument.
 Initialise the signalling channel that will be used to communicate
 the actual RTCPeerConnection state to it's friend.
 
-## PeerConnection Data Channel Helper Methods
+### PeerConnection Data Channel Helper Methods
 
 The PeerConnection wrapper provides some methods that make working
 with data channels simpler a simpler affair.
+
+### createReader(channelName?)
+
+Calling this method will create a
+[pull-stream](https://github.com/dominictarr/pull-stream) source for
+the data channel attached to the peer connection.  If a data channel
+has not already been configured for the connection, then it will 
+be created if the peer connection is in a state that will allow that
+to happen.
 
 ### createWriter(channelName?)
 
@@ -61,6 +70,13 @@ Create a new [pull-stream](https://github.com/dominictarr/pull-stream)
 sink for data that should be sent to the peer connection.  Like the
 `createReader` function if a suitable data channel has not be created
 then calling this method will initiate that behaviour.
+
+### _autoNegotiate()
+
+Instruct the PeerConnection to call it's own `negotiate` method whenever
+it emit's a `negotiate` event.
+
+Can be disabled by calling `connection._autoNegotiate(false)`
 
 ### _createBaseConnection()
 
@@ -70,15 +86,6 @@ on the currently configuration and media constraints.
 ### _setBaseConnection()
 
 Used to update the underlying base connection.
-
-### _handleICECandidate()
-
-### _handleNegotiationNeeded
-
-Trigger when the peer connection and it's remote counterpart need to 
-renegotiate due to streams being added, removed, etc.
-
-### _handleRemoteAdd()
 
 ### _handleRemoteUpdate
 
@@ -91,15 +98,6 @@ This event is triggered in response to receiving a candidate from its
 peer connection via the signalling channel.  Once ice candidates have been 
 received and synchronized we are able to properly establish the 
 communication between two peer connections.
-
-### _handleRemoteRemove()
-
-### _handleStateChange(evt)
-
-This is a generate state change handler that will inspect the various states
-of the peer connection and make a determination on whether the connection is
-ready for use.  In the event that the connection is ready, it will trigger
-a `ready` event.
 
 ## rtc/signaller
 
@@ -159,7 +157,7 @@ var a = new PeerConnection();
 var b = new PeerConnection();
 
 // couple the two connections together
-couple(a, b, function(err) {
+couple(peerA, peerB, function(err) {
 // if no err, then a and b have been coupled successfully
 );
 ```
