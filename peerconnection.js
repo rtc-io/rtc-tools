@@ -340,9 +340,14 @@ PeerConnection.prototype.createWriter = pull.Sink(function(read, channelName, do
   Can be disabled by calling `connection._autoNegotiate(false)`
 **/
 PeerConnection.prototype._autoNegotiate = function(enabled) {
-  this.removeListener('negotiate', this._listeners.autoneg);
+  // unbind previous event handler
+  if (this._listeners.autoneg) {
+    this.removeListener('negotiate', this._listeners.autoneg);
+    this._listeners.autoneg = undefined;
+  }
+
   if (typeof enabled == 'undefined' || enabled) {
-    this.on('negotiate', this.negotiate.bind(this));
+    this.on('negotiate', this._listeners.autoneg = this.negotiate.bind(this));
   }
 };
 
@@ -445,7 +450,7 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
   }
 
   // apply any remote ice candidates
-  this._queuedCandidates.splice(0).forEach(this._handleIceCandidate.bind(this));
+  this._queuedCandidates.splice(0).forEach(handleIceCandidate(this));
 };
 
 /**
