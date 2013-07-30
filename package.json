@@ -31,10 +31,10 @@
   },
   "testling": {
     "files": "test/all.js",
-    "browsers": {
-      "chrome": "25..latest",
-      "firefox": "23..latest"
-    }
+    "browsers": [
+      "chrome/25..canary",
+      "firefox/22..nightly"
+    ]
   },
   "keywords": [
     "webrtc",
