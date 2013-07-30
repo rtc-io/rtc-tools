@@ -132,3 +132,59 @@ Create a new Signaller instance
 ### Signaller.join(name)
 
 Create a new signaller instance, and join the specified channel
+
+## Internal RTC Helper Libraries
+
+The RTC library uses a number of helper modules that are contained within
+the `lib/` folder of the `rtc-io/rtc` repository.  While these are designed
+primarily for internal use, they can be accessed by directly requiring
+the modules, e.g. `require('rtc/lib/helpermodule')`
+
+## rtc/couple
+
+This is a utility module that is not included in the rtc suite by 
+default, but can be included using the following require statement:
+
+```js
+var couple = require('rtc/couple');
+```
+
+It is primarily used in local testing routines to bind two local
+peer connection together, e.g.:
+
+```js
+var couple = require('rtc/couple');
+var PeerConnection = require('rtc/peerconnection');
+var a = new PeerConnection();
+var b = new PeerConnection();
+
+// couple the two connections together
+couple(a, b, function(err) {
+// if no err, then a and b have been coupled successfully
+);
+```
+
+## rtc/generators
+
+The generators package provides some utility methods for generating
+constraint objects and similar constructs.  Primarily internal use.
+
+```js
+var generators = require('rtc/generators');
+```
+
+### generators.config(config)
+
+Generate a configuration object suitable for passing into an W3C 
+RTCPeerConnection constructor first argument, based on our custom config.
+
+### generators.mediaConstraints(flags, context)
+
+Generate mediaConstraints appropriate for the context in which they are 
+being called (i.e. either constructing an RTCPeerConnection object, or
+on the `createOffer` or `createAnswer` calls).
+
+### parseFlags(opts)
+
+This is a helper function that will extract known flags from a generic 
+options object.

@@ -14,13 +14,12 @@
   },
   "devDependencies": {
     "jshint": "~2.1.4",
-    "emu": "0.0.2",
     "tape": "~1.0.4",
     "rtc-channelmanager": "~0.1.4"
   },
   "scripts": {
     "test": "$(npm bin)/jshint *.js && node test/all.js",
-    "gendocs": "cat index.js $(find *.js -not -path \"index.js\") | $(npm bin)/emu > README.md"
+    "gendocs": "sourcecat | emu > README.md"
   },
   "main": "index.js",
   "directories": {
