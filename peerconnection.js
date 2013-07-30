@@ -3,6 +3,16 @@
 
 /**
   ## rtc/peerconnection
+
+  The `rtc/peerconnection` module provides an `RTCPeerConnection` proxy 
+  prototype.  All of the core W3C `RTCPeerConnection` methods and attributes
+  are available on created `PeerConnection` instances, but also some 
+  helper methods that are outlined in the reference documentation below.
+
+  ```js
+  var PeerConnection = require('rtc/peerconnection');
+  var conn = new PeerConnection();
+  ```
 **/
 
 'use strict';

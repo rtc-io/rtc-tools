@@ -8,6 +8,30 @@ the front-end component of a WebRTC application.
 
 TO BE COMPLETED
 
+## rtc/couple
+
+This is a utility module that is not included in the rtc suite by 
+default, but can be included using the following require statement:
+
+```js
+var couple = require('rtc/couple');
+```
+
+It is primarily used in local testing routines to bind two local
+peer connection together, e.g.:
+
+```js
+var couple = require('rtc/couple');
+var PeerConnection = require('rtc/peerconnection');
+var a = new PeerConnection();
+var b = new PeerConnection();
+
+// couple the two connections together
+couple(a, b, function(err) {
+// if no err, then a and b have been coupled successfully
+);
+```
+
 ## rtc/detect
 
 Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
@@ -16,9 +40,11 @@ functionality.
 ## rtc/generators
 
 The generators package provides some utility methods for generating
-constraint objects and similar constructs.  While this is primarily used
-internally within the rtc module, it can be used via the
-`require('rtc/generators')` statement.
+constraint objects and similar constructs.  Primarily internal use.
+
+```js
+var generators = require('rtc/generators');
+```
 
 ### generators.config(config)
 
@@ -31,7 +57,7 @@ Generate mediaConstraints appropriate for the context in which they are
 being called (i.e. either constructing an RTCPeerConnection object, or
 on the `createOffer` or `createAnswer` calls).
 
-## parseFlags(opts)
+### parseFlags(opts)
 
 This is a helper function that will extract known flags from a generic 
 options object.
@@ -42,6 +68,16 @@ Provide the core [rtc-media](https://github.com/rtc-io/rtc-media) for
 convenience.
 
 ## rtc/peerconnection
+
+The `rtc/peerconnection` module provides an `RTCPeerConnection` proxy 
+prototype.  All of the core W3C `RTCPeerConnection` methods and attributes
+are available on created `PeerConnection` instances, but also some 
+helper methods that are outlined in the reference documentation below.
+
+```js
+var PeerConnection = require('rtc/peerconnection');
+var conn = new PeerConnection();
+```
 
 ### PeerConnection prototype reference
 

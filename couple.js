@@ -27,7 +27,7 @@ couple(a, b, function(err) {
   // if no err, then a and b have been coupled successfully
 );
 ```
-*/
+**/
 module.exports = function(a, b, callback) {
   // create an offer for a
   a.createOffer(
