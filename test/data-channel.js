@@ -12,8 +12,8 @@ var sink;
 test('create peer connections and couple', function(t) {
   t.plan(3);
 
-  t.ok(a = new PeerConnection(), 'created a');
-  t.ok(b = new PeerConnection(), 'created b');
+  t.ok(a = new PeerConnection({ data: true }), 'created a');
+  t.ok(b = new PeerConnection({ data: true }), 'created b');
 
   couple(a, b, function(err) {
     t.ifError(err, 'done');
