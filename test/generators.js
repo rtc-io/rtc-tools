@@ -1,4 +1,4 @@
-var generators = require('../generators');
+var generators = require('../lib/generators');
 var test = require('tape');
 var testConstraints = {
   optional: [],

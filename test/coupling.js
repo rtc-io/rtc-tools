@@ -1,4 +1,4 @@
-var couple = require('../couple');
+var couple = require('../lib/couple');
 var test = require('tape');
 var PeerConnection = require('../peerconnection');
 var a;

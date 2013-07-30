@@ -17,8 +17,8 @@
 
 'use strict';
 
-var defaults = require('./defaults');
-var generators = require('./generators');
+var defaults = require('./lib/defaults');
+var generators = require('./lib/generators');
 var EventEmitter = require('events').EventEmitter;
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');
 var RTCSessionDescription = require('./detect')('RTCSessionDescription');
