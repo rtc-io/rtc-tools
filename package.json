@@ -9,12 +9,14 @@
   "dependencies": {
     "rtc-core": "~0.2.0",
     "rtc-media": "~0.1.2",
-    "rtc-signaller": "~0.1.2"
+    "rtc-signaller": "~0.1.2",
+    "pull-stream": "~2.20.1"
   },
   "devDependencies": {
     "jshint": "~2.1.4",
     "emu": "0.0.2",
-    "tape": "~1.0.4"
+    "tape": "~1.0.4",
+    "rtc-channelmanager": "~0.1.4"
   },
   "scripts": {
     "test": "$(npm bin)/jshint *.js && node test/all.js",

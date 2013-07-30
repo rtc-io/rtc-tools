@@ -8,15 +8,21 @@
 'use strict';
 
 var defaults = require('./defaults');
+var generators = require('./generators');
 var EventEmitter = require('events').EventEmitter;
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');
 var RTCSessionDescription = require('./detect')('RTCSessionDescription');
 var errorcodes = require('rtc-core/errorcodes');
 var util = require('util');
+var pull = require('pull-stream');
 
 // passthrough methods, attributes and events
 // http://dev.w3.org/2011/webrtc/editor/webrtc.html#rtcpeerconnection-interface
 var PASSTHROUGH_METHODS = [
+  // not yet stable, but including
+  'createDataChannel',
+
+  // stable? methods
   'createOffer',
   'createAnswer',
   'setLocalDescription',
@@ -68,9 +74,9 @@ var STATE_MAPPINGS = {
   ### PeerConnection prototype reference
 **/
 
-function PeerConnection(config, opts) {
+function PeerConnection(config, mediaConstraints) {
   if (! (this instanceof PeerConnection)) {
-    return new PeerConnection(config, opts);
+    return new PeerConnection(config, mediaConstraints);
   }
 
   // inherited
@@ -89,18 +95,9 @@ function PeerConnection(config, opts) {
   // create a _listeners object to hold listener function instances
   this._listeners = {};
 
-  // initialise the opts
-  this.opts = opts || {};
-
   // initialise default media constraints
-  this.mediaConstraints = this.opts.mediaConstraints || {
-    mandatory: {
-      OfferToReceiveAudio: true,
-      OfferToReceiveVideo: true
-    },
-
-    optional: []
-  };
+  this.mediaConstraints = mediaConstraints ||
+    generators.mediaConstraints(config);
 
   // initialise underlying W3C connection instance to null
   this._basecon = null;
@@ -113,8 +110,8 @@ function PeerConnection(config, opts) {
 
   // if we have a channel defined in options, then initialise the channel
   this.channel = null;
-  if (this.opts.channel) {
-    this.setChannel(this.opts.channel);
+  if (this.config.channel) {
+    this.setChannel(this.config.channel);
   }
 }
 
@@ -167,7 +164,7 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
   this.targetId = targetId;
 
   // create a new browser peer connection instance
-  this._setBaseConnection(new RTCPeerConnection(this.config, this.opts));
+  this._createBaseConnection();
 
   // negotiate
   this.negotiate(callback);
@@ -242,6 +239,80 @@ PeerConnection.prototype.setChannel = function(channel) {
 };
 
 /**
+  ## PeerConnection Data Channel Helper Methods
+
+  The PeerConnection wrapper provides some methods that make working
+  with data channels simpler a simpler affair.
+**/
+
+/**
+### createReader(channelName?)
+
+Calling this method will create a
+[pull-stream](https://github.com/dominictarr/pull-stream) source for
+the data channel attached to the peer connection.  If a data channel
+has not already been configured for the connection, then it will 
+be created if the peer connection is in a state that will allow that
+to happen.
+*/
+PeerConnection.prototype.createReader = pull.Source(function(channelName) {
+  // ensure we have a channel name
+  channelName = channelName || 'default';
+
+  // open the channel
+  console.log(this);
+
+  // wait for requests
+  return function(end, cb) {
+    if (end) {
+      return cb();
+    }
+  };
+});
+
+/**
+### createWriter(channelName?)
+
+Create a new [pull-stream](https://github.com/dominictarr/pull-stream)
+sink for data that should be sent to the peer connection.  Like the
+`createReader` function if a suitable data channel has not be created
+then calling this method will initiate that behaviour.
+**/
+PeerConnection.prototype.createWriter = pull.Sink(function(read, channelName, done) {
+  if (typeof channelName == 'function') {
+    done = channelName;
+    channelName = 'default';
+  }
+
+  // ensure we have a channelName
+  channelName = channelName || 'default';
+
+  // create the channel
+
+  // read from upstream
+  read(null, function next(end, data) {
+    if (end) {
+      return;
+    }
+
+    // TODO: write the data to the data channel
+    read(null, next);
+  });
+});
+
+/**
+  ### _createBaseConnection()
+
+  This will create a new base RTCPeerConnection object based
+  on the currently configuration and media constraints.
+**/
+PeerConnection.prototype._createBaseConnection = function() {
+  return this._setBaseConnection(
+    new RTCPeerConnection(this.config, this.mediaConstraints)
+  );
+};
+
+/**
   ### _setBaseConnection()
 
   Used to update the underlying base connection.
@@ -285,7 +356,7 @@ PeerConnection.prototype._setBaseConnection = function(value) {
   ### _handleICECandidate()
 **/
 PeerConnection.prototype._handleIceCandidate = function(evt) {
-  if (evt.candidate) {
+  if (evt.candidate && this.channel) {
     // console.log('received ice candidate: ' + evt.candidate.candidate);
     this.channel.send(
       '/to',
@@ -340,15 +411,9 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
   // if we have a callid provided, and no local call id update
   this.callId = this.callId || callId;
 
-  // if we don't have a base connection, then create it
-  if (! this._basecon) {
-    // create a new browser peer connection instance
-    this._setBaseConnection(new RTCPeerConnection(this.config, this.opts));
-  }
-
   // update the remote session description
   // set the remote description
-  this._basecon.setRemoteDescription(new RTCSessionDescription({
+  this.setRemoteDescription(new RTCSessionDescription({
     type: type || 'offer',
     sdp: sdp
   }));
@@ -442,9 +507,10 @@ PeerConnection.prototype._handleStateChange = function() {
 
 PASSTHROUGH_METHODS.forEach(function(method) {
   PeerConnection.prototype[method] = function() {
-    if (this._basecon) {
-      return this._basecon[method].apply(this._basecon, arguments);
-    }
+    // if we don't already have a base connection, then create it
+    var baseCon = this._basecon || this._createBaseConnection();
+
+    return this._basecon[method].apply(this._basecon, arguments);
   };
 });
 
