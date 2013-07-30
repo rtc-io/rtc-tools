@@ -32,8 +32,8 @@
   "testling": {
     "files": "test/all.js",
     "browsers": [
-      "chrome/25..canary",
-      "firefox/22..nightly"
+      "chrome/canary",
+      "firefox/nightly"
     ]
   },
   "keywords": [
