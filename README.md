@@ -13,9 +13,33 @@ TO BE COMPLETED
 Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
 functionality.
 
+## rtc/generators
+
+The generators package provides some utility methods for generating
+constraint objects and similar constructs.  While this is primarily used
+internally within the rtc module, it can be used via the
+`require('rtc/generators')` statement.
+
+### generators.config(config)
+
+Generate a configuration object suitable for passing into an W3C 
+RTCPeerConnection constructor first argument, based on our custom config.
+
+### generators.mediaConstraints(flags, context)
+
+Generate mediaConstraints appropriate for the context in which they are 
+being called (i.e. either constructing an RTCPeerConnection object, or
+on the `createOffer` or `createAnswer` calls).
+
+## parseFlags(opts)
+
+This is a helper function that will extract known flags from a generic 
+options object.
+
 ## rtc/media
 
-Provide the core [rtc-media](https://github.com/rtc-io/rtc-media) for convenience.
+Provide the core [rtc-media](https://github.com/rtc-io/rtc-media) for
+convenience.
 
 ## rtc/peerconnection
 
@@ -38,6 +62,23 @@ error as the first argument.
 
 Initialise the signalling channel that will be used to communicate
 the actual RTCPeerConnection state to it's friend.
+
+## PeerConnection Data Channel Helper Methods
+
+The PeerConnection wrapper provides some methods that make working
+with data channels simpler a simpler affair.
+
+### createWriter(channelName?)
+
+Create a new [pull-stream](https://github.com/dominictarr/pull-stream)
+sink for data that should be sent to the peer connection.  Like the
+`createReader` function if a suitable data channel has not be created
+then calling this method will initiate that behaviour.
+
+### _createBaseConnection()
+
+This will create a new base RTCPeerConnection object based
+on the currently configuration and media constraints.
 
 ### _setBaseConnection()
 
@@ -73,7 +114,13 @@ of the peer connection and make a determination on whether the connection is
 ready for use.  In the event that the connection is ready, it will trigger
 a `ready` event.
 
-# rtc/signaller
+## rtc/signaller
+
+The `rtc/signaller` provides a higher level signalling implementation than
+the pure [rtc-signaller](https://github.com/rtc-io/rtc-signaller) package.
+
+The signaller included in this packge provides some convenience methods for
+making connections with a peer given a typical rtc.io setup.
 
 ## Signaller prototype reference
 

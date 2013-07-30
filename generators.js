@@ -34,7 +34,10 @@ var knownFlags = ['video', 'audio', 'data'];
   ## rtc/generators
 
   The generators package provides some utility methods for generating
-  constraint objects and similar constructs.
+  constraint objects and similar constructs.  While this is primarily used
+  internally within the rtc module, it can be used via the
+  `require('rtc/generators')` statement.
+  
 **/
 
 /**
