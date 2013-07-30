@@ -15,7 +15,8 @@
   "devDependencies": {
     "jshint": "~2.1.4",
     "tape": "~1.0.4",
-    "rtc-channelmanager": "~0.1.4"
+    "rtc-channelmanager": "~0.1.4",
+    "uuid": "~1.4.1"
   },
   "scripts": {
     "test": "$(npm bin)/jshint *.js && node test/all.js",

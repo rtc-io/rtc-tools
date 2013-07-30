@@ -20,12 +20,34 @@ test('create peer connections and couple', function(t) {
   });
 });
 
-test('can create a data channel for a', function(t) {
-  t.plan(1);
-  t.ok(aData = a.createDataChannel('default', { reliable: false }));
+test('can create a data channel (a initiate)', function(t) {
+  t.plan(3);
+  t.ok(aData = a.createDataChannel('RTCDataChannel', { reliable: false }), 'created');
+
+  b.ondatachannel = function(evt) {
+    t.ok(bData = evt.channel, 'b received');
+    console.log(bData.readyState);
+  };
+
+  // wait for a to open
+  aData.onopen = t.pass.bind(t, 'data channel a opened');
 });
 
-test('can create a data channel for b', function(t) {
+test('can send from a --> b', function(t) {
   t.plan(1);
-  t.ok(bData = b.createDataChannel('default', { reliable: false }));
+  aData.send('hello');
 });
+
+/*
+test('data channels open', function(t) {
+  t.plan(2);
+  console.log(aData.readyState);
+  console.log(bData.readyState);
+  aData.onopen = t.pass.bind(t, 'a opened');
+  bData.onopen = t.pass.bind(t, 'b opened');
+
+  aData.addEventListener('open', function() {
+    console.log('opened');
+  });
+});
+*/

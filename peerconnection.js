@@ -43,13 +43,13 @@ var PASSTHROUGH_METHODS = [
   'getRemoteStreams',
   'getStreamById',
   'addStream',
-  'removeStream'
+  'removeStream',
   // 'close', -- don't include close as we need to do some custom stuff
 
   // add event listener passthroughs
   // NOTE: not implemented in moz so have to fudge it outselves
-  // 'addEventListener',
-  // 'removeEventListener'    
+  'addEventListener',
+  'removeEventListener'
 ];
 
 
@@ -61,20 +61,15 @@ var PASSTHROUGH_ATTRIBUTES = [
   'iceConnectionState'
 ];
 
-var PASSTHROUGH_EVENTS = [];
-
-
-/*
-Temporarily disable pass through events
-
-PASSTHROUGH_EVENTS = [
-    'onnegotiationneeded',
-    'onicecandidate',
-    'onsignalingstatechange',
-    'onaddstream',
-    'onremovestream',
-    'oniceconnectionstatechange'
-], */
+var PASSTHROUGH_EVENTS = [
+  'onnegotiationneeded',
+  'onicecandidate',
+  'onsignalingstatechange',
+  'onaddstream',
+  'onremovestream',
+  'oniceconnectionstatechange',
+  'ondatachannel'
+];
 
 var STATE_MAPPINGS = {
   active: 'stable'
@@ -136,7 +131,7 @@ PeerConnection.prototype.close = function() {
   var basecon = this._basecon;
 
   // TODO: log a better way
-  console.log('attempting to close underlying peer connection: ', basecon);
+  // console.log('attempting to close underlying peer connection: ', basecon);
 
   // first close the underlying base connection if it exists
   if (basecon) {
@@ -144,11 +139,11 @@ PeerConnection.prototype.close = function() {
     basecon.close();
   }
 
-  // set the channel to null to remove event listeners
-  this.setChannel(null);
-
   // emit the close event
   this.emit('close');
+
+  // set the channel to null to remove event listeners
+  this.setChannel(null);
 };
 
 /**
@@ -236,6 +231,10 @@ PeerConnection.prototype.setChannel = function(channel) {
 
   // if we have a new channel, then bind listeners
   if (channel) {
+    // initialise auto-negotiation
+    this._autoNegotiate();
+
+    // handle channel negotiation
     channel.on(
       'negotiate',
       this._listeners.negotiate = this._handleRemoteUpdate.bind(this)
@@ -250,7 +249,7 @@ PeerConnection.prototype.setChannel = function(channel) {
 };
 
 /**
-  ## PeerConnection Data Channel Helper Methods
+  ### PeerConnection Data Channel Helper Methods
 
   The PeerConnection wrapper provides some methods that make working
   with data channels simpler a simpler affair.
@@ -265,7 +264,7 @@ the data channel attached to the peer connection.  If a data channel
 has not already been configured for the connection, then it will 
 be created if the peer connection is in a state that will allow that
 to happen.
-*/
+**/
 PeerConnection.prototype.createReader = pull.Source(function(channelName) {
   // ensure we have a channel name
   channelName = channelName || 'default';
@@ -310,6 +309,21 @@ PeerConnection.prototype.createWriter = pull.Sink(function(read, channelName, do
     read(null, next);
   });
 });
+
+/**
+  ### _autoNegotiate()
+
+  Instruct the PeerConnection to call it's own `negotiate` method whenever
+  it emit's a `negotiate` event.
+
+  Can be disabled by calling `connection._autoNegotiate(false)`
+**/
+PeerConnection.prototype._autoNegotiate = function(enabled) {
+  this.removeListener('negotiate', this._listeners.autoneg);
+  if (typeof enabled == 'undefined' || enabled) {
+    this.on('negotiate', this.negotiate.bind(this));
+  }
+};
 
 /**
   ### _createBaseConnection()
@@ -368,12 +382,16 @@ PeerConnection.prototype._setBaseConnection = function(value) {
   ### _handleICECandidate()
 **/
 PeerConnection.prototype._handleIceCandidate = function(evt) {
-  if (evt.candidate && this.channel) {
-    // console.log('received ice candidate: ' + evt.candidate.candidate);
-    this.channel.send(
-      '/to',
-      this.targetId, 'candidate', evt.candidate.candidate
-    );
+  if (evt.candidate) {
+    this.emit('candidate', evt.candidate);
+
+    // if we have a channel, send to the channel
+    if (this.channel) {
+      this.channel.send(
+        '/to',
+        this.targetId, 'candidate', evt.candidate.candidate
+      );
+    }
   }
 };
 
@@ -384,15 +402,15 @@ PeerConnection.prototype._handleIceCandidate = function(evt) {
   renegotiate due to streams being added, removed, etc.
 **/
 PeerConnection.prototype._handleNegotiationNeeded = function() {
-  // wait for stable and then create the new offer
-  console.log('!!! anyone else want to negotiate?');
-
+  this.emit('negotiate');
+  /*
   if (this.signalingState === 'stable') {
-    this.negotiate();
+    this.emit('negotiate');
   }
   else {
-    this.once('stable', this.negotiate.bind(this));
+    this.once('stable', this.emit.bind(this, 'negotiate'));
   }
+  */
 };
 
 /**
@@ -500,18 +518,18 @@ PeerConnection.prototype._handleRemoteRemove = function() {
   a `ready` event.
 **/
 PeerConnection.prototype._handleStateChange = function() {
+  var isStable = this.signalingState === 'stable' &&
+    this._basecon.iceGatheringState === 'complete';
+
   console.log(
-    'checking peer connection state',
+    'checking peer connection state, isStable = ' + isStable,
     this.signalingState,
     this._basecon.iceGatheringState
   );
 
-  if (! this.stable && this.signalingState === 'stable') {
-    this.stable = true;
-    this.emit('stable');
-  }
-  else if (this.stable) {
-    this.stable = false;
+  if (this.stable !== isStable) {
+    this.stable = isStable;
+    this.emit(isStable ? 'stable' : 'unstable');
   }
 };
 

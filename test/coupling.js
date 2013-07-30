@@ -18,3 +18,13 @@ test('couple the two connections together', function(t) {
     t.ifError(err, 'done');
   });
 });
+
+test('close connections', function(t) {
+  t.plan(2);
+
+  a.once('close', t.pass.bind(t, 'a closed'));
+  b.once('close', t.pass.bind(t, 'b closed'));
+
+  a.close();
+  b.close();
+});

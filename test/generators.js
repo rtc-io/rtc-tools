@@ -1,7 +1,9 @@
 var generators = require('../lib/generators');
 var test = require('tape');
 var testConstraints = {
-  optional: [],
+  optional: [
+    { DtlsSrtpKeyAgreement: true }
+  ],
   mandatory: {
     OfferToReceiveAudio: true,
     OfferToReceiveVideo: true
