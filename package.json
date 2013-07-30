@@ -33,12 +33,8 @@
   "testling": {
     "files": "test/all.js",
     "browsers": {
-      "chrome": [
-        29
-      ],
-      "firefox": [
-        25
-      ]
+      "chrome": "25..latest",
+      "firefox": "23..latest"
     }
   },
   "keywords": [
