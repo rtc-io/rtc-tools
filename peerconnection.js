@@ -74,7 +74,7 @@ var STATE_MAPPINGS = {
   ### PeerConnection prototype reference
 **/
 
-function PeerConnection(config, mediaConstraints) {
+function PeerConnection(config) {
   if (! (this instanceof PeerConnection)) {
     return new PeerConnection(config, mediaConstraints);
   }
@@ -95,9 +95,8 @@ function PeerConnection(config, mediaConstraints) {
   // create a _listeners object to hold listener function instances
   this._listeners = {};
 
-  // initialise default media constraints
-  this.mediaConstraints = mediaConstraints ||
-    generators.mediaConstraints(config);
+  // parse flags from the config and inject into the peer connection
+  this.flags = generators.parseFlags(config);
 
   // initialise underlying W3C connection instance to null
   this._basecon = null;
@@ -200,7 +199,9 @@ PeerConnection.prototype.negotiate = function(callback) {
     },
 
     callback,
-    this.mediaConstraints
+
+    // create the media constraints for the create offer context
+    generators.mediaConstraints(connection.flags, 'offer')
   );
 };
 
@@ -307,9 +308,10 @@ PeerConnection.prototype.createWriter = pull.Sink(function(read, channelName, do
   on the currently configuration and media constraints.
 **/
 PeerConnection.prototype._createBaseConnection = function() {
-  return this._setBaseConnection(
-    new RTCPeerConnection(this.config, this.mediaConstraints)
-  );
+  return this._setBaseConnection(new RTCPeerConnection(
+    generators.config(this.config),
+    generators.mediaConstraints(this.flags, 'create')
+  ));
 };
 
 /**

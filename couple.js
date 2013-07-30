@@ -29,9 +29,6 @@ couple(a, b, function(err) {
 ```
 */
 module.exports = function(a, b, callback) {
-  console.log(a.mediaConstraints);
-  console.log(b.mediaConstraints);
-
   // create an offer for a
   a.createOffer(
     function(aDesc) {
@@ -51,11 +48,11 @@ module.exports = function(a, b, callback) {
         },
 
         callback,
-        b.mediaConstraints || generators.mediaConstraints()
+        generators.mediaConstraints(b.flags, 'offer')
       );
     },
 
     callback,
-    a.mediaConstraints || generators.mediaConstraints()
+    generators.mediaConstraints(a.flags, 'offer')
   );
 };
