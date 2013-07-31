@@ -5,7 +5,7 @@ test('can import rtc module', function(t) {
   t.ok(require('../'), 'imported successfully');
 });
 
-// require('./generators');
-// require('./peerconnection');
-// require('./coupling');
+require('./generators');
+require('./peerconnection');
+require('./coupling');
 require('./data-channel');

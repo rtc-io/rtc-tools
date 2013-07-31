@@ -17,6 +17,7 @@
 
 'use strict';
 
+var debug = require('rtc-core/debug')('peerconnection');
 var defaults = require('./lib/defaults');
 var generators = require('./lib/generators');
 var state = require('./lib/state');
@@ -57,7 +58,7 @@ var PASSTHROUGH_METHODS = [
 var PASSTHROUGH_ATTRIBUTES = [
   'localDescription',
   'remoteDescription',
-  // 'signalingState', --> create a cross-platform compatible attribute
+  'signalingState',
   'iceGatheringState',
   'iceConnectionState'
 ];
@@ -153,7 +154,7 @@ PeerConnection.prototype.close = function() {
   var basecon = this._basecon;
 
   // TODO: log a better way
-  // console.log('attempting to close underlying peer connection: ', basecon);
+  debug('attempting to close underlying peer connection: ', basecon);
 
   // first close the underlying base connection if it exists
   if (basecon) {
@@ -177,6 +178,9 @@ PeerConnection.prototype.close = function() {
   error as the first argument.
 **/
 PeerConnection.prototype.initiate = function(targetId, callback) {
+  // add a default callback if none supplied
+  callback = callback || function() {};
+
   // if we have no channel to talk over then trigger the callback with an 
   // error condition
   if (! this.channel) {
@@ -192,21 +196,18 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
   // create a new browser peer connection instance
   this._createBaseConnection();
 
-  // negotiate
-  this.negotiate(callback);
+  // negotiate (on next tick)
+  process.nextTick(this.negotiate.bind(this));
+
+  // once open trigger the callback
+  this.on('open', callback);
 };
 
 /**
   ### negotiate
 **/
-PeerConnection.prototype.negotiate = function(callback) {
+PeerConnection.prototype.negotiate = function() {
   var connection = this;
-
-  // ensure we have a callback
-  callback = callback || function() {};
-
-  // once stable trigger the callback
-  this.once('open', callback);
 
   // if we have no local streams, then wait until we do and try again
   if (this._basecon.getLocalStreams().length === 0) { return; }
@@ -225,7 +226,10 @@ PeerConnection.prototype.negotiate = function(callback) {
       );
     },
 
-    callback,
+    function(err) {
+      debug('error creating offer:', err);
+      connection.emit('error', err);
+    },
 
     // create the media constraints for the create offer context
     generators.mediaConstraints(connection.flags, 'offer')
@@ -290,9 +294,6 @@ to happen.
 PeerConnection.prototype.createReader = pull.Source(function(channelName) {
   // ensure we have a channel name
   channelName = channelName || 'default';
-
-  // open the channel
-  console.log(this);
 
   // wait for requests
   return function(end, cb) {
@@ -409,12 +410,12 @@ PeerConnection.prototype._setBaseConnection = function(value) {
 PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
   var connection = this;
 
-  console.log('received remote update, callid: ' + callId +
+  debug('received remote update, callid: ' + callId +
     ', local call id: ' + this.callId + ', type: ' + type);
 
   // if we have a callid and this is not a match, then abort
   if (this.callId && this.callId !== callId) { return; }
-  console.log('processing remote update');
+  debug('processing remote update');
 
   // if we have a callid provided, and no local call id update
   this.callId = this.callId || callId;
@@ -445,6 +446,7 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
       },
 
       function(err) {
+        debug('error creating answer: ', err);
         connection.emit('error', err);
       }
     );
@@ -499,21 +501,6 @@ PASSTHROUGH_ATTRIBUTES.forEach(function(getter) {
   });
 });
 
-// inject a xp signalling state attribute
-Object.defineProperty(PeerConnection.prototype, 'signalingState', {
-  get: function() {
-    var state = this._basecon &&
-          (this._basecon.signalingState || this._basecon.readyState);
-
-    // apply a state mapping if one exists
-    if (state) {
-      state = STATE_MAPPINGS[state] || state;
-    }
-
-    return state;
-  }
-});
-
 /*
 PASSTHROUGH_EVENTS.forEach(function(eventName) {
   Object.defineProperty(PeerConnection.prototype, eventName, {
@@ -544,7 +531,7 @@ function handleAddStream(connection) {
 */
 function handleRemoveStream(connection) {
   return function(evt) {
-    console.log('remote stream removed', arguments);
+    debug('remote stream removed', arguments);
   };
 }
 
@@ -577,16 +564,16 @@ function handleIceCandidate(connection) {
 */
 function handleNegotiationNeeded(connection) {
   return function(evt) {
-    connection.emit('negotiate');
+    debug('negotiation needed');
 
-    /*
-    if (this.signalingState === 'stable') {
-      this.emit('negotiate');
+    if (connection._basecon.signalingState === 'stable') {
+      connection.emit('negotiate');
     }
     else {
-      this.once('stable', this.emit.bind(this, 'negotiate'));
+      connection.once('open',
+        connection.emit.bind(connection, 'negotiate')
+      );
     }
-    */
   };
 };
 

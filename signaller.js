@@ -12,6 +12,7 @@
   making connections with a peer given a typical rtc.io setup.  
 **/
 
+var debug = require('rtc-core/debug')('rtc/signaller');
 var BaseSignaller = require('rtc-signaller');
 var PeerConnection = require('./peerconnection');
 var util = require('util');
@@ -50,13 +51,13 @@ Signaller.prototype.dial = function(targetId) {
 
   connection.setChannel(this);
   connection.initiate(targetId, function(err) {
-    console.log('connection initiation phase complete');
+    debug('connection initiation phase complete');
 
     if (! err) {
-      console.log('connection initiated, call id: ' + connection.callId);
+      debug('connection initiated, call id: ' + connection.callId);
     }
     else {
-      console.log('encountered error: ', err);
+      debug('encountered error: ', err);
     }
   });
 
