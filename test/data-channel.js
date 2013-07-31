@@ -1,7 +1,7 @@
 var couple = require('../lib/couple');
 var test = require('tape');
+var detect = require('../detect');
 var PeerConnection = require('../peerconnection');
-var pull = require('pull-stream');
 var a;
 var b;
 var aData;
@@ -19,13 +19,22 @@ test('create peer connections and couple', function(t) {
 test('create channel a', function(t) {
   t.plan(1);
   t.ok(aData = a.createDataChannel('RTCDataChannel', { reliable: false }), 'a created');
+
+  if (detect.moz) {
+    aData.binaryType = 'blob';
+  }
 });
 
 test('couple connections, b emit datachannel', function(t) {
   t.plan(2);
 
   b.on('datachannel', function(evt) {
-    t.ok(bData = evt.channel);
+    bData = evt.channel;
+    if (detect.moz) {
+      aData.binaryType = 'blob';
+    }
+
+    t.ok(bData);
   });
 
   couple(a, b, function(err) {
@@ -55,24 +64,30 @@ test('b is open', function(t) {
 
 test('can send from a --> b', function(t) {
   t.plan(1);
-  aData.send('hello');
 
-  bData.onmessage = function() {
-    t.pass('message received');
-    console.log(arguments);
+  bData.onmessage = function(evt) {
+    t.equal(evt.data, 'hello');
   }
+
+  aData.send('hello');
 });
 
-/*
-test('data channels open', function(t) {
+test('can send from b --> a', function(t) {
+  t.plan(1);
+
+  aData.onmessage = function(evt) {
+    t.equal(evt.data, 'hello');
+  };
+
+  bData.send('hello');
+});
+
+test('close connections', function(t) {
   t.plan(2);
-  console.log(aData.readyState);
-  console.log(bData.readyState);
-  aData.onopen = t.pass.bind(t, 'a opened');
-  bData.onopen = t.pass.bind(t, 'b opened');
 
-  aData.addEventListener('open', function() {
-    console.log('opened');
-  });
+  a.once('close', t.pass.bind(t, 'a closed'));
+  b.once('close', t.pass.bind(t, 'b closed'));
+
+  a.close();
+  b.close();
 });
-*/
