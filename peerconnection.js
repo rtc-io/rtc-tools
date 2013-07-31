@@ -20,6 +20,7 @@
 var debug = require('rtc-core/debug')('peerconnection');
 var defaults = require('./lib/defaults');
 var generators = require('./lib/generators');
+var handshakes = require('./lib/handshakes');
 var state = require('./lib/state');
 var EventEmitter = require('events').EventEmitter;
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');
@@ -207,36 +208,21 @@ PeerConnection.prototype.initiate = function(targetId, callback) {
 /**
   ### negotiate
 **/
-PeerConnection.prototype.negotiate = function() {
+PeerConnection.prototype.negotiate = function(type) {
   var connection = this;
+  var desc;
+  var handshake;
 
-  // if we have no local streams, then wait until we do and try again
-  if (this._basecon.getLocalStreams().length === 0) { return; }
+  // get the local description
+  desc = this._basecon.localDescription;
 
-  // create a new offer
-  this._basecon.createOffer(
-    function(desc) {
-      // set the local description of the instance
-      connection._basecon.setLocalDescription(desc);
+  // get the appropriate handshaker
+  handshake = handshakes[type || (desc && desc.type || 'offer')];
 
-      // send a negotiate command to the signalling server
-      debug('negotiating, type: ' + desc.type);
-      connection.channel.negotiate(
-        connection.targetId,
-        desc.sdp,
-        connection.callId,
-        desc.type
-      );
-    },
-
-    function(err) {
-      debug('error creating offer:', err);
-      connection.emit('error', err);
-    },
-
-    // create the media constraints for the create offer context
-    generators.mediaConstraints(connection.flags, 'offer')
-  );
+  // if we have a valid handshake function, run it
+  if (typeof handshake == 'function') {
+    handshake(this, this.channel);
+  }
 };
 
 /**
@@ -253,6 +239,10 @@ PeerConnection.prototype.setChannel = function(channel) {
   if (this.channel) {
     this.channel.removeListener('negotiate', this._listeners.negotiate);
     this.channel.removeListener('candidate', this._listeners.candidate);
+    this.channel.removeListener(
+      'terminate:offer',
+      this._listeners.termOffer
+    );
   }
 
     // update the channel
@@ -262,6 +252,11 @@ PeerConnection.prototype.setChannel = function(channel) {
   if (channel) {
     // initialise auto-negotiation
     this._autoNegotiate();
+
+    channel.on(
+      'terminate:offer',
+      this._listeners.termOffer = this._handleTerminateOffer.bind(this)
+    );
 
     // handle channel negotiation
     channel.on(
@@ -425,13 +420,15 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
   this.callId = this.callId || callId;
 
   // if we have an remote description use that
-  desc = this._basecon.remoteDescription || new RTCSessionDescription({
-    type: type || 'offer',
-    sdp: sdp
-  });
+  desc = this._basecon.remoteDescription;
 
-  // update the sdp of the desc
-  desc.sdp = sdp;
+  // if we have a description and the sdp is unchanged, abort
+  if (desc && desc.sdp === sdp) {
+    return;
+  }
+
+  // create a new session description
+  desc = new RTCSessionDescription({ type: type, sdp: sdp });
 
   // update the remote session description
   // set the remote description
@@ -442,7 +439,9 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
     function() {
       // apply any remote ice candidates
       conn._queuedCandidates.splice(0).forEach(handleIceCandidate(conn));
+      conn.negotiate(type === 'offer' ? 'answer' : 'offer');
 
+      /*
       // if we received an offer, we need to answer
       if (desc && desc.type === 'offer') {
         // update the call id
@@ -468,6 +467,7 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
           }
         );
       }
+      */
     },
 
     function(err) {
@@ -500,6 +500,13 @@ PeerConnection.prototype._handleRemoteIceCandidate = function(sdp) {
     console.error('invalidate ice candidate: ' + sdp);
     console.error(e);
   }
+};
+
+PeerConnection.prototype._handleTerminateOffer = function() {
+  debug('received terminate offer');
+
+  // reset the connection
+  this._createBaseConnection();
 };
 
 /* RTCPeerConnection passthroughs */
