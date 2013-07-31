@@ -186,3 +186,28 @@ on the `createOffer` or `createAnswer` calls).
 
 This is a helper function that will extract known flags from a generic 
 options object.
+
+## rtc/state
+
+The state module is provides some helper functions for determining
+peer connection state and stability based on the various different 
+states that can occur in W3C RTCPeerConnections across browser versions.
+
+```js
+var state = require('rtc/lib/state');
+```
+
+### state.get(pc)
+
+Provides a unified state definition for the RTCPeerConnection based
+on a few checks.
+
+In emerging versions of the spec we have various properties such as
+`readyState` that provide a definitive answer on the state of the 
+connection.  In older versions we need to look at things like
+`signalingState` and `iceGatheringState` to make an educated guess 
+as to the connection state.
+
+### state.isActive(connection)
+
+Determine whether the connection is active or not
