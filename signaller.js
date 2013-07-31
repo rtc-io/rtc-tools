@@ -3,6 +3,8 @@
 'use strict';
 
 var debug = require('rtc-core/debug')('signaller');
+var PeerConnection = require('./peerconnection');
+var handshakes = require('./lib/handshakes');
 var EventEmitter = require('events').EventEmitter;
 var pull = require('pull-stream');
 var pushable = require('pull-pushable');
@@ -146,6 +148,9 @@ function Signaller(opts) {
   // initialise the channel name
   this.channel = '';
 
+  // maintain a list of calls
+  this.calls = {};
+
   // if the autoconnect option is not false, and we have a transport
   // connect on next tick
   if (typeof opts.autoConnect == 'undefined' || opts.autoConnect) {
@@ -195,34 +200,68 @@ Signaller.prototype.connect = function(callback) {
 
   // watch for peer:leave events and check against our peers
   this.on('peer:leave', this._handlePeerLeave.bind(this));
+  this.on('peer:call', handleCall(this));
 };
 
 /**
-### dial(targetId)
+### createConnection(id, callId, offer?)
 
-Connect to the specified target peer.  This method implements some helpful
-connection management logic that will cater for the majority of use cases
-for creating new peer connections.
-**/
-Signaller.prototype.dial = function(targetId) {
-  var connection = new PeerConnection();
-
-  connection.setChannel(this);
-  connection.initiate(targetId, function(err) {
-    debug('connection initiation phase complete');
-
-    if (! err) {
-      debug('connection initiated, call id: ' + connection.callId);
-    }
-    else {
-      debug('encountered error: ', err);
-    }
+Create a new `PeerConnection` object for the specified target and callId. The
+optional `offer` argument is used to specified whether the peer connection
+should create an offer and send it over the wire.
+*/
+Signaller.prototype.createConnection = function(id, callId, offer) {
+  var conn = this.calls[callId] = new PeerConnection(this, {
+    callId: callId
   });
 
-  // add this connection to the monitored connections list
-  this.connections.push(connection);
+  // TODO: set the metadata of the connection
 
-  return connection;
+  // if the offer flag is set, then run the offer handshake
+  if (offer) {
+    handshakes.offer(this, conn);
+  }
+
+  return conn;
+};
+
+/**
+### dial(targetId, callback)
+
+Make a connection to the specifed target peer.  If the dial operation is 
+successful you will be passed the new connection in a node style callback,
+and if not an error will be provided.
+
+__NOTE:__ A common implementation pattern is dialing a target peer in 
+response to a `peer:discover` event, which means that two connections will
+be attempting to dial each other.  Only one of these dial operations can
+succeed so the other will return an error, however, this is not really a
+problem as the signaller on the other end should annonce the new peer in a 
+`peer:connect` event.
+**/
+Signaller.prototype.dial = function(id, callback) {
+  var signaller = this;
+  var parts = ['dial', id];
+  var evtFail = parts.concat('fail').join(':');
+  var evtAnswer = parts.concat('answer').join(':');
+
+  function handleDialFail(msg) {
+    this.removeListener(evtAnswer, handleDialAnswer);
+    callback(new Error(msg));
+  }
+
+  function handleDialAnswer(callId) {
+    this.removeListener(evtFail, handleDialFail);
+    callback(null, signaller.createConnection(id, callId, true));
+  }
+
+  // ensure we have a callback
+  callback = callback || function() {};
+
+  // send a dial message over the wire
+  this.send('/dial', id);
+  this.once(evtFail, handleDialFail);
+  this.once(evtAnswer, handleDialAnswer);
 };
 
 /**
@@ -299,6 +338,16 @@ Signaller.prototype.send = function() {
 
   // chainable
   return this;
+};
+
+/**
+  ### sendConfig(callId, data)
+
+  Send the config of the current target for the specified call across the
+  wire.
+**/
+Signaller.prototype.sendConfig = function(callId, data) {
+  this.send('/config', callId, data);
 };
 
 /* internals */
@@ -398,5 +447,22 @@ function createMessageParser(signaller) {
 
       // TODO: emit a data message for the 
     }
+  };
+}
+
+/* internal events handlers */
+
+function handleCall(signaller) {
+  return function(peerId, callId) {
+    // TODO: check to see if the signaller has listeners for the "acceptcall"
+    // event, if so, trigger it
+
+    var conn = signaller.createConnection(peerId, callId);
+
+    // send the answer event
+    signaller.send('/answer', peerId, callId);
+
+    // emit the peer:connect event
+    signaller.emit('peer:connect', conn);
   };
 }

@@ -22,6 +22,7 @@ var defaults = require('./lib/defaults');
 var generators = require('./lib/generators');
 var handshakes = require('./lib/handshakes');
 var state = require('./lib/state');
+var Signaller = require('./signaller');
 var EventEmitter = require('events').EventEmitter;
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');
 var RTCSessionDescription = require('./detect')('RTCSessionDescription');
@@ -94,20 +95,28 @@ var STATE_MAPPINGS = {
   ### PeerConnection prototype reference
 **/
 
-function PeerConnection(config) {
+function PeerConnection(signaller, config) {
   if (! (this instanceof PeerConnection)) {
-    return new PeerConnection(config, mediaConstraints);
+    return new PeerConnection(signaller, config);
   }
 
   // inherited
   EventEmitter.call(this);
 
+  // if we have not been supplied a signaller, then oh, well
+  if (! (signaller instanceof Signaller)) {
+    config = signaller;
+    signaller = null;
+  }
+
   // initialise constraints (use defaults if none provided)
   this.config = config || defaults.config;
 
-  // set the tunnelId and targetId to null (no relationship)
-  this.targetId = null;
-  this.tunnelId = null;
+  // initialise the signaller
+  this.signaller = signaller;
+
+  // initialise the call id
+  this.callId = this.config.callId;
 
   // flag as closed and stable
   this.open = false;
@@ -119,29 +128,25 @@ function PeerConnection(config) {
   // parse flags from the config and inject into the peer connection
   this.flags = generators.parseFlags(config);
 
-  // initialise underlying W3C connection instance to null
-  this._basecon = null;
-
   // create a defered requests array
   this._deferedRequests = [];
 
   // create a queued ice candidates array
   this._queuedCandidates = [];
 
-  // if we have a channel defined in options, then initialise the channel
-  this.channel = null;
-  if (this.config.channel) {
-    this.setChannel(this.config.channel);
-  }
+  // initialise underlying W3C connection instance
+  this._createBaseConnection();
 
   // map event handlers
   this.on('signalingstatechange', handleStateChange(this));
   this.on('iceconnectionstatechange', handleStateChange(this));
   this.on('icecandidate', handleIceCandidate(this));
-  this.on('addstream', handleAddStream(this));
-  this.on('removestream', handleRemoveStream(this));
   this.on('negotiationneeded', handleNegotiationNeeded(this));
 
+  // attach signaller handlers
+  if (this.signaller) {
+    this.signaller.on('config:' + this.callId, handleCallConfig(this));
+  }
 }
 
 util.inherits(PeerConnection, EventEmitter);
@@ -166,110 +171,6 @@ PeerConnection.prototype.close = function() {
 
   // emit the close event
   this.emit('close');
-
-  // set the channel to null to remove event listeners
-  this.setChannel(null);
-};
-
-/**
-  ### initiate(targetId, callback)
-
-  Initiate a connection to the specified target peer id.  Once the 
-  offer/accept dance has been completed, then trigger the callback.  If we
-  have been unable to connect for any reason the callback will contain an
-  error as the first argument.
-**/
-PeerConnection.prototype.initiate = function(targetId, callback) {
-  // add a default callback if none supplied
-  callback = callback || function() {};
-
-  // if we have no channel to talk over then trigger the callback with an 
-  // error condition
-  if (! this.channel) {
-    return callback(errorcodes.toError('REQCHAN'));
-  }
-
-  // reset the tunnelId
-  this.callId = null;
-
-  // save the target id
-  this.targetId = targetId;
-
-  // create a new browser peer connection instance
-  this._createBaseConnection();
-
-  // negotiate (on next tick)
-  process.nextTick(this.negotiate.bind(this));
-
-  // once open trigger the callback
-  this.on('open', callback);
-};
-
-/**
-  ### negotiate
-**/
-PeerConnection.prototype.negotiate = function(type) {
-  var connection = this;
-  var desc;
-  var handshake;
-
-  // get the local description
-  desc = this._basecon.localDescription;
-
-  // get the appropriate handshaker
-  handshake = handshakes[type || (desc && desc.type || 'offer')];
-
-  // if we have a valid handshake function, run it
-  if (typeof handshake == 'function') {
-    handshake(this, this.channel);
-  }
-};
-
-/**
-  ### setChannel(channel)
-
-  Initialise the signalling channel that will be used to communicate
-  the actual RTCPeerConnection state to it's friend.
-**/
-PeerConnection.prototype.setChannel = function(channel) {
-  // if no change then return
-  if (this.channel === channel) { return; }
-
-  // if we have an existing channel, then remove event listeners
-  if (this.channel) {
-    this.channel.removeListener('negotiate', this._listeners.negotiate);
-    this.channel.removeListener('candidate', this._listeners.candidate);
-    this.channel.removeListener(
-      'terminate:offer',
-      this._listeners.termOffer
-    );
-  }
-
-    // update the channel
-  this.channel = channel;
-
-  // if we have a new channel, then bind listeners
-  if (channel) {
-    // initialise auto-negotiation
-    this._autoNegotiate();
-
-    channel.on(
-      'terminate:offer',
-      this._listeners.termOffer = this._handleTerminateOffer.bind(this)
-    );
-
-    // handle channel negotiation
-    channel.on(
-      'negotiate',
-      this._listeners.negotiate = this._handleRemoteUpdate.bind(this)
-    );
-
-    // handle ice candidate communications
-    channel.on(
-      'candidate',
-      this._listeners.candidate = this._handleRemoteIceCandidate.bind(this)
-    );
-  }
 };
 
 /**
@@ -332,26 +233,6 @@ PeerConnection.prototype.createWriter = pull.Sink(function(read, channelName, do
 });
 
 /**
-  ### _autoNegotiate()
-
-  Instruct the PeerConnection to call it's own `negotiate` method whenever
-  it emit's a `negotiate` event.
-
-  Can be disabled by calling `connection._autoNegotiate(false)`
-**/
-PeerConnection.prototype._autoNegotiate = function(enabled) {
-  // unbind previous event handler
-  if (this._listeners.autoneg) {
-    this.removeListener('negotiate', this._listeners.autoneg);
-    this._listeners.autoneg = undefined;
-  }
-
-  if (typeof enabled == 'undefined' || enabled) {
-    this.on('negotiate', this._listeners.autoneg = this.negotiate.bind(this));
-  }
-};
-
-/**
   ### _createBaseConnection()
 
   This will create a new base RTCPeerConnection object based
@@ -399,116 +280,6 @@ PeerConnection.prototype._setBaseConnection = function(value) {
   return value;
 };
 
-/**
-  ### _handleRemoteUpdate
-
-  This method responds to updates in the remote RTCPeerConnection updating
-  it's local session description and sending that via the signalling channel.
-**/
-PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
-  var conn = this;
-  var desc;
-
-  debug('received remote update, callid: ' + callId +
-    ', local call id: ' + this.callId + ', type: ' + type);
-
-  // if we have a callid and this is not a match, then abort
-  if (this.callId && this.callId !== callId) { return; }
-  debug('processing remote update');
-
-  // if we have a callid provided, and no local call id update
-  this.callId = this.callId || callId;
-
-  // if we have an remote description use that
-  desc = this._basecon.remoteDescription;
-
-  // if we have a description and the sdp is unchanged, abort
-  if (desc && desc.sdp === sdp) {
-    return;
-  }
-
-  // create a new session description
-  desc = new RTCSessionDescription({ type: type, sdp: sdp });
-
-  // update the remote session description
-  // set the remote description
-  this.setRemoteDescription(
-    desc,
-
-    // remote description set ok
-    function() {
-      // apply any remote ice candidates
-      conn._queuedCandidates.splice(0).forEach(handleIceCandidate(conn));
-      conn.negotiate(type === 'offer' ? 'answer' : 'offer');
-
-      /*
-      // if we received an offer, we need to answer
-      if (desc && desc.type === 'offer') {
-        // update the call id
-        conn.callId = callId;
-
-        debug('attempting to create answer remote desc: ', desc);
-        conn._basecon.createAnswer(
-          function(desc) {
-            conn._basecon.setLocalDescription(desc);
-
-            // send a negotiate command to the signalling server
-            debug('negotiating, type: ' + desc.type);
-            conn.channel.negotiate(
-              conn.targetId,
-              desc.sdp,
-              conn.callId,
-              desc.type
-            );
-          },
-
-          function(err) {
-            debug('error creating answer: ', err);
-          }
-        );
-      }
-      */
-    },
-
-    function(err) {
-      debug('error setting remote description: ', err);
-    }
-  );
-};
-
-/**
-  ### _handleRemoteIceCandidate(candidate)
-
-  This event is triggered in response to receiving a candidate from its
-  peer connection via the signalling channel.  Once ice candidates have been 
-  received and synchronized we are able to properly establish the 
-  communication between two peer connections.
-**/
-PeerConnection.prototype._handleRemoteIceCandidate = function(sdp) {
-  var haveRemoteDesc = this._basecon && this._basecon.remoteDescription;
-
-  // if we have no remote description for the base connection
-  // then queue the ice candidate
-  if (! haveRemoteDesc) {
-    return this._queuedCandidates.push(sdp);
-  }
-
-  try {
-    this._basecon.addIceCandidate(new RTCIceCandidate({ candidate: sdp }));
-  }
-  catch (e) {
-    console.error('invalidate ice candidate: ' + sdp);
-    console.error(e);
-  }
-};
-
-PeerConnection.prototype._handleTerminateOffer = function() {
-  debug('received terminate offer');
-
-  // reset the connection
-  this._createBaseConnection();
-};
-
 /* RTCPeerConnection passthroughs */
 
 PASSTHROUGH_METHODS.forEach(function(method) {
@@ -543,26 +314,6 @@ PASSTHROUGH_EVENTS.forEach(function(eventName) {
 /* event handler helpers */
 
 /*
-  ### handleAddStream(connection)
-*/
-function handleAddStream(connection) {
-  return function(evt) {
-    if (evt.stream) {
-      return connection.emit('stream:add', evt.stream);
-    }
-  };
-}
-
-/*
-  ### handleRemoveStream(connection)
-*/
-function handleRemoveStream(connection) {
-  return function(evt) {
-    debug('remote stream removed', arguments);
-  };
-}
-
-/*
   ### handleIceCandidate(connection)
 
   Return an event handler for responding to ice candidate changes
@@ -573,11 +324,8 @@ function handleIceCandidate(connection) {
       connection.emit('candidate', evt.candidate);
 
       // if we have a channel, send to the channel
-      if (connection.channel) {
-        connection.channel.send(
-          '/to',
-          connection.targetId, 'candidate', evt.candidate.candidate
-        );
+      if (connection.signaller) {
+        connection.signaller.sendConfig(connection.callId, evt.candidate);
       }
     }
   };
@@ -591,15 +339,16 @@ function handleIceCandidate(connection) {
 */
 function handleNegotiationNeeded(connection) {
   return function(evt) {
-    debug('negotiation needed');
-
-    if (connection._basecon.signalingState === 'stable') {
-      connection.emit('negotiate');
-    }
-    else {
-      connection.once('stable',
-        connection.emit.bind(connection, 'negotiate')
-      );
+    if (connection.signaller) {
+      debug('negotiation needed');
+      if (this.stable) {
+        handshakes.offer(connection.signaller, connection);
+      }
+      else {
+        this.once('stable', function() {
+          handshakes.offer(connection.signaller, connection);
+        });
+      }
     }
   };
 };
@@ -622,6 +371,45 @@ function handleStateChange(connection) {
     if (connection.open !== isActive) {
       connection.open = isActive;
       connection.emit(isActive ? 'open' : 'close');
+    }
+  };
+}
+
+/*
+  ### handleCallConfig(connection)
+
+  Handle data updates for the call
+*/
+function handleCallConfig(connection) {
+  return function(data) {
+    // if we have received sdp, then process 
+    if (data.sdp) {
+      connection._basecon.setRemoteDescription(
+        new RTCSessionDescription(data),
+
+        function() {
+          // apply the queued candidates
+          connection._queuedCandidates.splice(0).map(function(c) {
+            connection._basecon.addIceCandidate(new RTCIceCandidate(c));
+          });
+
+          if (! connection.stable) {
+            handshakes.answer(connection.signaller, connection);
+          }
+        },
+
+        function(err) {
+          debug('unable to set remote description', err);
+        }
+      );
+    }
+    else if (data.candidate) {
+      if (! connection._basecon.remoteDescription) {
+        connection._queuedCandidates.push(data);
+      }
+      else {
+        connection._basecon.addIceCandidate(new RTCIceCandidate(data));
+      }
     }
   };
 }

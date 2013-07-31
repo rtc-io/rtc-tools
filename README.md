@@ -36,20 +36,6 @@ var conn = new PeerConnection();
 
 Cleanup the peer connection.
 
-### initiate(targetId, callback)
-
-Initiate a connection to the specified target peer id.  Once the 
-offer/accept dance has been completed, then trigger the callback.  If we
-have been unable to connect for any reason the callback will contain an
-error as the first argument.
-
-### negotiate
-
-### setChannel(channel)
-
-Initialise the signalling channel that will be used to communicate
-the actual RTCPeerConnection state to it's friend.
-
 ### PeerConnection Data Channel Helper Methods
 
 The PeerConnection wrapper provides some methods that make working
@@ -71,13 +57,6 @@ sink for data that should be sent to the peer connection.  Like the
 `createReader` function if a suitable data channel has not be created
 then calling this method will initiate that behaviour.
 
-### _autoNegotiate()
-
-Instruct the PeerConnection to call it's own `negotiate` method whenever
-it emit's a `negotiate` event.
-
-Can be disabled by calling `connection._autoNegotiate(false)`
-
 ### _createBaseConnection()
 
 This will create a new base RTCPeerConnection object based
@@ -87,33 +66,158 @@ on the currently configuration and media constraints.
 
 Used to update the underlying base connection.
 
-### _handleRemoteUpdate
-
-This method responds to updates in the remote RTCPeerConnection updating
-it's local session description and sending that via the signalling channel.
-
-### _handleRemoteIceCandidate(candidate)
-
-This event is triggered in response to receiving a candidate from its
-peer connection via the signalling channel.  Once ice candidates have been 
-received and synchronized we are able to properly establish the 
-communication between two peer connections.
-
 ## rtc/signaller
 
-The `rtc/signaller` provides a higher level signalling implementation than
-the pure [rtc-signaller](https://github.com/rtc-io/rtc-signaller) package.
+The `rtc/signaller` package provides a simple interface for WebRTC 
+Signalling that is protocol independent.  Rather than tie the 
+implementation specifically to Websockets, XHR, etc. the signaller package
+allows you to implement signalling in your application and then `pipe` it 
+to the appropriate output interface.
 
-The signaller included in this packge provides some convenience methods for
-making connections with a peer given a typical rtc.io setup.
+This in turn reduces the overall effort required to implement WebRTC
+signalling over different protocols and also means that your application
+code is able to include different underlying transports with relative ease.
 
-## Signaller prototype reference
+## Getting Started (Client)
 
-### dial(targetId)
+### Creating a Signaller and Associating a Transport
 
-Connect to the specified target peer.  This method implements some helpful
-connection management logic that will cater for the majority of use cases
-for creating new peer connections.
+The first thing you will need to do is to include the `rtc-signaller`
+package in your application, and provide it a channel name that it will use
+to communicate with its peers.
+
+```js
+var signaller = require('rtc-signaller');
+var channel = signaller('channel-name');
+```
+
+The next thing to do is to tell the signaller which transport it is
+going to be using:
+
+```js
+channel.setTransport(require('rtc-signaller-ws')({ host: 'rtc.io' }));
+```
+
+### Handling Events
+
+At the point at which the transport is associated, the channel will attempt
+to connect. Once this connection is established, the signaller will become
+aware of other peers (if any) that are currently connected to the room:
+
+```js
+// wait for ready event
+channel.once('ready', function() {
+  console.log('connected to ' + channel.name);
+});
+```
+
+In addition to the `ready` event, the channel will also trigger a
+`peer:discover` event to signal the discovery of a new peer in the channel:
+
+```js
+channel.on('peer:discover', function(peer) {
+  console.log('discovered a new peer in the channel');
+});
+```
+
+### Peers vs Peer Connections
+
+When working with WebRTC and signalling concepts, it's important to
+differentiate between peers and actual `RTCPeerConnection` instances.
+From a signalling perspective, a peer is someone (or something) out there
+that we can potentially connect with.
+
+It is completely reasonable to have 0..n `RTCPeerConnection` instances
+associated with each of the peers that we have knowledge of.
+
+### Connecting to a Peer
+
+So once we know about other peers in the current channel, we should probably
+look at how we can start connecting with them.  To do this we need to start
+the offer-answer negotiation process.
+
+In an application where we want to automatically connect to every other
+known peer in the channel, we could implement code similar to that shown
+below:
+
+```js
+channel.on('peer:discover', function(peer) {
+  var connection = channel.connect(peer);
+
+  // add a stream to the connection
+  connection.addStream(media.stream);
+});
+```
+
+In the example above, once a peer is discovered our application will
+automatically attempt to connect with the peer by creating an offer
+and then sending that offer using the signaller transport.
+
+Now in most circumstances using code like the sample above will result in
+two peers creating offers for each other and duplicating the connection
+requests.  In this situation, the signaller will coordinate the connection
+requests and make sure that peers find each other correctly.
+
+Once two peers have established a working connection, the channel
+will let you know:
+
+```js
+channel.on('peer:connect', function(connection) {
+});
+```
+
+## Signaller prototype
+
+An instance of a Signaller prototype supports the following methods:
+
+### connect(callback)
+
+### dial(targetId, callback)
+
+Make a connection to the specifed target peer.  If the dial operation is 
+successful you will be passed the new connection in a node style callback,
+and if not an error will be provided.
+
+__NOTE:__ A common implementation pattern is dialing a target peer in 
+response to a `peer:discover` event, which means that two connections will
+be attempting to dial each other.  Only one of these dial operations can
+succeed so the other will return an error, however, this is not really a
+problem as the signaller on the other end should annonce the new peer in a 
+`peer:connect` event.
+
+### inbound()
+
+Return a pull-stream sink for messages generated by the transport
+
+### join(name, callback)
+
+Send a join command to the signalling server, indicating that you would like 
+to join the current room.  In the current implementation of the rtc.io suite
+it is only possible for the signalling client to exist in one room at one
+particular time, so joining a new channel will automatically mean leaving the
+existing one if already joined.
+
+### negotiate(targetId, sdp, callId, type)
+
+The negotiate function handles the process of sending an updated Session
+Description Protocol (SDP) description to the specified target signalling
+peer.  If this is an established connection, then a callId will be used to 
+ensure the sdp is deliver to the correct RTCPeerConnection instance
+
+### outbound()
+
+Return a pull-stream source that can write messages to a transport
+
+### send(data)
+
+Send data across the line
+
+### sendConfig(callId, data)
+
+Send the config of the current target for the specified call across the
+wire.
+
+### _autoConnect(opts)
 
 ### _handlePeerLeave
 
@@ -131,6 +235,15 @@ Create a new Signaller instance
 
 Create a new signaller instance, and join the specified channel
 
+## Helper Functions (Not Exported)
+
+### createMessageParser(signaller)
+
+This is used to create a function handler that will operate more quickly that 
+when using bind.  The parser will pull apart a message into parts (splitting 
+on the pipe character), parsing those parts where appropriate and then
+triggering the relevant event.
+
 ## Internal RTC Helper Libraries
 
 The RTC library uses a number of helper modules that are contained within
@@ -138,7 +251,7 @@ the `lib/` folder of the `rtc-io/rtc` repository.  While these are designed
 primarily for internal use, they can be accessed by directly requiring
 the modules, e.g. `require('rtc/lib/helpermodule')`
 
-## rtc/couple
+## rtc/lib/couple
 
 This is a utility module that is not included in the rtc suite by 
 default, but can be included using the following require statement:
@@ -162,7 +275,7 @@ couple(peerA, peerB, function(err) {
 );
 ```
 
-## rtc/generators
+## rtc/lib/generators
 
 The generators package provides some utility methods for generating
 constraint objects and similar constructs.  Primarily internal use.
@@ -187,7 +300,20 @@ on the `createOffer` or `createAnswer` calls).
 This is a helper function that will extract known flags from a generic 
 options object.
 
-## rtc/state
+## rtc/lib/handshakes
+
+This is an internal helper module that helps with applying the appropriate
+handshake logic for a connection.
+
+### handshakes.offer(signaller, connection)
+
+Create an offer and send it over the wire.
+
+### handshakes.answer(signaller, connection);
+
+Create an answer and send it over the wire.
+
+## rtc/lib/state
 
 The state module is provides some helper functions for determining
 peer connection state and stability based on the various different 
@@ -211,3 +337,14 @@ as to the connection state.
 ### state.isActive(connection)
 
 Determine whether the connection is active or not
+
+### inbound()
+
+The inbound function creates a pull-stream sink that will accept the 
+outbound messages from the signaller and route them to the server.
+
+### outbound()
+
+The outbound function creates a pull-stream source that will be fed into 
+the signaller input.  The source will be populated as messages are received
+from the websocket and closed if the websocket connection is closed.
