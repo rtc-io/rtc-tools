@@ -19,6 +19,7 @@
 
 var defaults = require('./lib/defaults');
 var generators = require('./lib/generators');
+var state = require('./lib/state');
 var EventEmitter = require('events').EventEmitter;
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');
 var RTCSessionDescription = require('./detect')('RTCSessionDescription');
@@ -106,8 +107,8 @@ function PeerConnection(config) {
   this.targetId = null;
   this.tunnelId = null;
 
-  // flag as not stable
-  this.stable = false;
+  // flag as closed
+  this.open = false;
 
   // create a _listeners object to hold listener function instances
   this._listeners = {};
@@ -205,7 +206,7 @@ PeerConnection.prototype.negotiate = function(callback) {
   callback = callback || function() {};
 
   // once stable trigger the callback
-  this.once('stable', callback);
+  this.once('open', callback);
 
   // if we have no local streams, then wait until we do and try again
   if (this._basecon.getLocalStreams().length === 0) { return; }
@@ -392,8 +393,8 @@ PeerConnection.prototype._setBaseConnection = function(value) {
       value['on' + evtName] = conn.emit.bind(conn, evtName);
     });
 
-    // update the stable flag
-    this.stable = this.signalingState === 'stable';
+    // detect if open
+    this.open = state.isActive(this._basecon);
   }
 
   return value;
@@ -596,18 +597,11 @@ function handleNegotiationNeeded(connection) {
 */
 function handleStateChange(connection) {
   return function(evt) {
-    var isStable = connection.signalingState === 'stable' &&
-      connection._basecon.iceGatheringState === 'complete';
+    var isActive = state.isActive(connection._basecon);
 
-    console.log(
-      'checking peer connection state, isStable = ' + isStable,
-      connection.signalingState,
-      connection._basecon.iceGatheringState
-    );
-
-    if (connection.stable !== isStable) {
-      connection.stable = isStable;
-      connection.emit(isStable ? 'stable' : 'unstable');
+    if (connection.open !== isActive) {
+      connection.open = isActive;
+      connection.emit(isActive ? 'open' : 'close');
     }
   };
 }
