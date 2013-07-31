@@ -108,8 +108,9 @@ function PeerConnection(config) {
   this.targetId = null;
   this.tunnelId = null;
 
-  // flag as closed
+  // flag as closed and stable
   this.open = false;
+  this.stable = true;
 
   // create a _listeners object to hold listener function instances
   this._listeners = {};
@@ -137,7 +138,7 @@ function PeerConnection(config) {
   this.on('iceconnectionstatechange', handleStateChange(this));
   this.on('icecandidate', handleIceCandidate(this));
   this.on('addstream', handleAddStream(this));
-  this.on('remvestream', handleRemoveStream(this));
+  this.on('removestream', handleRemoveStream(this));
   this.on('negotiationneeded', handleNegotiationNeeded(this));
 
 }
@@ -219,10 +220,12 @@ PeerConnection.prototype.negotiate = function() {
       connection._basecon.setLocalDescription(desc);
 
       // send a negotiate command to the signalling server
+      debug('negotiating, type: ' + desc.type);
       connection.channel.negotiate(
         connection.targetId,
         desc.sdp,
-        connection.callId
+        connection.callId,
+        desc.type
       );
     },
 
@@ -408,7 +411,8 @@ PeerConnection.prototype._setBaseConnection = function(value) {
   it's local session description and sending that via the signalling channel.
 **/
 PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
-  var connection = this;
+  var conn = this;
+  var desc;
 
   debug('received remote update, callid: ' + callId +
     ', local call id: ' + this.callId + ', type: ' + type);
@@ -420,40 +424,56 @@ PeerConnection.prototype._handleRemoteUpdate = function(sdp, callId, type) {
   // if we have a callid provided, and no local call id update
   this.callId = this.callId || callId;
 
-  // update the remote session description
-  // set the remote description
-  this.setRemoteDescription(new RTCSessionDescription({
+  // if we have an remote description use that
+  desc = this._basecon.remoteDescription || new RTCSessionDescription({
     type: type || 'offer',
     sdp: sdp
-  }));
+  });
 
-  // if we received an offer, we need to answer
-  if (this._basecon.remoteDescription && type === 'offer') {
-    // update the call id
-    this.callId = callId;
+  // update the sdp of the desc
+  desc.sdp = sdp;
 
-    this._basecon.createAnswer(
-      function(desc) {
-        connection._basecon.setLocalDescription(desc);
+  // update the remote session description
+  // set the remote description
+  this.setRemoteDescription(
+    desc,
 
-        // send a negotiate command to the signalling server
-        connection.channel.negotiate(
-          connection.targetId,
-          desc.sdp,
-          connection.callId,
-          'answer'
+    // remote description set ok
+    function() {
+      // apply any remote ice candidates
+      conn._queuedCandidates.splice(0).forEach(handleIceCandidate(conn));
+
+      // if we received an offer, we need to answer
+      if (desc && desc.type === 'offer') {
+        // update the call id
+        conn.callId = callId;
+
+        debug('attempting to create answer remote desc: ', desc);
+        conn._basecon.createAnswer(
+          function(desc) {
+            conn._basecon.setLocalDescription(desc);
+
+            // send a negotiate command to the signalling server
+            debug('negotiating, type: ' + desc.type);
+            conn.channel.negotiate(
+              conn.targetId,
+              desc.sdp,
+              conn.callId,
+              desc.type
+            );
+          },
+
+          function(err) {
+            debug('error creating answer: ', err);
+          }
         );
-      },
-
-      function(err) {
-        debug('error creating answer: ', err);
-        connection.emit('error', err);
       }
-    );
-  }
+    },
 
-  // apply any remote ice candidates
-  this._queuedCandidates.splice(0).forEach(handleIceCandidate(this));
+    function(err) {
+      debug('error setting remote description: ', err);
+    }
+  );
 };
 
 /**
@@ -570,7 +590,7 @@ function handleNegotiationNeeded(connection) {
       connection.emit('negotiate');
     }
     else {
-      connection.once('open',
+      connection.once('stable',
         connection.emit.bind(connection, 'negotiate')
       );
     }
@@ -584,7 +604,13 @@ function handleNegotiationNeeded(connection) {
 */
 function handleStateChange(connection) {
   return function(evt) {
+    var isStable = connection._basecon.signalingState === 'stable';
     var isActive = state.isActive(connection._basecon);
+
+    if (connection.stable !== isStable) {
+      connection.stable = isStable;
+      connection.emit(isStable ? 'stable' : 'unstable');
+    }
 
     if (connection.open !== isActive) {
       connection.open = isActive;
