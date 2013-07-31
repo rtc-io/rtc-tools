@@ -199,7 +199,7 @@ Signaller.prototype.connect = function(callback) {
   this.connections = [];
 
   // watch for peer:leave events and check against our peers
-  this.on('peer:leave', this._handlePeerLeave.bind(this));
+  this.on('peer:leave', handlePeerLeave(this));
   this.on('peer:call', handleCall(this));
 };
 
@@ -216,6 +216,10 @@ Signaller.prototype.createConnection = function(id, callId, offer) {
   });
 
   // TODO: set the metadata of the connection
+  conn.targetId = id;
+
+  // add the connection to the list
+  this.connections.push(conn);
 
   // if the offer flag is set, then run the offer handshake
   if (offer) {
@@ -252,7 +256,7 @@ Signaller.prototype.dial = function(id, callback) {
 
   function handleDialAnswer(callId) {
     this.removeListener(evtFail, handleDialFail);
-    callback(null, signaller.createConnection(id, callId, true));
+    callback(null, signaller.createConnection(id, callId));
   }
 
   // ensure we have a callback
@@ -369,24 +373,6 @@ Signaller.prototype._autoConnect = function(opts) {
 };
 
 /**
-### _handlePeerLeave
-
-A peer:leave event has been broadcast through the signalling channel.  We need
-to check if the peer that has left is connected to any of our connections. If
-it is, then those connections should be closed.
-**/
-Signaller.prototype._handlePeerLeave = function(peerId) {
-  // remove any dead connections
-  this.connections = this.connections.map(function(conn) {
-    if (conn && conn.targetId === peerId) {
-      return conn.close();
-    }
-
-    return conn;
-  }).filter(Boolean);
-};
-
-/**
 ## Signaller factory methods (for sugar)
 **/
 
@@ -464,5 +450,27 @@ function handleCall(signaller) {
 
     // emit the peer:connect event
     signaller.emit('peer:connect', conn);
+  };
+}
+
+/*
+### handlePeerLeave
+
+A peer:leave event has been broadcast through the signalling channel.  We need
+to check if the peer that has left is connected to any of our connections. If
+it is, then those connections should be closed.
+*/
+function handlePeerLeave(signaller) {
+  return function(peerId) {
+    debug('received peer leave event for peer: ' + peerId);
+
+    // remove any dead connections
+    this.connections = this.connections.map(function(conn) {
+      if (conn && conn.targetId === peerId) {
+        return conn.close();
+      }
+
+      return conn;
+    }).filter(Boolean);
   };
 }

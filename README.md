@@ -219,12 +219,6 @@ wire.
 
 ### _autoConnect(opts)
 
-### _handlePeerLeave
-
-A peer:leave event has been broadcast through the signalling channel.  We need
-to check if the peer that has left is connected to any of our connections. If
-it is, then those connections should be closed.
-
 ## Signaller factory methods (for sugar)
 
 ### Signaller.create(opts)

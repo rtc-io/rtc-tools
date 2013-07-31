@@ -22,7 +22,6 @@ var defaults = require('./lib/defaults');
 var generators = require('./lib/generators');
 var handshakes = require('./lib/handshakes');
 var state = require('./lib/state');
-var Signaller = require('./signaller');
 var EventEmitter = require('events').EventEmitter;
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');
 var RTCSessionDescription = require('./detect')('RTCSessionDescription');
@@ -104,7 +103,7 @@ function PeerConnection(signaller, config) {
   EventEmitter.call(this);
 
   // if we have not been supplied a signaller, then oh, well
-  if (! (signaller instanceof Signaller)) {
+  if (! (signaller instanceof EventEmitter)) {
     config = signaller;
     signaller = null;
   }
