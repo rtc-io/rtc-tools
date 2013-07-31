@@ -9,3 +9,6 @@ require('./generators');
 require('./peerconnection');
 require('./coupling');
 require('./data-channel');
+
+// test the signalling
+require('./signalling/all');
