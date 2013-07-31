@@ -144,14 +144,14 @@ This is a utility module that is not included in the rtc suite by
 default, but can be included using the following require statement:
 
 ```js
-var couple = require('rtc/couple');
+var couple = require('rtc/lib/couple');
 ```
 
 It is primarily used in local testing routines to bind two local
 peer connection together, e.g.:
 
 ```js
-var couple = require('rtc/couple');
+var couple = require('rtc/lib/couple');
 var PeerConnection = require('rtc/peerconnection');
 var a = new PeerConnection();
 var b = new PeerConnection();
@@ -168,7 +168,7 @@ The generators package provides some utility methods for generating
 constraint objects and similar constructs.  Primarily internal use.
 
 ```js
-var generators = require('rtc/generators');
+var generators = require('rtc/lib/generators');
 ```
 
 ### generators.config(config)
