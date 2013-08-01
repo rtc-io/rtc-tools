@@ -25,9 +25,7 @@ var state = require('./lib/state');
 var EventEmitter = require('events').EventEmitter;
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');
 var RTCSessionDescription = require('./detect')('RTCSessionDescription');
-var errorcodes = require('rtc-core/errorcodes');
 var util = require('util');
-var pull = require('pull-stream');
 
 // passthrough methods, attributes and events
 // http://dev.w3.org/2011/webrtc/editor/webrtc.html#rtcpeerconnection-interface
@@ -73,22 +71,6 @@ var EMITTED_EVENTS = [
   'iceconnectionstatechange',
   'datachannel'
 ];
-
-/*
-var PASSTHROUGH_EVENTS = [
-  'onnegotiationneeded',
-  'onicecandidate',
-  'onsignalingstatechange',
-  'onaddstream',
-  'onremovestream',
-  'oniceconnectionstatechange',
-  'ondatachannel'
-];
-*/
-
-var STATE_MAPPINGS = {
-  active: 'stable'
-};
 
 /**
   ### PeerConnection prototype reference
@@ -173,65 +155,6 @@ PeerConnection.prototype.close = function() {
 };
 
 /**
-  ### PeerConnection Data Channel Helper Methods
-
-  The PeerConnection wrapper provides some methods that make working
-  with data channels simpler a simpler affair.
-**/
-
-/**
-### createReader(channelName?)
-
-Calling this method will create a
-[pull-stream](https://github.com/dominictarr/pull-stream) source for
-the data channel attached to the peer connection.  If a data channel
-has not already been configured for the connection, then it will 
-be created if the peer connection is in a state that will allow that
-to happen.
-**/
-PeerConnection.prototype.createReader = pull.Source(function(channelName) {
-  // ensure we have a channel name
-  channelName = channelName || 'default';
-
-  // wait for requests
-  return function(end, cb) {
-    if (end) {
-      return cb();
-    }
-  };
-});
-
-/**
-### createWriter(channelName?)
-
-Create a new [pull-stream](https://github.com/dominictarr/pull-stream)
-sink for data that should be sent to the peer connection.  Like the
-`createReader` function if a suitable data channel has not be created
-then calling this method will initiate that behaviour.
-**/
-PeerConnection.prototype.createWriter = pull.Sink(function(read, channelName, done) {
-  if (typeof channelName == 'function') {
-    done = channelName;
-    channelName = 'default';
-  }
-
-  // ensure we have a channelName
-  channelName = channelName || 'default';
-
-  // create the channel
-
-  // read from upstream
-  read(null, function next(end, data) {
-    if (end) {
-      return;
-    }
-
-    // TODO: write the data to the data channel
-    read(null, next);
-  });
-});
-
-/**
   ### _createBaseConnection()
 
   This will create a new base RTCPeerConnection object based
@@ -286,7 +209,7 @@ PASSTHROUGH_METHODS.forEach(function(method) {
     // if we don't already have a base connection, then create it
     var baseCon = this._basecon || this._createBaseConnection();
 
-    return this._basecon[method].apply(this._basecon, arguments);
+    return baseCon[method].apply(baseCon, arguments);
   };
 });
 
@@ -337,7 +260,7 @@ function handleIceCandidate(connection) {
   renegotiate due to streams being added, removed, etc.
 */
 function handleNegotiationNeeded(connection) {
-  return function(evt) {
+  return function() {
     if (connection.signaller) {
       debug('negotiation needed');
       if (this.stable) {
@@ -350,7 +273,7 @@ function handleNegotiationNeeded(connection) {
       }
     }
   };
-};
+}
 
 /*
   ### handleStateChange(connection)
@@ -358,7 +281,7 @@ function handleNegotiationNeeded(connection) {
   Return an event handler for dealing with peer connection state changes.
 */
 function handleStateChange(connection) {
-  return function(evt) {
+  return function() {
     var isStable = connection._basecon.signalingState === 'stable';
     var isActive = state.isActive(connection._basecon);
 

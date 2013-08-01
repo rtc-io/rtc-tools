@@ -66,7 +66,7 @@ var automate = module.exports = function(pc, opts) {
   });
 
   // handle on negotiation needed events
-  pc.addEventListener('negotiationneeded', function(evt) {
+  pc.addEventListener('negotiationneeded', function() {
     eve('call.' + callId + '.offer');
   });
 
@@ -76,14 +76,14 @@ var automate = module.exports = function(pc, opts) {
 /**
   ### automate.offer(pc, opts)
 **/
-var createOffer = automate.offer = function(pc, opts) {
+automate.offer = function(pc, opts) {
   return handshake(pc, opts, 'createOffer');
 };
 
 /**
   ### automate.answer(pc, opts)
 **/
-var createAnswer = automate.answer = function(pc, opts) {
+automate.answer = function(pc, opts) {
   return handshake(pc, opts, 'createAnswer');
 };
 
@@ -101,7 +101,7 @@ function handshake(pc, opts, method) {
   }
 
   // create a new offer
-  return pc[method].call(pc, 
+  return pc[method].call(pc,
     function(desc) {
       // set the local description of the instance
       pc.setLocalDescription(
@@ -111,7 +111,7 @@ function handshake(pc, opts, method) {
           // send a negotiate command to the signalling server
           hsDebug('negotiating, type: ' + desc.type);
           signaller.sendConfig(opts.callId, desc);
-        }, 
+        },
 
         function(err) {
           hsDebug('error setting local description: ', err);

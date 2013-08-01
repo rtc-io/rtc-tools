@@ -5,8 +5,6 @@
 var automate = require('./automate');
 var debug = require('rtc-core/debug')('signaller');
 var RTCPeerConnection = require('rtc-core/detect')('RTCPeerConnection');
-var PeerConnection = require('./peerconnection');
-var handshakes = require('./lib/handshakes');
 var EventEmitter = require('events').EventEmitter;
 var pull = require('pull-stream');
 var pushable = require('pull-pushable');
@@ -252,14 +250,14 @@ Signaller.prototype.dial = function(id, callback) {
   var evtAnswer = parts.concat('answer').join(':');
 
   function handleDialFail(msg) {
-    this.removeListener(evtAnswer, handleDialAnswer);
+    signaller.removeListener(evtAnswer, handleDialAnswer);
 
     // trigger the callback with the error condition
     callback(new Error(msg));
   }
 
   function handleDialAnswer(callId) {
-    this.removeListener(evtFail, handleDialFail);
+    signaller.removeListener(evtFail, handleDialFail);
 
     // emit the peer:connect event at the signaller level
     signaller.emit('peer:connect', callId, id);
@@ -458,7 +456,7 @@ function handleCall(signaller) {
     // emit the peer:connect event
     signaller.emit(
       'peer:connect',
-      callId, 
+      callId,
       peerId
     );
   };
@@ -476,7 +474,7 @@ function handlePeerLeave(signaller) {
     debug('received peer leave event for peer: ' + peerId);
 
     // remove any dead connections
-    this.connections = this.connections.map(function(conn) {
+    signaller.connections = signaller.connections.map(function(conn) {
       if (conn && conn.targetId === peerId) {
         return conn.close();
       }
