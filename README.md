@@ -8,6 +8,24 @@ the front-end component of a WebRTC application.
 
 TO BE COMPLETED
 
+## Factories
+
+### createConnection(opts, constraints)
+
+Create a new `RTCPeerConnection` auto generating default opts as required.
+
+```js
+var conn;
+
+// this is ok
+conn = rtc.createConnection();
+
+// and so is this
+conn = rtc.createConnection({
+  iceServers: []
+});
+```
+
 ## rtc/automate
 
 This is an automation module for dealing with peer connections, based on
@@ -29,37 +47,85 @@ The generate approach of the automate object is as follows:
 Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
 functionality.
 
+## rtc/generators
+
+The generators package provides some utility methods for generating
+constraint objects and similar constructs.
+
+```js
+var generators = require('rtc/generators');
+```
+
+### generators.config(config)
+
+Generate a configuration object suitable for passing into an W3C 
+RTCPeerConnection constructor first argument, based on our custom config.
+
+### generators.mediaConstraints(flags, context)
+
+Generate mediaConstraints appropriate for the context in which they are 
+being called (i.e. either constructing an RTCPeerConnection object, or
+on the `createOffer` or `createAnswer` calls).
+
+### parseFlags(opts)
+
+This is a helper function that will extract known flags from a generic 
+options object.
+
 ## rtc/media
 
 Provide the core [rtc-media](https://github.com/rtc-io/rtc-media) for
 convenience.
 
-## rtc/peerconnection
+## rtc/monitor
 
-The `rtc/peerconnection` module provides an `RTCPeerConnection` proxy 
-prototype.  All of the core W3C `RTCPeerConnection` methods and attributes
-are available on created `PeerConnection` instances, but also some 
-helper methods that are outlined in the reference documentation below.
+In most current implementations of `RTCPeerConnection` it is quite
+difficult to determine whether a peer connection is active and ready
+for use or not.  The monitor provides some assistance here by providing
+a simple function that provides an `EventEmitter` which gives updates
+on a connections state.
+
+### monitor(pc) -> EventEmitter
 
 ```js
-var PeerConnection = require('rtc/peerconnection');
-var conn = new PeerConnection();
+var monitor = require('rtc/monitor');
+var pc = new RTCPeerConnection(config);
+
+// watch pc and when active do something
+monitor(pc).once('active', function() {
+  // active and ready to go
+});
 ```
 
-### PeerConnection prototype reference
+Events provided by the monitor are as follows:
 
-### close()
+- `active`: triggered when the connection is active and ready for use
+- `stable`: triggered when the connection is in a stable signalling state
+- `unstable`: trigger when the connection is renegotiating.
 
-Cleanup the peer connection.
+It should be noted, that the monitor does a check when it is first passed
+an `RTCPeerConnection` object to see if the `active` state passes checks.
+If so, the `active` event will be fired in the next tick.
 
-### _createBaseConnection()
+If you require a synchronous check of a connection's "openness" then
+use the `monitor.isActive` test outlined below.
 
-This will create a new base RTCPeerConnection object based
-on the currently configuration and media constraints.
+### monitor.getState(pc)
 
-### _setBaseConnection()
+Provides a unified state definition for the RTCPeerConnection based
+on a few checks.
 
-Used to update the underlying base connection.
+In emerging versions of the spec we have various properties such as
+`readyState` that provide a definitive answer on the state of the 
+connection.  In older versions we need to look at things like
+`signalingState` and `iceGatheringState` to make an educated guess 
+as to the connection state.
+
+### monitor.isActive(pc) -> Boolean
+
+Test an `RTCPeerConnection` to see if it's currently open.  The test for
+"openness" looks at a combination of current `signalingState` and
+`iceGatheringState`.
 
 ## rtc/signaller
 
@@ -271,44 +337,6 @@ couple(peerA, peerB, function(err) {
 );
 ```
 
-## rtc/lib/generators
-
-The generators package provides some utility methods for generating
-constraint objects and similar constructs.  Primarily internal use.
-
-```js
-var generators = require('rtc/lib/generators');
-```
-
-### generators.config(config)
-
-Generate a configuration object suitable for passing into an W3C 
-RTCPeerConnection constructor first argument, based on our custom config.
-
-### generators.mediaConstraints(flags, context)
-
-Generate mediaConstraints appropriate for the context in which they are 
-being called (i.e. either constructing an RTCPeerConnection object, or
-on the `createOffer` or `createAnswer` calls).
-
-### parseFlags(opts)
-
-This is a helper function that will extract known flags from a generic 
-options object.
-
-## rtc/lib/handshakes
-
-This is an internal helper module that helps with applying the appropriate
-handshake logic for a connection.
-
-### handshakes.offer(signaller, connection)
-
-Create an offer and send it over the wire.
-
-### handshakes.answer(signaller, connection);
-
-Create an answer and send it over the wire.
-
 ## rtc/lib/processors
 
 This is an internal library of processor helpers that know what to do 
@@ -321,31 +349,6 @@ including the signaller) and the data that was sent across the wire.
 Process an ice candidate being supplied from the other side of the world.
 
 ### sdp(pc, opts, data)
-
-## rtc/lib/state
-
-The state module is provides some helper functions for determining
-peer connection state and stability based on the various different 
-states that can occur in W3C RTCPeerConnections across browser versions.
-
-```js
-var state = require('rtc/lib/state');
-```
-
-### state.get(pc)
-
-Provides a unified state definition for the RTCPeerConnection based
-on a few checks.
-
-In emerging versions of the spec we have various properties such as
-`readyState` that provide a definitive answer on the state of the 
-connection.  In older versions we need to look at things like
-`signalingState` and `iceGatheringState` to make an educated guess 
-as to the connection state.
-
-### state.isActive(connection)
-
-Determine whether the connection is active or not
 
 ### inbound()
 
