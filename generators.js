@@ -1,7 +1,7 @@
 /* jshint node: true */
 'use strict';
 
-var detect = require('../detect');
+var detect = require('./detect');
 
 var mappings = {
   offer: {
@@ -35,13 +35,13 @@ var mappings = {
 var knownFlags = ['video', 'audio', 'data'];
 
 /**
-  ## rtc/lib/generators
+  ## rtc/generators
 
   The generators package provides some utility methods for generating
-  constraint objects and similar constructs.  Primarily internal use.
+  constraint objects and similar constructs.
 
   ```js
-  var generators = require('rtc/lib/generators');
+  var generators = require('rtc/generators');
   ```
 
 **/
