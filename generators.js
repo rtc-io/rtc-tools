@@ -2,6 +2,7 @@
 'use strict';
 
 var detect = require('./detect');
+var defaults = require('cog/defaults');
 
 var mappings = {
   offer: {
@@ -53,20 +54,11 @@ var knownFlags = ['video', 'audio', 'data'];
   RTCPeerConnection constructor first argument, based on our custom config.
 **/
 exports.config = function(config) {
-  var baseConfig = {
+  return defaults(config, {
     iceServers: [
       { url: 'stun:stun.l.google.com:19302' }
     ]
-  };
-
-  // if we have ice servers provided in the config, override the base config
-  ['iceServers'].forEach(function(key) {
-    if (config[key]) {
-      baseConfig[key] = config[key];
-    }
   });
-
-  return baseConfig;
 };
 
 /**

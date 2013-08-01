@@ -1,20 +1,21 @@
 var test = require('tape');
-var PeerConnection = require('../peerconnection');
+var rtc = require('..');
+var gen = require('../generators')
 var conn;
 
 test('create peer connection', function(t) {
   t.plan(1);
-  t.ok(new PeerConnection(), 'created');
+  t.ok(new rtc.RTCPeerConnection(gen.config()), 'created');
 });
 
-test('create peer connection with data channel support', function(t) {
+test('create via factory', function(t) {
   t.plan(1);
-  t.ok(conn = new PeerConnection({ data: true }), 'created');
+  t.ok(rtc.createConnection(), 'created');
 });
 
-test('close the connection', function(t) {
+/*test('close the connection', function(t) {
   t.plan(1);
 
   conn.once('close', t.pass.bind(t, 'closed'));
   conn.close();
-});
+});*/

@@ -3,7 +3,7 @@
 
 var eve = require('eve');
 var defaults = require('cog/defaults');
-var generators = require('./lib/generators');
+var generators = require('./generators');
 var processors = require('./lib/processors');
 var debug = require('./debug')('automate');
 var RTCPeerConnection = require('./detect')('RTCPeerConnection');

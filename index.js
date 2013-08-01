@@ -15,14 +15,42 @@
 
 **/
 
-// export peer connection
-exports.PeerConnection = require('./peerconnection');
+var gen = require('./generators');
 
 // export detect
-exports.detect = require('./detect');
+var detect = exports.detect = require('./detect');
+
+// export peer connection
+var RTCPeerConnection =
+exports.RTCPeerConnection = detect('RTCPeerConnection');
 
 // export media
 exports.media = require('./media');
 
 // export the signaller
 exports.signaller = require('./signaller');
+
+/**
+  ## Factories
+**/
+
+/**
+  ### createConnection(opts, constraints)
+
+  Create a new `RTCPeerConnection` auto generating default opts as required.
+
+  ```js
+  var conn;
+
+  // this is ok
+  conn = rtc.createConnection();
+
+  // and so is this
+  conn = rtc.createConnection({
+    iceServers: []
+  });
+  ```
+**/
+exports.createConnection = function(opts, constraints) {
+  return new RTCPeerConnection(gen.config(opts), constraints);
+};
