@@ -204,44 +204,20 @@ Signaller.prototype.connect = function(callback) {
 };
 
 /**
-### createConnection(id, callId, offer?)
+  ### dial(targetId, callback)
 
-Create a new `PeerConnection` object for the specified target and callId. The
-optional `offer` argument is used to specified whether the peer connection
-should create an offer and send it over the wire.
-*/
-Signaller.prototype.createConnection = function(id, callId, offer) {
-  var conn = this.calls[callId] = new PeerConnection(this, {
-    callId: callId
-  });
+  Make a connection to the specified target peer.  When the operation 
+  completes (either succesfully, or in an error - usually just a busy error
+  ) then the callback will be fired.
 
-  // TODO: set the metadata of the connection
-  conn.targetId = id;
+  ```js
+  signaller.dial(
+    'aa8787c6-1770-4f7d-90ab-64a75f3f8f2d',
+    function(err, callId) {
+    }
+  );
+  ```
 
-  // add the connection to the list
-  this.connections.push(conn);
-
-  // if the offer flag is set, then run the offer handshake
-  if (offer) {
-    handshakes.offer(this, conn);
-  }
-
-  return conn;
-};
-
-/**
-### dial(targetId, callback)
-
-Make a connection to the specifed target peer.  If the dial operation is 
-successful you will be passed the new connection in a node style callback,
-and if not an error will be provided.
-
-__NOTE:__ A common implementation pattern is dialing a target peer in 
-response to a `peer:discover` event, which means that two connections will
-be attempting to dial each other.  Only one of these dial operations can
-succeed so the other will return an error, however, this is not really a
-problem as the signaller on the other end should annonce the new peer in a 
-`peer:connect` event.
 **/
 Signaller.prototype.dial = function(id, callback) {
   var signaller = this;
@@ -251,12 +227,19 @@ Signaller.prototype.dial = function(id, callback) {
 
   function handleDialFail(msg) {
     this.removeListener(evtAnswer, handleDialAnswer);
+
+    // trigger the callback with the error condition
     callback(new Error(msg));
   }
 
   function handleDialAnswer(callId) {
     this.removeListener(evtFail, handleDialFail);
-    callback(null, signaller.createConnection(id, callId));
+
+    // emit the peer:connect event at the signaller level
+    signaller.emit('peer:connect', callId, id);
+
+    // trigger the callback, passing the callId
+    callback(null, callId);
   }
 
   // ensure we have a callback
@@ -443,13 +426,15 @@ function handleCall(signaller) {
     // TODO: check to see if the signaller has listeners for the "acceptcall"
     // event, if so, trigger it
 
-    var conn = signaller.createConnection(peerId, callId);
-
     // send the answer event
     signaller.send('/answer', peerId, callId);
 
     // emit the peer:connect event
-    signaller.emit('peer:connect', conn);
+    signaller.emit(
+      'peer:connect',
+      callId, 
+      peerId
+    );
   };
 }
 

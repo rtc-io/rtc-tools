@@ -392,7 +392,7 @@ function handleCallConfig(connection) {
             connection._basecon.addIceCandidate(new RTCIceCandidate(c));
           });
 
-          if (! connection.stable) {
+          if (data.type === 'offer') {
             handshakes.answer(connection.signaller, connection);
           }
         },
