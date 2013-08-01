@@ -8,6 +8,22 @@ the front-end component of a WebRTC application.
 
 TO BE COMPLETED
 
+## rtc/automate
+
+This is an automation module for dealing with peer connections, based on
+some general approaches that tend to work well when dealing with 
+an `RTCPeerConnection` object.
+
+The generate approach of the automate object is as follows:
+
+- Implement a reactive approach, i.e. the `createOffer`, `createAnswer`
+  dance is completed in response to connections triggering the 
+  `onnegotiationneeded` event.
+
+### automate.offer(pc, opts)
+
+### automate.answer(pc, opts)
+
 ## rtc/detect
 
 Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
@@ -35,27 +51,6 @@ var conn = new PeerConnection();
 ### close()
 
 Cleanup the peer connection.
-
-### PeerConnection Data Channel Helper Methods
-
-The PeerConnection wrapper provides some methods that make working
-with data channels simpler a simpler affair.
-
-### createReader(channelName?)
-
-Calling this method will create a
-[pull-stream](https://github.com/dominictarr/pull-stream) source for
-the data channel attached to the peer connection.  If a data channel
-has not already been configured for the connection, then it will 
-be created if the peer connection is in a state that will allow that
-to happen.
-
-### createWriter(channelName?)
-
-Create a new [pull-stream](https://github.com/dominictarr/pull-stream)
-sink for data that should be sent to the peer connection.  Like the
-`createReader` function if a suitable data channel has not be created
-then calling this method will initiate that behaviour.
 
 ### _createBaseConnection()
 
@@ -172,18 +167,25 @@ An instance of a Signaller prototype supports the following methods:
 
 ### connect(callback)
 
+### createConnection(cid, pid, cfg?, constraints?)
+
+The `createConnection` method of the signaller is will provide you an
+`RTCPeerConnection` instance that is connected to the signalling channel
+and set to automatically negotiate via the signalling channel.
+
 ### dial(targetId, callback)
 
-Make a connection to the specifed target peer.  If the dial operation is 
-successful you will be passed the new connection in a node style callback,
-and if not an error will be provided.
+Make a connection to the specified target peer.  When the operation 
+completes (either succesfully, or in an error - usually just a busy error
+) then the callback will be fired.
 
-__NOTE:__ A common implementation pattern is dialing a target peer in 
-response to a `peer:discover` event, which means that two connections will
-be attempting to dial each other.  Only one of these dial operations can
-succeed so the other will return an error, however, this is not really a
-problem as the signaller on the other end should annonce the new peer in a 
-`peer:connect` event.
+```js
+signaller.dial(
+  'aa8787c6-1770-4f7d-90ab-64a75f3f8f2d',
+  function(err, callId) {
+  }
+);
+```
 
 ### inbound()
 
@@ -306,6 +308,19 @@ Create an offer and send it over the wire.
 ### handshakes.answer(signaller, connection);
 
 Create an answer and send it over the wire.
+
+## rtc/lib/processors
+
+This is an internal library of processor helpers that know what to do 
+when a signaller receives generic `config` events for a particular call.
+A processor is provided the local peer connection, a series of opts (
+including the signaller) and the data that was sent across the wire.
+
+### candidate(pc, opts, data)
+
+Process an ice candidate being supplied from the other side of the world.
+
+### sdp(pc, opts, data)
 
 ## rtc/lib/state
 
