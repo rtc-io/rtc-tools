@@ -2,7 +2,9 @@
 
 'use strict';
 
+var automate = require('./automate');
 var debug = require('rtc-core/debug')('signaller');
+var RTCPeerConnection = require('rtc-core/detect')('RTCPeerConnection');
 var PeerConnection = require('./peerconnection');
 var handshakes = require('./lib/handshakes');
 var EventEmitter = require('events').EventEmitter;
@@ -201,6 +203,30 @@ Signaller.prototype.connect = function(callback) {
   // watch for peer:leave events and check against our peers
   this.on('peer:leave', handlePeerLeave(this));
   this.on('peer:call', handleCall(this));
+};
+
+/**
+  ### createConnection(cid, pid, cfg?, constraints?)
+
+  The `createConnection` method of the signaller is will provide you an
+  `RTCPeerConnection` instance that is connected to the signalling channel
+  and set to automatically negotiate via the signalling channel.
+**/
+Signaller.prototype.createConnection = function(cid, pid, cfg, constraints) {
+
+  function factory() {
+    return new RTCPeerConnection(cfg, constraints);
+  }
+
+  // create the connection - if we have been provided a function as the
+  // config, then this should replace the default factory
+  return automate(typeof cfg == 'function' ? cfg() : factory(), {
+    signaller: this,
+    callId: cid,
+    peerId: pid,
+    config: typeof cfg == 'function' ? {} : cfg,
+    constraints: constraints
+  });
 };
 
 /**
