@@ -1,6 +1,7 @@
 /* jshint node: true */
 'use strict';
 
+var debug = require('rtc-core/debug')('monitor');
 var EventEmitter = require('events').EventEmitter;
 var W3C_STATES = {
   NEW: 'new',
@@ -45,25 +46,29 @@ var W3C_STATES = {
   If you require a synchronous check of a connection's "openness" then
   use the `monitor.isActive` test outlined below.
 **/
-var monitor = module.exports = function(pc) {
+var monitor = module.exports = function(pc, tag) {
   // create a new event emitter which will communicate events
-  var emitter = new EventEmitter();
+  var mon = new EventEmitter();
   var signalingState = pc && pc.signalingState;
   var currentState = getState(pc);
-  var isActive = currentState === W3C_STATES.ACTIVE;
+  var isActive = mon.active = currentState === W3C_STATES.ACTIVE;
 
   function checkState() {
-    var newState = getState(pc);
+    var newState = getState(pc, tag);
+    debug('captured state change, new state: ' + newState);
+
+    // update the monitor active flag
+    mon.active = newState === W3C_STATES.ACTIVE;
 
     // if we have a state change, emit an event for the new state
     if (newState !== currentState) {
-      emitter.emit(currentState = newState);
+      mon.emit(currentState = newState);
     }
   }
 
   // if the current state is active, trigger the active event
   if (isActive) {
-    process.nextTick(emitter.emit.bind(emitter, W3C_STATES.ACTIVE, pc));
+    process.nextTick(mon.emit.bind(mon, W3C_STATES.ACTIVE, pc));
   }
 
   // start watching stuff on the pc
@@ -71,12 +76,12 @@ var monitor = module.exports = function(pc) {
   pc.addEventListener('iceconnectionstatechange', checkState);
 
   // patch in a stop method into the emitter
-  emitter.stop = function() {
+  mon.stop = function() {
     pc.removeEventListener('signalingstatechange', checkState);
     pc.removeEventListener('iceconnectionstatechange', checkState);
   };
 
-  return emitter;
+  return mon;
 };
 
 /**
@@ -91,10 +96,11 @@ var monitor = module.exports = function(pc) {
   `signalingState` and `iceGatheringState` to make an educated guess 
   as to the connection state.
 **/
-var getState = monitor.getState = function(pc) {
+var getState = monitor.getState = function(pc, tag) {
   var readyState = pc && pc.readyState;
   var signalingState = pc && pc.signalingState;
   var iceGatheringState = pc && pc.iceGatheringState;
+  var iceConnectionState = pc && pc.iceConnectionState;
   var localDesc;
   var remoteDesc;
   var state;
@@ -103,6 +109,9 @@ var getState = monitor.getState = function(pc) {
   if (! pc) {
     return W3C_STATES.CLOSED;
   }
+
+  // initialise the tag to an empty string if not provided
+  tag = tag || '';
 
   // if we have a ready state, then return the ready state
   if (typeof readyState != 'undefined') {
@@ -128,8 +137,12 @@ var getState = monitor.getState = function(pc) {
     }
   }
 
+  debug(tag + 'signaling state: ' + signalingState +
+    ', iceGatheringState: ' + iceGatheringState + 
+    ', iceConnectionState: ' + iceConnectionState);
+  
   // if the state is remote pranswer, look at the ice states
-  if (state === W3C_STATES.REMOTE_PRANSWER && iceGatheringState === 'complete') {
+  if (state === W3C_STATES.REMOTE_PRANSWER && iceConnectionState === 'connected') {
     state = W3C_STATES.ACTIVE;
   }
 
