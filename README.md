@@ -337,6 +337,21 @@ couple(peerA, peerB, function(err) {
 );
 ```
 
+## rtc/lib/listen
+
+```js
+var listen = require('rtc/lib/listen');
+
+// listen for negotiation needed events
+listen(pc).on('negotiationneeded', function(evt) {
+
+});
+```
+
+The `listen` helper provides an event emitter for a peer connection object
+that will bind to each of the core events WebRTC events (unless overriden
+by providing the listen function additional arguments).
+
 ## rtc/lib/processors
 
 This is an internal library of processor helpers that know what to do 
