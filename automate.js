@@ -76,21 +76,21 @@ var automate = module.exports = function(pc, opts) {
 /**
   ### automate.offer(pc, opts)
 **/
-automate.offer = function(pc, opts) {
-  return handshake(pc, opts, 'createOffer');
+automate.offer = function(pc, opts, callId) {
+  return handshake(pc, opts, callId, 'createOffer');
 };
 
 /**
   ### automate.answer(pc, opts)
 **/
-automate.answer = function(pc, opts) {
-  return handshake(pc, opts, 'createAnswer');
+automate.answer = function(pc, opts, callId) {
+  return handshake(pc, opts, callId, 'createAnswer');
 };
 
 /*
   ### handshake(pc, opts, method)
 */
-function handshake(pc, opts, method) {
+function handshake(pc, opts, callId, method) {
   var hsDebug = require('./debug')('handshake-' + method);
   var signaller = opts && opts.signaller;
 
@@ -99,6 +99,8 @@ function handshake(pc, opts, method) {
     hsDebug('unable to ' + method + ', do have a signaller');
     return false;
   }
+
+  hsDebug('starting', pc.signalingState);
 
   // create a new offer
   return pc[method].call(pc,
