@@ -77,20 +77,33 @@ var automate = module.exports = function(pc, opts) {
   ### automate.offer(pc, opts)
 **/
 automate.offer = function(pc, opts, callId) {
-  return handshake(pc, opts, callId, 'createOffer');
+  var signaller = opts && opts.signaller;
+
+  if (! signaller) {
+    return false;
+  }
+
+  // we want to create an offer, so 
+  return signaller.offerIntent(opts, function(err) {
+    if (err) {
+      return debug('offer intent failed: ', err);
+    }
+
+    handshake(pc, opts, 'createOffer');
+  });
 };
 
 /**
   ### automate.answer(pc, opts)
 **/
 automate.answer = function(pc, opts, callId) {
-  return handshake(pc, opts, callId, 'createAnswer');
+  return handshake(pc, opts, 'createAnswer');
 };
 
 /*
   ### handshake(pc, opts, method)
 */
-function handshake(pc, opts, callId, method) {
+function handshake(pc, opts, method) {
   var hsDebug = require('./debug')('handshake-' + method);
   var signaller = opts && opts.signaller;
 

@@ -322,6 +322,41 @@ Signaller.prototype.negotiate = function(targetId, sdp, callId, type) {
 };
 
 /**
+  ### offerIntent(opts, callback)
+
+  The offerIntent method is used to secure offer rights for an
+  offer / answer handshake negotiation.
+**/
+Signaller.prototype.offerIntent = function(opts, callback) {
+  var callId = opts && opts.callId;
+  var signaller = this;
+
+  function handleAccept(response) {
+    signaller.removeListener('offer:reject', handleReject);
+    debug('received offer response for call ' + callId + ': ', response);
+
+    callback();
+  }
+
+  function handleReject(response) {
+    signaller.removeListener('offer:accept', handleAccept);
+    debug('received rejection');
+    callback(new Error('received rejection'));
+  }
+
+  // if we don't have a callid, then abort
+  if (! callId) {
+    return callback(new Error('Unable to offer intent, no callid'));
+  }
+
+  debug('sending offer intent for call: ' + callId);
+  this.once('offer:accept', handleAccept);
+  this.once('offer:reject', handleReject);
+
+  return this.send('/offer', callId);
+};
+
+/**
   ### outbound()
 
   Return a pull-stream source that can write messages to a transport
