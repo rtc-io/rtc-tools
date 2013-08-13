@@ -3,6 +3,7 @@ return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requi
 /* jshint node: true */
 'use strict';
 
+var debug = require('./debug')('couple');
 var monitor = require('./monitor');
 
 /**
@@ -21,33 +22,36 @@ var monitor = require('./monitor');
 
 **/
 module.exports = function(conn, targetAttr, signaller) {
-  // return a monitor for the connection
+  // create a monitor for the connection
   var mon = monitor(conn);
   var blockId;
   var createAnswer = createHandshaker('createAnswer');
   var createOffer = createHandshaker('createOffer');
   var openChannel;
+  var queuedCandidates = [];
 
   function abort(err) {
     // log the error
-    console.log('captured error: ', err);
+    debug('captured error: ', err);
 
     // clear any block
     signaller.clearBlock(blockId);
   }
 
   function createHandshaker(methodName) {
+    var hsDebug = require('./debug')('handshake-' + methodName);
+
     return function() {
       // clear the open channel
       openChannel = null;
 
-      console.log('making signaller request');
+      hsDebug('starting, making signaller request', conn.signalingState);
       signaller.request(targetAttr, function(err, channel) {
         if (err) {
           return;
         }
 
-        console.log('request ok');
+        hsDebug('request ok');
 
         // block the signalling scope
         blockId = signaller.block();
@@ -69,6 +73,7 @@ module.exports = function(conn, targetAttr, signaller) {
 
                 // clear the block
                 signaller.clearBlock(blockId);
+                hsDebug('block cleared');
               },
 
               // on error, abort
@@ -91,23 +96,32 @@ module.exports = function(conn, targetAttr, signaller) {
 
   function handleRemoteCandidate(data) {
     if (! conn.remoteDescription) {
-      return;
+      return queuedCandidates.push(data);
     }
     
-    console.log('got remote candidate: ', data);
+    debug('adding remote candidate');
     conn.addIceCandidate(new RTCIceCandidate(data));
   }
 
   function handleSdp(data) {
-    if (data.type === 'offer') {
-      // update the remote description
-      // once successful, send the answer
-      conn.setRemoteDescription(
-        new RTCSessionDescription(data),
-        createAnswer,
-        abort
-      );
-    }
+    // update the remote description
+    // once successful, send the answer
+    conn.setRemoteDescription(
+      new RTCSessionDescription(data),
+      function() {
+        // apply any queued candidates
+        queuedCandidates.splice(0).forEach(function(data) {
+          debug('applying queued candidate');
+          conn.addIceCandidate(new RTCIceCandidate(data));
+        });
+
+        // create the answer
+        if (data.type === 'offer') {
+          createAnswer();
+        }
+      },
+      abort
+    );
   }
 
   // when regotiation is needed look for the peer
@@ -118,9 +132,17 @@ module.exports = function(conn, targetAttr, signaller) {
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleRemoteCandidate);
 
+  // patch in the create offer function
+  mon.createOffer = createOffer;
+
   return mon;
 };
-},{"./monitor":6}],2:[function(require,module,exports){
+},{"./debug":2,"./monitor":7}],2:[function(require,module,exports){
+/* jshint node: true */
+'use strict';
+
+module.exports = require('rtc-core/debug');
+},{"rtc-core/debug":13}],3:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -131,7 +153,7 @@ module.exports = function(conn, targetAttr, signaller) {
   functionality.
 **/
 module.exports = require('rtc-core/detect');
-},{"rtc-core/detect":13}],3:[function(require,module,exports){
+},{"rtc-core/detect":14}],4:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -259,7 +281,7 @@ var parseFlags = exports.parseFlags = function(options) {
       return knownFlags.indexOf(flag) >= 0;
     });
 };
-},{"./detect":2,"cog/defaults":9}],4:[function(require,module,exports){
+},{"./detect":3,"cog/defaults":10}],5:[function(require,module,exports){
 /* jshint node: true */
 
 'use strict';
@@ -319,7 +341,7 @@ exports.signaller = require('rtc-signaller');
 exports.createConnection = function(opts, constraints) {
   return new RTCPeerConnection(gen.config(opts), constraints);
 };
-},{"./couple":1,"./detect":2,"./generators":3,"./media":5,"rtc-signaller":18}],5:[function(require,module,exports){
+},{"./couple":1,"./detect":3,"./generators":4,"./media":6,"rtc-signaller":19}],6:[function(require,module,exports){
 /* jshint node: true */
 
 'use strict';
@@ -331,7 +353,7 @@ exports.createConnection = function(opts, constraints) {
   convenience.
 **/
 module.exports = require('rtc-media');
-},{"rtc-media":14}],6:[function(require,module,exports){
+},{"rtc-media":15}],7:[function(require,module,exports){
 var process=require("__browserify_process");/* jshint node: true */
 'use strict';
 
@@ -495,7 +517,7 @@ monitor.isActive = function(pc) {
   // return with the connection is active
   return isStable && getState(pc) === W3C_STATES.ACTIVE;
 };
-},{"__browserify_process":24,"events":7,"rtc-core/debug":12}],7:[function(require,module,exports){
+},{"__browserify_process":24,"events":8,"rtc-core/debug":13}],8:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -691,7 +713,7 @@ EventEmitter.listenerCount = function(emitter, type) {
   return ret;
 };
 
-},{"__browserify_process":24}],8:[function(require,module,exports){
+},{"__browserify_process":24}],9:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -1038,7 +1060,7 @@ exports.format = function(f) {
   return str;
 };
 
-},{"events":7}],9:[function(require,module,exports){
+},{"events":8}],10:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1076,7 +1098,7 @@ module.exports = function(target) {
 
   return target;
 };
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1107,7 +1129,7 @@ module.exports = function(target) {
 
   return target;
 };
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /* jshint node: true */
 /* global document: false */
 'use strict';
@@ -1147,7 +1169,7 @@ module.exports = function(selector, scope) {
               scope.querySelectorAll(selector)
     );
 };
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /* jshint node: true */
 /* global console: false */
 'use strict';
@@ -1184,7 +1206,7 @@ var debug = module.exports = function(section) {
 debug.enable = function() {
   activeSections = [].slice.call(arguments);
 };
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /* jshint node: true */
 /* global window: false */
 /* global navigator: false */
@@ -1248,7 +1270,7 @@ detect.moz = !!navigator.mozGetUserMedia;
 
 // initialise the prefix as unknown
 detect.browser = undefined;
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 /* jshint node: true */
 /* global navigator: false */
 /* global window: false */
@@ -1714,7 +1736,7 @@ Media.prototype._handleFail = function() {
   and also if you want to test connectivity between two browser instances and
   want to distinguish between the two local videos.
 **/
-},{"cog/extend":10,"cog/qsa":11,"events":7,"rtc-core/debug":12,"rtc-core/detect":13,"util":8}],15:[function(require,module,exports){
+},{"cog/extend":11,"cog/qsa":12,"events":8,"rtc-core/debug":13,"rtc-core/detect":14,"util":9}],16:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1738,7 +1760,7 @@ module.exports = function(scope) {
     }
   };
 };
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1753,7 +1775,7 @@ module.exports = function(scope) {
     request: require('./request')(scope)
   };
 };
-},{"./announce":15,"./request":17}],17:[function(require,module,exports){
+},{"./announce":16,"./request":18}],18:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1826,7 +1848,7 @@ module.exports = function(scope) {
     return false;
   };
 };
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2064,38 +2086,100 @@ module.exports = function(messenger, opts) {
 
   return scope;
 };
-},{"./processor":22,"cog/extend":19,"events":7,"uuid":21}],19:[function(require,module,exports){
+},{"./processor":20,"cog/extend":11,"events":8,"uuid":22}],20:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
-/** 
-## extend(target, *)
+/**
+  ## signaller process handling
 
-Shallow copy object properties from the supplied source objects (*) into 
-the target object, returning the target object once completed:
+  When a signaller's underling messenger emits a `data` event this is
+  delegated to a simple message parser, which applies the following simple
+  logic:
 
-```js
-var extend = require('cog/extend');
+  - Is the message a `/to` message. If so, see if the message is for this
+    signaller scope (checking the target id - 2nd arg).  If so pass the
+    remainder of the message onto the standard processing chain.  If not,
+    discard the message.
 
-extend({ a: 1, b: 2 }, { c: 3 }, { d: 4 }, { b: 5 }));
-```
+  - Is the message a command message (prefixed with a forward slash). If so,
+    look for an appropriate message handler and pass the message payload on
+    to it.
 
-See an example on [requirebin](http://requirebin.com/?gist=6079475).
+  - Finally, does the message match any patterns that we are listening for?
+    If so, then pass the entire message contents onto the registered handler.
 **/
-module.exports = function(target) {
-  [].slice.call(arguments, 1).forEach(function(source) {
-    if (! source) {
+module.exports = function(scope) {
+  var id = scope.id;
+  var handlers = require('./handlers')(scope);
+
+  function sendEvent(parts) {
+    // initialise the event name
+    var evtName = parts[0].slice(1);
+
+    // convert any valid json objects to json
+    var args = parts.slice(1).map(function(part) {
+      if (part.charAt(0) === '{') {
+        try {
+          part = JSON.parse(part);
+        }
+        catch (e) {
+        }
+      }
+
+      return part;
+    });
+
+    scope.emit.apply(scope, [evtName].concat(args));
+  }
+
+  return function(data) {
+    var isMatch = true;
+    var parts;
+    var handler;
+
+    // process /to messages
+    if (data.slice(0, 3) === '/to') {
+      isMatch = data.slice(4, id.length + 4) === id;
+      if (isMatch) {
+        data = data.slice(5 + id.length);
+      }
+    }
+
+    // if this is not a match, then bail
+    if (! isMatch) {
       return;
     }
 
-    for (var prop in source) {
-      target[prop] = source[prop];
-    }
-  });
+    // chop the data into parts
+    parts = data.split('|');
 
-  return target;
+    // if we have a specific handler for the action, then invoke
+    if (parts[0].charAt(0) === '/') {
+      handler = handlers[parts[0].slice(1)];
+
+      if (typeof handler == 'function') {
+        handler(parts.slice(1));
+      }
+      else {
+        sendEvent(parts);
+      }
+    }
+
+    // process matchers
+    scope.matchers = scope.matchers.filter(function(rule) {
+      var exec = data.slice(0, rule.prefix.length) === rule.prefix;
+
+      if (exec && typeof rule.handler == 'function') {
+        rule.handler(data);
+      }
+
+      // only keep if not executed
+      return !exec;
+    });
+  };
 };
-},{}],20:[function(require,module,exports){
+},{"./handlers":17}],21:[function(require,module,exports){
 var global=require("__browserify_global");
 var rng;
 
@@ -2128,7 +2212,7 @@ if (!rng) {
 module.exports = rng;
 
 
-},{"__browserify_global":23}],21:[function(require,module,exports){
+},{"__browserify_global":23}],22:[function(require,module,exports){
 //     uuid.js
 //
 //     Copyright (c) 2010-2012 Robert Kieffer
@@ -2317,103 +2401,10 @@ uuid.BufferClass = BufferClass;
 
 module.exports = uuid;
 
-},{"./rng":20}],22:[function(require,module,exports){
-/* jshint node: true */
-'use strict';
-
-/**
-  ## signaller process handling
-
-  When a signaller's underling messenger emits a `data` event this is
-  delegated to a simple message parser, which applies the following simple
-  logic:
-
-  - Is the message a `/to` message. If so, see if the message is for this
-    signaller scope (checking the target id - 2nd arg).  If so pass the
-    remainder of the message onto the standard processing chain.  If not,
-    discard the message.
-
-  - Is the message a command message (prefixed with a forward slash). If so,
-    look for an appropriate message handler and pass the message payload on
-    to it.
-
-  - Finally, does the message match any patterns that we are listening for?
-    If so, then pass the entire message contents onto the registered handler.
-**/
-module.exports = function(scope) {
-  var id = scope.id;
-  var handlers = require('./handlers')(scope);
-
-  function sendEvent(parts) {
-    // initialise the event name
-    var evtName = parts[0].slice(1);
-
-    // convert any valid json objects to json
-    var args = parts.slice(1).map(function(part) {
-      if (part.charAt(0) === '{') {
-        try {
-          part = JSON.parse(part);
-        }
-        catch (e) {
-        }
-      }
-
-      return part;
-    });
-
-    scope.emit.apply(scope, [evtName].concat(args));
-  }
-
-  return function(data) {
-    var isMatch = true;
-    var parts;
-    var handler;
-
-    // process /to messages
-    if (data.slice(0, 3) === '/to') {
-      isMatch = data.slice(4, id.length + 4) === id;
-      if (isMatch) {
-        data = data.slice(5 + id.length);
-      }
-    }
-
-    // if this is not a match, then bail
-    if (! isMatch) {
-      return;
-    }
-
-    // chop the data into parts
-    parts = data.split('|');
-
-    // if we have a specific handler for the action, then invoke
-    if (parts[0].charAt(0) === '/') {
-      handler = handlers[parts[0].slice(1)];
-
-      if (typeof handler == 'function') {
-        handler(parts.slice(1));
-      }
-      else {
-        sendEvent(parts);
-      }
-    }
-
-    // process matchers
-    scope.matchers = scope.matchers.filter(function(rule) {
-      var exec = data.slice(0, rule.prefix.length) === rule.prefix;
-
-      if (exec && typeof rule.handler == 'function') {
-        rule.handler(data);
-      }
-
-      // only keep if not executed
-      return !exec;
-    });
-  };
-};
-},{"./handlers":16}],23:[function(require,module,exports){
+},{"./rng":21}],23:[function(require,module,exports){
 return {}
 },{}],24:[function(require,module,exports){
 return {}
-},{}]},{},[4])(4)
+},{}]},{},[5])(5)
 });
 ;
