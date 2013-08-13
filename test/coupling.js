@@ -1,23 +1,68 @@
-var couple = require('../lib/couple');
+var couple = require('../couple');
+var messenger = require('messenger-memory');
 var test = require('tape');
 var rtc = require('..');
-var a;
-var b;
+var conns = [];
+var signallers = [];
+var monitors = [];
+
+var dcConstraints = {
+  optional: [
+    { RtpDataChannels: true }
+  ]
+};
 
 test('create peer connections', function(t) {
   t.plan(2);
 
-  t.ok(a = rtc.createConnection(), 'created a');
-  t.ok(b = rtc.createConnection(), 'created b');
+  t.ok(conns[0] = rtc.createConnection({}, dcConstraints), 'created a');
+  t.ok(conns[1] = rtc.createConnection({}, dcConstraints), 'created b');
 });
 
-test('couple the two connections together', function(t) {
+test('create signallers', function(t) {
+  t.plan(2);
+
+  t.ok(signallers[0] = rtc.signaller(messenger()), 'created signaller a');
+  t.ok(signallers[1] = rtc.signaller(messenger()), 'created signaller b');
+});
+
+test('couple a --> b', function(t) {
   t.plan(1);
 
-  couple(a, b, function(err) {
-    t.ifError(err, 'done');
-  });
+  t.ok(
+    monitors[0] = couple(conns[0], { id: signallers[1].id }, signallers[0]),
+    'ok'
+  );
 });
+
+test('couple b --> a', function(t) {
+  t.plan(1);
+  t.ok(
+    monitors[1] = couple(conns[1], { id: signallers[0].id }, signallers[1]),
+    'ok'
+  );
+});
+
+test('create a data channel on a', function(t) {
+  t.plan(2);
+
+  conns[1].addEventListener('datachannel', function(evt) {
+    t.pass('got data channel');
+  });
+
+  t.ok(
+    conns[0].createDataChannel('RTCDataChannel', { reliable: false }),
+    'a created'
+  );
+});
+
+// test('couple the two connections together', function(t) {
+//   t.plan(1);
+
+//   couple(a, b, function(err) {
+//     t.ifError(err, 'done');
+//   });
+// });
 
 /*
 test('close connections', function(t) {

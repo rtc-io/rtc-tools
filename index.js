@@ -24,6 +24,9 @@ var detect = exports.detect = require('./detect');
 var RTCPeerConnection =
 exports.RTCPeerConnection = detect('RTCPeerConnection');
 
+// add the couple utility
+exports.couple = require('./couple');
+
 // export media
 exports.media = require('./media');
 
