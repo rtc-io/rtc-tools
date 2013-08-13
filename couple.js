@@ -24,20 +24,28 @@ module.exports = function(conn, targetAttr, signaller) {
   var blockId;
   var createAnswer = createHandshaker('createAnswer');
   var createOffer = createHandshaker('createOffer');
+  var openChannel;
 
   function abort(err) {
+    // log the error
+    console.log('captured error: ', err);
+
     // clear any block
     signaller.clearBlock(blockId);
-
-    // log the error
   }
 
   function createHandshaker(methodName) {
     return function() {
+      // clear the open channel
+      openChannel = null;
+
+      console.log('making signaller request');
       signaller.request(targetAttr, function(err, channel) {
         if (err) {
           return;
         }
+
+        console.log('request ok');
 
         // block the signalling scope
         blockId = signaller.block();
@@ -51,7 +59,13 @@ module.exports = function(conn, targetAttr, signaller) {
 
               // if successful, then send the sdp over the wire
               function() {
+                // save the channel as open
+                openChannel = channel;
+
+                // send the sdp
                 channel.send('/sdp', desc);
+
+                // clear the block
                 signaller.clearBlock(blockId);
               },
 
@@ -65,6 +79,21 @@ module.exports = function(conn, targetAttr, signaller) {
         );
       });
     }
+  }
+
+  function handleLocalCandidate(evt) {
+    if (evt.candidate && openChannel) {
+      openChannel.send('/candidate', evt.candidate);
+    }
+  }
+
+  function handleRemoteCandidate(data) {
+    if (! conn.remoteDescription) {
+      return;
+    }
+    
+    console.log('got remote candidate: ', data);
+    conn.addIceCandidate(new RTCIceCandidate(data));
   }
 
   function handleSdp(data) {
@@ -81,9 +110,11 @@ module.exports = function(conn, targetAttr, signaller) {
 
   // when regotiation is needed look for the peer
   conn.addEventListener('negotiationneeded', createOffer);
+  conn.addEventListener('icecandidate', handleLocalCandidate);
 
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
+  signaller.on('candidate', handleRemoteCandidate);
 
   return mon;
 };

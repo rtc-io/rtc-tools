@@ -3,6 +3,127 @@ return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requi
 /* jshint node: true */
 'use strict';
 
+var monitor = require('./monitor');
+
+/**
+  ## rtc/couple
+
+  Couple a WebRTC connection with another webrtc connection via a
+  signalling scope.
+
+  ### Example Usage
+
+  ```js
+  var couple = require('rtc/couple');
+
+  couple(new RTCConnection(), { id: 'test' }, signaller);
+  ```
+
+**/
+module.exports = function(conn, targetAttr, signaller) {
+  // return a monitor for the connection
+  var mon = monitor(conn);
+  var blockId;
+  var createAnswer = createHandshaker('createAnswer');
+  var createOffer = createHandshaker('createOffer');
+  var openChannel;
+
+  function abort(err) {
+    // log the error
+    console.log('captured error: ', err);
+
+    // clear any block
+    signaller.clearBlock(blockId);
+  }
+
+  function createHandshaker(methodName) {
+    return function() {
+      // clear the open channel
+      openChannel = null;
+
+      console.log('making signaller request');
+      signaller.request(targetAttr, function(err, channel) {
+        if (err) {
+          return;
+        }
+
+        console.log('request ok');
+
+        // block the signalling scope
+        blockId = signaller.block();
+
+        // create the offer
+        conn[methodName](
+          function(desc) {
+            // initialise the local description
+            conn.setLocalDescription(
+              desc,
+
+              // if successful, then send the sdp over the wire
+              function() {
+                // save the channel as open
+                openChannel = channel;
+
+                // send the sdp
+                channel.send('/sdp', desc);
+
+                // clear the block
+                signaller.clearBlock(blockId);
+              },
+
+              // on error, abort
+              abort
+            );
+          },
+
+          // on error, abort
+          abort
+        );
+      });
+    }
+  }
+
+  function handleLocalCandidate(evt) {
+    if (evt.candidate && openChannel) {
+      openChannel.send('/candidate', evt.candidate);
+    }
+  }
+
+  function handleRemoteCandidate(data) {
+    if (! conn.remoteDescription) {
+      return;
+    }
+    
+    console.log('got remote candidate: ', data);
+    conn.addIceCandidate(new RTCIceCandidate(data));
+  }
+
+  function handleSdp(data) {
+    if (data.type === 'offer') {
+      // update the remote description
+      // once successful, send the answer
+      conn.setRemoteDescription(
+        new RTCSessionDescription(data),
+        createAnswer,
+        abort
+      );
+    }
+  }
+
+  // when regotiation is needed look for the peer
+  conn.addEventListener('negotiationneeded', createOffer);
+  conn.addEventListener('icecandidate', handleLocalCandidate);
+
+  // when we receive sdp, then
+  signaller.on('sdp', handleSdp);
+  signaller.on('candidate', handleRemoteCandidate);
+
+  return mon;
+};
+},{"./monitor":6}],2:[function(require,module,exports){
+/* jshint node: true */
+'use strict';
+
 /**
   ## rtc/detect
 
@@ -10,7 +131,7 @@ return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requi
   functionality.
 **/
 module.exports = require('rtc-core/detect');
-},{"rtc-core/detect":11}],2:[function(require,module,exports){
+},{"rtc-core/detect":13}],3:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -138,7 +259,7 @@ var parseFlags = exports.parseFlags = function(options) {
       return knownFlags.indexOf(flag) >= 0;
     });
 };
-},{"./detect":1,"cog/defaults":7}],3:[function(require,module,exports){
+},{"./detect":2,"cog/defaults":9}],4:[function(require,module,exports){
 /* jshint node: true */
 
 'use strict';
@@ -164,6 +285,9 @@ var detect = exports.detect = require('./detect');
 // export peer connection
 var RTCPeerConnection =
 exports.RTCPeerConnection = detect('RTCPeerConnection');
+
+// add the couple utility
+exports.couple = require('./couple');
 
 // export media
 exports.media = require('./media');
@@ -195,7 +319,7 @@ exports.signaller = require('rtc-signaller');
 exports.createConnection = function(opts, constraints) {
   return new RTCPeerConnection(gen.config(opts), constraints);
 };
-},{"./detect":1,"./generators":2,"./media":4,"rtc-signaller":16}],4:[function(require,module,exports){
+},{"./couple":1,"./detect":2,"./generators":3,"./media":5,"rtc-signaller":18}],5:[function(require,module,exports){
 /* jshint node: true */
 
 'use strict';
@@ -207,7 +331,171 @@ exports.createConnection = function(opts, constraints) {
   convenience.
 **/
 module.exports = require('rtc-media');
-},{"rtc-media":12}],5:[function(require,module,exports){
+},{"rtc-media":14}],6:[function(require,module,exports){
+var process=require("__browserify_process");/* jshint node: true */
+'use strict';
+
+var debug = require('rtc-core/debug')('monitor');
+var EventEmitter = require('events').EventEmitter;
+var W3C_STATES = {
+  NEW: 'new',
+  LOCAL_OFFER: 'have-local-offer',
+  LOCAL_PRANSWER: 'have-local-pranswer',
+  REMOTE_PRANSWER: 'have-remote-pranswer',
+  ACTIVE: 'active',
+  CLOSED: 'closed'
+};
+
+/**
+  ## rtc/monitor
+
+  In most current implementations of `RTCPeerConnection` it is quite
+  difficult to determine whether a peer connection is active and ready
+  for use or not.  The monitor provides some assistance here by providing
+  a simple function that provides an `EventEmitter` which gives updates
+  on a connections state.
+
+  ### monitor(pc) -> EventEmitter
+
+  ```js
+  var monitor = require('rtc/monitor');
+  var pc = new RTCPeerConnection(config);
+
+  // watch pc and when active do something
+  monitor(pc).once('active', function() {
+    // active and ready to go
+  });
+  ```
+
+  Events provided by the monitor are as follows:
+
+  - `active`: triggered when the connection is active and ready for use
+  - `stable`: triggered when the connection is in a stable signalling state
+  - `unstable`: trigger when the connection is renegotiating.
+
+  It should be noted, that the monitor does a check when it is first passed
+  an `RTCPeerConnection` object to see if the `active` state passes checks.
+  If so, the `active` event will be fired in the next tick.
+
+  If you require a synchronous check of a connection's "openness" then
+  use the `monitor.isActive` test outlined below.
+**/
+var monitor = module.exports = function(pc, tag) {
+  // create a new event emitter which will communicate events
+  var mon = new EventEmitter();
+  var currentState = getState(pc);
+  var isActive = mon.active = currentState === W3C_STATES.ACTIVE;
+
+  function checkState() {
+    var newState = getState(pc, tag);
+    debug('captured state change, new state: ' + newState);
+
+    // update the monitor active flag
+    mon.active = newState === W3C_STATES.ACTIVE;
+
+    // if we have a state change, emit an event for the new state
+    if (newState !== currentState) {
+      mon.emit(currentState = newState);
+    }
+  }
+
+  // if the current state is active, trigger the active event
+  if (isActive) {
+    process.nextTick(mon.emit.bind(mon, W3C_STATES.ACTIVE, pc));
+  }
+
+  // start watching stuff on the pc
+  pc.addEventListener('signalingstatechange', checkState);
+  pc.addEventListener('iceconnectionstatechange', checkState);
+
+  // patch in a stop method into the emitter
+  mon.stop = function() {
+    pc.removeEventListener('signalingstatechange', checkState);
+    pc.removeEventListener('iceconnectionstatechange', checkState);
+  };
+
+  return mon;
+};
+
+/**
+  ### monitor.getState(pc)
+
+  Provides a unified state definition for the RTCPeerConnection based
+  on a few checks.
+
+  In emerging versions of the spec we have various properties such as
+  `readyState` that provide a definitive answer on the state of the 
+  connection.  In older versions we need to look at things like
+  `signalingState` and `iceGatheringState` to make an educated guess 
+  as to the connection state.
+**/
+var getState = monitor.getState = function(pc, tag) {
+  var readyState = pc && pc.readyState;
+  var signalingState = pc && pc.signalingState;
+  var iceGatheringState = pc && pc.iceGatheringState;
+  var iceConnectionState = pc && pc.iceConnectionState;
+  var localDesc;
+  var remoteDesc;
+  var state;
+  var isActive;
+
+  // if no connection return closed
+  if (! pc) {
+    return W3C_STATES.CLOSED;
+  }
+
+  // initialise the tag to an empty string if not provided
+  tag = tag || '';
+
+  // if we have a ready state, then return the ready state
+  if (typeof readyState != 'undefined') {
+    return readyState;
+  }
+
+  // get the connection local and remote description
+  localDesc = pc.localDescription;
+  remoteDesc = pc.remoteDescription;
+
+  // use the signalling state
+  state = signalingState;
+
+  // if state == 'stable' then investigate
+  if (state === 'stable') {
+    // initialise the state to new
+    state = W3C_STATES.NEW;
+
+    // if we have a local description and remote description flag
+    // as pranswered
+    if (localDesc && remoteDesc) {
+      state = W3C_STATES.REMOTE_PRANSWER;
+    }
+  }
+
+  // check to see if we are in the active state
+  isActive = (state === W3C_STATES.REMOTE_PRANSWER) &&
+    (iceConnectionState === 'connected');
+
+  debug(tag + 'signaling state: ' + signalingState +
+    ', iceGatheringState: ' + iceGatheringState +
+    ', iceConnectionState: ' + iceConnectionState);
+  
+  return isActive ? W3C_STATES.ACTIVE : state;
+};
+
+/**
+  ### monitor.isActive(pc) -> Boolean
+
+  Test an `RTCPeerConnection` to see if it's currently open.  The test for
+  "openness" looks at a combination of current `signalingState` and
+  `iceGatheringState`.
+**/
+monitor.isActive = function(pc) {
+  var isStable = pc && pc.signalingState === 'stable';
+
+  // return with the connection is active
+  return isStable && getState(pc) === W3C_STATES.ACTIVE;
+};
+},{"__browserify_process":24,"events":7,"rtc-core/debug":12}],7:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -403,7 +691,7 @@ EventEmitter.listenerCount = function(emitter, type) {
   return ret;
 };
 
-},{"__browserify_process":22}],6:[function(require,module,exports){
+},{"__browserify_process":24}],8:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -750,7 +1038,7 @@ exports.format = function(f) {
   return str;
 };
 
-},{"events":5}],7:[function(require,module,exports){
+},{"events":7}],9:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -788,7 +1076,7 @@ module.exports = function(target) {
 
   return target;
 };
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -819,7 +1107,7 @@ module.exports = function(target) {
 
   return target;
 };
-},{}],9:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /* jshint node: true */
 /* global document: false */
 'use strict';
@@ -859,7 +1147,7 @@ module.exports = function(selector, scope) {
               scope.querySelectorAll(selector)
     );
 };
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /* jshint node: true */
 /* global console: false */
 'use strict';
@@ -896,7 +1184,7 @@ var debug = module.exports = function(section) {
 debug.enable = function() {
   activeSections = [].slice.call(arguments);
 };
-},{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /* jshint node: true */
 /* global window: false */
 /* global navigator: false */
@@ -960,7 +1248,7 @@ detect.moz = !!navigator.mozGetUserMedia;
 
 // initialise the prefix as unknown
 detect.browser = undefined;
-},{}],12:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /* jshint node: true */
 /* global navigator: false */
 /* global window: false */
@@ -1426,7 +1714,7 @@ Media.prototype._handleFail = function() {
   and also if you want to test connectivity between two browser instances and
   want to distinguish between the two local videos.
 **/
-},{"cog/extend":8,"cog/qsa":9,"events":5,"rtc-core/debug":10,"rtc-core/detect":11,"util":6}],13:[function(require,module,exports){
+},{"cog/extend":10,"cog/qsa":11,"events":7,"rtc-core/debug":12,"rtc-core/detect":13,"util":8}],15:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1450,7 +1738,7 @@ module.exports = function(scope) {
     }
   };
 };
-},{}],14:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1465,7 +1753,7 @@ module.exports = function(scope) {
     request: require('./request')(scope)
   };
 };
-},{"./announce":13,"./request":15}],15:[function(require,module,exports){
+},{"./announce":15,"./request":17}],17:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1538,7 +1826,7 @@ module.exports = function(scope) {
     return false;
   };
 };
-},{}],16:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1776,7 +2064,7 @@ module.exports = function(messenger, opts) {
 
   return scope;
 };
-},{"./processor":20,"cog/extend":17,"events":5,"uuid":19}],17:[function(require,module,exports){
+},{"./processor":22,"cog/extend":19,"events":7,"uuid":21}],19:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1807,7 +2095,7 @@ module.exports = function(target) {
 
   return target;
 };
-},{}],18:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var global=require("__browserify_global");
 var rng;
 
@@ -1840,7 +2128,7 @@ if (!rng) {
 module.exports = rng;
 
 
-},{"__browserify_global":21}],19:[function(require,module,exports){
+},{"__browserify_global":23}],21:[function(require,module,exports){
 //     uuid.js
 //
 //     Copyright (c) 2010-2012 Robert Kieffer
@@ -2029,7 +2317,7 @@ uuid.BufferClass = BufferClass;
 
 module.exports = uuid;
 
-},{"./rng":18}],20:[function(require,module,exports){
+},{"./rng":20}],22:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2055,6 +2343,26 @@ module.exports = uuid;
 module.exports = function(scope) {
   var id = scope.id;
   var handlers = require('./handlers')(scope);
+
+  function sendEvent(parts) {
+    // initialise the event name
+    var evtName = parts[0].slice(1);
+
+    // convert any valid json objects to json
+    var args = parts.slice(1).map(function(part) {
+      if (part.charAt(0) === '{') {
+        try {
+          part = JSON.parse(part);
+        }
+        catch (e) {
+        }
+      }
+
+      return part;
+    });
+
+    scope.emit.apply(scope, [evtName].concat(args));
+  }
 
   return function(data) {
     var isMatch = true;
@@ -2085,7 +2393,7 @@ module.exports = function(scope) {
         handler(parts.slice(1));
       }
       else {
-        scope.emit.apply(scope, [parts[0].slice(1)].concat(parts.slice(1)));
+        sendEvent(parts);
       }
     }
 
@@ -2102,10 +2410,10 @@ module.exports = function(scope) {
     });
   };
 };
-},{"./handlers":14}],21:[function(require,module,exports){
+},{"./handlers":16}],23:[function(require,module,exports){
 return {}
-},{}],22:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 return {}
-},{}]},{},[3])(3)
+},{}]},{},[4])(4)
 });
 ;
