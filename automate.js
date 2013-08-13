@@ -76,7 +76,7 @@ var automate = module.exports = function(pc, opts) {
 /**
   ### automate.offer(pc, opts)
 **/
-automate.offer = function(pc, opts, callId) {
+automate.offer = function(pc, opts) {
   var signaller = opts && opts.signaller;
 
   if (! signaller) {
@@ -96,7 +96,7 @@ automate.offer = function(pc, opts, callId) {
 /**
   ### automate.answer(pc, opts)
 **/
-automate.answer = function(pc, opts, callId) {
+automate.answer = function(pc, opts) {
   return handshake(pc, opts, 'createAnswer');
 };
 

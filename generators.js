@@ -29,7 +29,7 @@ var mappings = {
         c.optional = (c.optional || []).concat({ RtpDataChannels: true });
       }
     }
-  } 
+  }
 };
 
 // initialise known flags
@@ -80,7 +80,7 @@ exports.mediaConstraints = function(flags, context) {
       OfferToReceiveVideo: false,
       OfferToReceiveAudio: false
     };
-  };
+  }
 
   // get the mappings for the context (defaulting to the offer context)
   var contextMappings = mappings[context || 'offer'] || {};

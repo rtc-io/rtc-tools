@@ -338,7 +338,7 @@ Signaller.prototype.offerIntent = function(opts, callback) {
     callback();
   }
 
-  function handleReject(response) {
+  function handleReject() {
     signaller.removeListener('offer:accept', handleAccept);
     debug('received rejection');
     callback(new Error('received rejection'));

@@ -49,7 +49,6 @@ var W3C_STATES = {
 var monitor = module.exports = function(pc, tag) {
   // create a new event emitter which will communicate events
   var mon = new EventEmitter();
-  var signalingState = pc && pc.signalingState;
   var currentState = getState(pc);
   var isActive = mon.active = currentState === W3C_STATES.ACTIVE;
 
@@ -104,6 +103,7 @@ var getState = monitor.getState = function(pc, tag) {
   var localDesc;
   var remoteDesc;
   var state;
+  var isActive;
 
   // if no connection return closed
   if (! pc) {
@@ -137,16 +137,15 @@ var getState = monitor.getState = function(pc, tag) {
     }
   }
 
+  // check to see if we are in the active state
+  isActive = (state === W3C_STATES.REMOTE_PRANSWER) &&
+    (iceConnectionState === 'connected');
+
   debug(tag + 'signaling state: ' + signalingState +
-    ', iceGatheringState: ' + iceGatheringState + 
+    ', iceGatheringState: ' + iceGatheringState +
     ', iceConnectionState: ' + iceConnectionState);
   
-  // if the state is remote pranswer, look at the ice states
-  if (state === W3C_STATES.REMOTE_PRANSWER && iceConnectionState === 'connected') {
-    state = W3C_STATES.ACTIVE;
-  }
-
-  return state;
+  return isActive ? W3C_STATES.ACTIVE : state;
 };
 
 /**
