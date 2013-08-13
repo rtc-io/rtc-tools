@@ -26,22 +26,6 @@ conn = rtc.createConnection({
 });
 ```
 
-## rtc/automate
-
-This is an automation module for dealing with peer connections, based on
-some general approaches that tend to work well when dealing with 
-an `RTCPeerConnection` object.
-
-The generate approach of the automate object is as follows:
-
-- Implement a reactive approach, i.e. the `createOffer`, `createAnswer`
-  dance is completed in response to connections triggering the 
-  `onnegotiationneeded` event.
-
-### automate.offer(pc, opts)
-
-### automate.answer(pc, opts)
-
 ## rtc/couple
 
 Couple a WebRTC connection with another webrtc connection via a
@@ -147,30 +131,6 @@ the `lib/` folder of the `rtc-io/rtc` repository.  While these are designed
 primarily for internal use, they can be accessed by directly requiring
 the modules, e.g. `require('rtc/lib/helpermodule')`
 
-## rtc/lib/couple
-
-This is a utility module that is not included in the rtc suite by 
-default, but can be included using the following require statement:
-
-```js
-var couple = require('rtc/lib/couple');
-```
-
-It is primarily used in local testing routines to bind two local
-peer connection together, e.g.:
-
-```js
-var couple = require('rtc/lib/couple');
-var PeerConnection = require('rtc/peerconnection');
-var a = new PeerConnection();
-var b = new PeerConnection();
-
-// couple the two connections together
-couple(peerA, peerB, function(err) {
-// if no err, then a and b have been coupled successfully
-);
-```
-
 ## rtc/lib/listen
 
 ```js
@@ -185,19 +145,6 @@ listen(pc).on('negotiationneeded', function(evt) {
 The `listen` helper provides an event emitter for a peer connection object
 that will bind to each of the core events WebRTC events (unless overriden
 by providing the listen function additional arguments).
-
-## rtc/lib/processors
-
-This is an internal library of processor helpers that know what to do 
-when a signaller receives generic `config` events for a particular call.
-A processor is provided the local peer connection, a series of opts (
-including the signaller) and the data that was sent across the wire.
-
-### candidate(pc, opts, data)
-
-Process an ice candidate being supplied from the other side of the world.
-
-### sdp(pc, opts, data)
 
 ### inbound()
 
