@@ -1,6 +1,7 @@
 /* jshint node: true */
 'use strict';
 
+var debug = require('./debug')('couple');
 var monitor = require('./monitor');
 
 /**
@@ -19,33 +20,36 @@ var monitor = require('./monitor');
 
 **/
 module.exports = function(conn, targetAttr, signaller) {
-  // return a monitor for the connection
+  // create a monitor for the connection
   var mon = monitor(conn);
   var blockId;
   var createAnswer = createHandshaker('createAnswer');
   var createOffer = createHandshaker('createOffer');
   var openChannel;
+  var queuedCandidates = [];
 
   function abort(err) {
     // log the error
-    console.log('captured error: ', err);
+    debug('captured error: ', err);
 
     // clear any block
     signaller.clearBlock(blockId);
   }
 
   function createHandshaker(methodName) {
+    var hsDebug = require('./debug')('handshake-' + methodName);
+
     return function() {
       // clear the open channel
       openChannel = null;
 
-      console.log('making signaller request');
+      hsDebug('starting, making signaller request', conn.signalingState);
       signaller.request(targetAttr, function(err, channel) {
         if (err) {
           return;
         }
 
-        console.log('request ok');
+        hsDebug('request ok');
 
         // block the signalling scope
         blockId = signaller.block();
@@ -67,6 +71,7 @@ module.exports = function(conn, targetAttr, signaller) {
 
                 // clear the block
                 signaller.clearBlock(blockId);
+                hsDebug('block cleared');
               },
 
               // on error, abort
@@ -89,23 +94,32 @@ module.exports = function(conn, targetAttr, signaller) {
 
   function handleRemoteCandidate(data) {
     if (! conn.remoteDescription) {
-      return;
+      return queuedCandidates.push(data);
     }
     
-    console.log('got remote candidate: ', data);
+    debug('adding remote candidate');
     conn.addIceCandidate(new RTCIceCandidate(data));
   }
 
   function handleSdp(data) {
-    if (data.type === 'offer') {
-      // update the remote description
-      // once successful, send the answer
-      conn.setRemoteDescription(
-        new RTCSessionDescription(data),
-        createAnswer,
-        abort
-      );
-    }
+    // update the remote description
+    // once successful, send the answer
+    conn.setRemoteDescription(
+      new RTCSessionDescription(data),
+      function() {
+        // apply any queued candidates
+        queuedCandidates.splice(0).forEach(function(data) {
+          debug('applying queued candidate');
+          conn.addIceCandidate(new RTCIceCandidate(data));
+        });
+
+        // create the answer
+        if (data.type === 'offer') {
+          createAnswer();
+        }
+      },
+      abort
+    );
   }
 
   // when regotiation is needed look for the peer
@@ -115,6 +129,9 @@ module.exports = function(conn, targetAttr, signaller) {
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleRemoteCandidate);
+
+  // patch in the create offer function
+  mon.createOffer = createOffer;
 
   return mon;
 };

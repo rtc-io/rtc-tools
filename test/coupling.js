@@ -1,3 +1,5 @@
+// require('../debug').enable('*');
+
 var couple = require('../couple');
 var messenger = require('messenger-memory');
 var test = require('tape');
@@ -43,6 +45,16 @@ test('couple b --> a', function(t) {
   );
 });
 
+test('activate connection', function(t) {
+  t.plan(monitors.length);
+
+  monitors.forEach(function(mon, index) {
+    mon.once('active', t.pass.bind(t, 'connection ' + index + ' active'));
+  });
+
+  monitors[0].createOffer();
+});
+
 test('create a data channel on a', function(t) {
   t.plan(2);
 
@@ -55,14 +67,6 @@ test('create a data channel on a', function(t) {
     'a created'
   );
 });
-
-// test('couple the two connections together', function(t) {
-//   t.plan(1);
-
-//   couple(a, b, function(err) {
-//     t.ifError(err, 'done');
-//   });
-// });
 
 /*
 test('close connections', function(t) {
