@@ -28,7 +28,7 @@ exports.RTCPeerConnection = detect('RTCPeerConnection');
 exports.media = require('./media');
 
 // export the signaller
-exports.signaller = require('./signaller');
+exports.signaller = require('rtc-signaller');
 
 /**
   ## Factories

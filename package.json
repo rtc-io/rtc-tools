@@ -18,8 +18,9 @@
   "devDependencies": {
     "jshint": "~2.1.4",
     "tape": "~1.0.4",
-    "rtc-channelmanager": "~0.3.0",
-    "uuid": "~1.4.1"
+    "uuid": "~1.4.1",
+    "browserify": "~2.26.0",
+    "uglify-js": "~2.3.6"
   },
   "scripts": {
     "test": "$(npm bin)/jshint *.js && node test/all.js",
