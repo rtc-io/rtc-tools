@@ -7,9 +7,9 @@
   ],
   "version": "0.2.2",
   "dependencies": {
-    "rtc-core": "~0.3.0",
+    "rtc-core": "~0.4.0",
     "rtc-media": "~0.2.0",
-    "cog": "~0.1.6",
+    "cog": "~0.2.0",
     "rtc-signaller": "~0.2.0"
   },
   "devDependencies": {

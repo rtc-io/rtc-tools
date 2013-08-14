@@ -3,7 +3,7 @@ return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requi
 /* jshint node: true */
 'use strict';
 
-var debug = require('./debug')('couple');
+var debug = require('cog/logger')('couple');
 var monitor = require('./monitor');
 
 /**
@@ -39,7 +39,7 @@ module.exports = function(conn, targetAttr, signaller) {
   }
 
   function createHandshaker(methodName) {
-    var hsDebug = require('./debug')('handshake-' + methodName);
+    var hsDebug = require('cog/logger')('handshake-' + methodName);
 
     return function() {
       // clear the open channel
@@ -132,17 +132,21 @@ module.exports = function(conn, targetAttr, signaller) {
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleRemoteCandidate);
 
+  // when the connection closes, remove event handlers
+  mon.once('closed', function() {
+    debug('closed');
+
+    // remove listeners
+    signaller.removeListener('sdp', handleSdp);
+    signaller.removeListener('candidate', handleRemoteCandidate);
+  });
+
   // patch in the create offer function
   mon.createOffer = createOffer;
 
   return mon;
 };
-},{"./debug":2,"./monitor":7}],2:[function(require,module,exports){
-/* jshint node: true */
-'use strict';
-
-module.exports = require('rtc-core/debug');
-},{"rtc-core/debug":13}],3:[function(require,module,exports){
+},{"./monitor":6,"cog/logger":10}],2:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -153,7 +157,7 @@ module.exports = require('rtc-core/debug');
   functionality.
 **/
 module.exports = require('rtc-core/detect');
-},{"rtc-core/detect":14}],4:[function(require,module,exports){
+},{"rtc-core/detect":11}],3:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -281,7 +285,7 @@ var parseFlags = exports.parseFlags = function(options) {
       return knownFlags.indexOf(flag) >= 0;
     });
 };
-},{"./detect":3,"cog/defaults":10}],5:[function(require,module,exports){
+},{"./detect":2,"cog/defaults":9}],4:[function(require,module,exports){
 /* jshint node: true */
 
 'use strict';
@@ -303,6 +307,9 @@ var gen = require('./generators');
 
 // export detect
 var detect = exports.detect = require('./detect');
+
+// export cog logger for convenience
+exports.logger = require('cog/logger');
 
 // export peer connection
 var RTCPeerConnection =
@@ -341,7 +348,7 @@ exports.signaller = require('rtc-signaller');
 exports.createConnection = function(opts, constraints) {
   return new RTCPeerConnection(gen.config(opts), constraints);
 };
-},{"./couple":1,"./detect":3,"./generators":4,"./media":6,"rtc-signaller":19}],6:[function(require,module,exports){
+},{"./couple":1,"./detect":2,"./generators":3,"./media":5,"cog/logger":10,"rtc-signaller":20}],5:[function(require,module,exports){
 /* jshint node: true */
 
 'use strict';
@@ -353,11 +360,11 @@ exports.createConnection = function(opts, constraints) {
   convenience.
 **/
 module.exports = require('rtc-media');
-},{"rtc-media":15}],7:[function(require,module,exports){
+},{"rtc-media":12}],6:[function(require,module,exports){
 var process=require("__browserify_process");/* jshint node: true */
 'use strict';
 
-var debug = require('rtc-core/debug')('monitor');
+var debug = require('cog/logger')('monitor');
 var EventEmitter = require('events').EventEmitter;
 var W3C_STATES = {
   NEW: 'new',
@@ -410,7 +417,8 @@ var monitor = module.exports = function(pc, tag) {
 
   function checkState() {
     var newState = getState(pc, tag);
-    debug('captured state change, new state: ' + newState);
+    debug('captured state change, new state: ' + newState +
+      ', current state: ' + currentState);
 
     // update the monitor active flag
     mon.active = newState === W3C_STATES.ACTIVE;
@@ -517,7 +525,7 @@ monitor.isActive = function(pc) {
   // return with the connection is active
   return isStable && getState(pc) === W3C_STATES.ACTIVE;
 };
-},{"__browserify_process":24,"events":8,"rtc-core/debug":13}],8:[function(require,module,exports){
+},{"__browserify_process":26,"cog/logger":10,"events":7}],7:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -713,7 +721,7 @@ EventEmitter.listenerCount = function(emitter, type) {
   return ret;
 };
 
-},{"__browserify_process":24}],9:[function(require,module,exports){
+},{"__browserify_process":26}],8:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -1060,7 +1068,7 @@ exports.format = function(f) {
   return str;
 };
 
-},{"events":8}],10:[function(require,module,exports){
+},{"events":7}],9:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1098,115 +1106,139 @@ module.exports = function(target) {
 
   return target;
 };
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
-/** 
-## extend(target, *)
+/**
+  ## cog/logger
 
-Shallow copy object properties from the supplied source objects (*) into 
-the target object, returning the target object once completed:
+  Simple browser logging offering similar functionality to the
+  [debug](https://github.com/visionmedia/debug) module.  
 
-```js
-var extend = require('cog/extend');
+  ### Usage
 
-extend({ a: 1, b: 2 }, { c: 3 }, { d: 4 }, { b: 5 }));
-```
+  Create your self a new logging instance and give it a name:
 
-See an example on [requirebin](http://requirebin.com/?gist=6079475).
+  ```js
+  var logger = require('cog/logger');
+  var debug = logger('phil');
+  ```
+
+  Now do some debugging:
+
+  ```js
+  debug('hello');
+  ```
+
+  At this stage, no log output will be generated because your logger is
+  currently disabled.  Enable it:
+
+  ```js
+  logger.enable('phil');
+  ```
+
+  Now do some more logger:
+
+  ```js
+  debug('Oh this is so much nicer :)');
+  // --> phil: Oh this is some much nicer :)
+  ```
+
+  ### logger reference
 **/
-module.exports = function(target) {
-  [].slice.call(arguments, 1).forEach(function(source) {
-    if (! source) {
+
+var active = [];
+var unleashListeners = [];
+var targets = [ console ];
+
+/**
+  #### logger(name)
+
+  Create a new logging instance.
+**/
+var logger = module.exports = function(name) {
+  // initial enabled check
+  var enabled = checkActive();
+
+  function checkActive() {
+    return enabled = active.indexOf('*') >= 0 || active.indexOf(name) >= 0;
+  }
+
+  // register the check active with the listeners array
+  unleashListeners[unleashListeners.length] = checkActive;
+
+  // return the actual logging function
+  return function() {
+    var args = [].slice.call(arguments);
+
+    // if we have a string message
+    if (typeof args[0] == 'string' || (args[0] instanceof String)) {
+      args[0] = name + ': ' + args[0];
+    }
+
+    // if not enabled, bail
+    if (! enabled) {
       return;
     }
 
-    for (var prop in source) {
-      target[prop] = source[prop];
-    }
-  });
-
-  return target;
-};
-},{}],12:[function(require,module,exports){
-/* jshint node: true */
-/* global document: false */
-'use strict';
-
-var classSelectorRE = /^\.([\w\-]+)$/;
-var idSelectorRE = /^#([\w\-]+)$/;
-var tagSelectorRE = /^[\w\-]+$/;
-
-/**
-## qsa(selector, element)
-
-This function is used to get the results of the querySelectorAll output 
-in the fastest possible way.  This code is very much based on the
-implementation in
-[zepto](https://github.com/madrobby/zepto/blob/master/src/zepto.js#L104),
-but perhaps not quite as terse.
-**/
-module.exports = function(selector, scope) {
-  var idSearch;
-
-  // default the element to the document
-  scope = scope || document;
-
-  // determine whether we are doing an id search or not
-  idSearch = scope === document && idSelectorRE.test(selector);
-
-  // perform the search
-  return idSearch ?
-    // we are doing an id search, return the element search in an array
-    [scope.getElementById(RegExp.$1)] :
-    // not an id search, call the appropriate selector
-    Array.prototype.slice.call(
-        classSelectorRE.test(selector) ?
-          scope.getElementsByClassName(RegExp.$1) :
-            tagSelectorRE.test(selector) ?
-              scope.getElementsByTagName(selector) :
-              scope.querySelectorAll(selector)
-    );
-};
-},{}],13:[function(require,module,exports){
-/* jshint node: true */
-/* global console: false */
-'use strict';
-
-var activeSections = [];
-
-/**
-  ## rtc/lib/debug
-
-  Debug helper, usage is similar to
-  [visionmedia/debug](https://github.com/visionmedia/debug):
-
-  ```
-  var debug = require('rtc/lib/debug')('sectionname');
-
-  debug('Found blah');
-  ```
-**/
-var debug = module.exports = function(section) {
-  var enabled = activeSections.indexOf(section) >= 0 ||
-    activeSections.indexOf('*') >= 0;
-
-  return function(message) {
-    if (! enabled) return;
-
-    console.log.apply(
-      console, 
-      [section + ': ' + message].concat([].slice.call(arguments, 1))
-    );
+    // log
+    targets.forEach(function(target) {
+      target.log.apply(target, args);
+    });
   };
 };
 
-// export the active sections
-debug.enable = function() {
-  activeSections = [].slice.call(arguments);
+/**
+  #### logger.reset()
+
+  Reset logging (remove the default console logger, flag all loggers as 
+  inactive, etc, etc.
+**/
+logger.reset = function() {
+  // reset targets and active states
+  targets = [];
+  active = [];
+
+  return logger.enable();
 };
-},{}],14:[function(require,module,exports){
+
+/**
+  #### logger.to(target)
+
+  Add a logging target.  The logger must have a `log` method attached.
+
+**/
+logger.to = function(target) {
+  targets = targets.concat(target || []);
+
+  return logger;
+};
+
+/**
+  #### logger.enable(names*)
+
+  Enable logging via the named logging instances.  To enable logging via all
+  instances, you can pass a wildcard:
+
+  ```js
+  logger.enable('*');
+  ```
+
+  __TODO:__ wildcard enablers
+**/
+logger.enable = function() {
+  // update the active
+  active = active.concat([].slice.call(arguments));
+
+  // trigger the unleash listeners
+  unleashListeners.forEach(function(listener) {
+    listener();
+  });
+
+  return logger;
+};
+},{}],11:[function(require,module,exports){
 /* jshint node: true */
 /* global window: false */
 /* global navigator: false */
@@ -1270,7 +1302,7 @@ detect.moz = !!navigator.mozGetUserMedia;
 
 // initialise the prefix as unknown
 detect.browser = undefined;
-},{}],15:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /* jshint node: true */
 /* global navigator: false */
 /* global window: false */
@@ -1736,7 +1768,179 @@ Media.prototype._handleFail = function() {
   and also if you want to test connectivity between two browser instances and
   want to distinguish between the two local videos.
 **/
-},{"cog/extend":11,"cog/qsa":12,"events":8,"rtc-core/debug":13,"rtc-core/detect":14,"util":9}],16:[function(require,module,exports){
+},{"cog/extend":13,"cog/qsa":14,"events":7,"rtc-core/debug":15,"rtc-core/detect":16,"util":8}],13:[function(require,module,exports){
+/* jshint node: true */
+'use strict';
+
+/** 
+## extend(target, *)
+
+Shallow copy object properties from the supplied source objects (*) into 
+the target object, returning the target object once completed:
+
+```js
+var extend = require('cog/extend');
+
+extend({ a: 1, b: 2 }, { c: 3 }, { d: 4 }, { b: 5 }));
+```
+
+See an example on [requirebin](http://requirebin.com/?gist=6079475).
+**/
+module.exports = function(target) {
+  [].slice.call(arguments, 1).forEach(function(source) {
+    if (! source) {
+      return;
+    }
+
+    for (var prop in source) {
+      target[prop] = source[prop];
+    }
+  });
+
+  return target;
+};
+},{}],14:[function(require,module,exports){
+/* jshint node: true */
+/* global document: false */
+'use strict';
+
+var classSelectorRE = /^\.([\w\-]+)$/;
+var idSelectorRE = /^#([\w\-]+)$/;
+var tagSelectorRE = /^[\w\-]+$/;
+
+/**
+## qsa(selector, element)
+
+This function is used to get the results of the querySelectorAll output 
+in the fastest possible way.  This code is very much based on the
+implementation in
+[zepto](https://github.com/madrobby/zepto/blob/master/src/zepto.js#L104),
+but perhaps not quite as terse.
+**/
+module.exports = function(selector, scope) {
+  var idSearch;
+
+  // default the element to the document
+  scope = scope || document;
+
+  // determine whether we are doing an id search or not
+  idSearch = scope === document && idSelectorRE.test(selector);
+
+  // perform the search
+  return idSearch ?
+    // we are doing an id search, return the element search in an array
+    [scope.getElementById(RegExp.$1)] :
+    // not an id search, call the appropriate selector
+    Array.prototype.slice.call(
+        classSelectorRE.test(selector) ?
+          scope.getElementsByClassName(RegExp.$1) :
+            tagSelectorRE.test(selector) ?
+              scope.getElementsByTagName(selector) :
+              scope.querySelectorAll(selector)
+    );
+};
+},{}],15:[function(require,module,exports){
+/* jshint node: true */
+/* global console: false */
+'use strict';
+
+var activeSections = [];
+
+/**
+  ## rtc/lib/debug
+
+  Debug helper, usage is similar to
+  [visionmedia/debug](https://github.com/visionmedia/debug):
+
+  ```
+  var debug = require('rtc/lib/debug')('sectionname');
+
+  debug('Found blah');
+  ```
+**/
+var debug = module.exports = function(section) {
+  var enabled = activeSections.indexOf(section) >= 0 ||
+    activeSections.indexOf('*') >= 0;
+
+  return function(message) {
+    if (! enabled) return;
+
+    console.log.apply(
+      console, 
+      [section + ': ' + message].concat([].slice.call(arguments, 1))
+    );
+  };
+};
+
+// export the active sections
+debug.enable = function() {
+  activeSections = [].slice.call(arguments);
+};
+},{}],16:[function(require,module,exports){
+/* jshint node: true */
+/* global window: false */
+/* global navigator: false */
+
+'use strict';
+
+/**
+## rtc-core/detect
+
+A browser detection helper for accessing prefix-free versions of the various
+WebRTC types. 
+
+### Example Usage
+
+If you wanted to get the native `RTCPeerConnection` prototype in any browser
+you could do the following:
+
+```js
+var detect = require('rtc-core/detect'); // also available in rtc/detect
+var RTCPeerConnection = detect('RTCPeerConnection');
+```
+
+This would provide whatever the browser prefixed version of the
+RTCPeerConnection is available (`webkitRTCPeerConnection`, 
+`mozRTCPeerConnection`, etc).
+**/
+var detect = module.exports = function(target, prefixes) {
+  var prefixIdx;
+  var prefix;
+  var testName;
+  var hostObject = this || window;
+
+  // initialise to default prefixes 
+  // (reverse order as we use a decrementing for loop)
+  prefixes = (prefixes || ['ms', 'o', 'moz', 'webkit']).concat('');
+
+  // iterate through the prefixes and return the class if found in global
+  for (prefixIdx = prefixes.length; prefixIdx--; ) {
+    prefix = prefixes[prefixIdx];
+
+    // construct the test class name
+    // if we have a prefix ensure the target has an uppercase first character
+    // such that a test for getUserMedia would result in a 
+    // search for webkitGetUserMedia
+    testName = prefix + (prefix ?
+                            target.charAt(0).toUpperCase() + target.slice(1) :
+                            target);
+
+    if (typeof hostObject[testName] == 'function') {
+      // update the last used prefix
+      detect.browser = detect.browser || prefix.toLowerCase();
+
+      // return the host object member
+      return hostObject[testName];
+    }
+  }
+};
+
+// detect mozilla (yes, this feels dirty)
+detect.moz = !!navigator.mozGetUserMedia;
+
+// initialise the prefix as unknown
+detect.browser = undefined;
+},{}],17:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1760,7 +1964,7 @@ module.exports = function(scope) {
     }
   };
 };
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1775,7 +1979,7 @@ module.exports = function(scope) {
     request: require('./request')(scope)
   };
 };
-},{"./announce":16,"./request":18}],18:[function(require,module,exports){
+},{"./announce":17,"./request":19}],19:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1848,7 +2052,7 @@ module.exports = function(scope) {
     return false;
   };
 };
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1921,6 +2125,7 @@ module.exports = function(messenger, opts) {
 
   // initialise the data event name
   var dataEvent = (opts || {}).dataEvent || 'data';
+  var openEvent = (opts || {}).openEvent || 'open';
 
   scope.blocks = [];
   scope.matchers = [];
@@ -2084,102 +2289,45 @@ module.exports = function(messenger, opts) {
   // handle message data events
   messenger.on(dataEvent, require('./processor')(scope));
 
+  // handle open / connect events
+  messenger.on(openEvent, function() {
+    scope.emit('open');
+  });
+
   return scope;
 };
-},{"./processor":20,"cog/extend":11,"events":8,"uuid":22}],20:[function(require,module,exports){
+},{"./processor":24,"cog/extend":21,"events":7,"uuid":23}],21:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
-/**
-  ## signaller process handling
+/** 
+## extend(target, *)
 
-  When a signaller's underling messenger emits a `data` event this is
-  delegated to a simple message parser, which applies the following simple
-  logic:
+Shallow copy object properties from the supplied source objects (*) into 
+the target object, returning the target object once completed:
 
-  - Is the message a `/to` message. If so, see if the message is for this
-    signaller scope (checking the target id - 2nd arg).  If so pass the
-    remainder of the message onto the standard processing chain.  If not,
-    discard the message.
+```js
+var extend = require('cog/extend');
 
-  - Is the message a command message (prefixed with a forward slash). If so,
-    look for an appropriate message handler and pass the message payload on
-    to it.
+extend({ a: 1, b: 2 }, { c: 3 }, { d: 4 }, { b: 5 }));
+```
 
-  - Finally, does the message match any patterns that we are listening for?
-    If so, then pass the entire message contents onto the registered handler.
+See an example on [requirebin](http://requirebin.com/?gist=6079475).
 **/
-module.exports = function(scope) {
-  var id = scope.id;
-  var handlers = require('./handlers')(scope);
-
-  function sendEvent(parts) {
-    // initialise the event name
-    var evtName = parts[0].slice(1);
-
-    // convert any valid json objects to json
-    var args = parts.slice(1).map(function(part) {
-      if (part.charAt(0) === '{') {
-        try {
-          part = JSON.parse(part);
-        }
-        catch (e) {
-        }
-      }
-
-      return part;
-    });
-
-    scope.emit.apply(scope, [evtName].concat(args));
-  }
-
-  return function(data) {
-    var isMatch = true;
-    var parts;
-    var handler;
-
-    // process /to messages
-    if (data.slice(0, 3) === '/to') {
-      isMatch = data.slice(4, id.length + 4) === id;
-      if (isMatch) {
-        data = data.slice(5 + id.length);
-      }
-    }
-
-    // if this is not a match, then bail
-    if (! isMatch) {
+module.exports = function(target) {
+  [].slice.call(arguments, 1).forEach(function(source) {
+    if (! source) {
       return;
     }
 
-    // chop the data into parts
-    parts = data.split('|');
-
-    // if we have a specific handler for the action, then invoke
-    if (parts[0].charAt(0) === '/') {
-      handler = handlers[parts[0].slice(1)];
-
-      if (typeof handler == 'function') {
-        handler(parts.slice(1));
-      }
-      else {
-        sendEvent(parts);
-      }
+    for (var prop in source) {
+      target[prop] = source[prop];
     }
+  });
 
-    // process matchers
-    scope.matchers = scope.matchers.filter(function(rule) {
-      var exec = data.slice(0, rule.prefix.length) === rule.prefix;
-
-      if (exec && typeof rule.handler == 'function') {
-        rule.handler(data);
-      }
-
-      // only keep if not executed
-      return !exec;
-    });
-  };
+  return target;
 };
-},{"./handlers":17}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var global=require("__browserify_global");
 var rng;
 
@@ -2212,7 +2360,7 @@ if (!rng) {
 module.exports = rng;
 
 
-},{"__browserify_global":23}],22:[function(require,module,exports){
+},{"__browserify_global":25}],23:[function(require,module,exports){
 //     uuid.js
 //
 //     Copyright (c) 2010-2012 Robert Kieffer
@@ -2401,10 +2549,103 @@ uuid.BufferClass = BufferClass;
 
 module.exports = uuid;
 
-},{"./rng":21}],23:[function(require,module,exports){
+},{"./rng":22}],24:[function(require,module,exports){
+/* jshint node: true */
+'use strict';
+
+/**
+  ## signaller process handling
+
+  When a signaller's underling messenger emits a `data` event this is
+  delegated to a simple message parser, which applies the following simple
+  logic:
+
+  - Is the message a `/to` message. If so, see if the message is for this
+    signaller scope (checking the target id - 2nd arg).  If so pass the
+    remainder of the message onto the standard processing chain.  If not,
+    discard the message.
+
+  - Is the message a command message (prefixed with a forward slash). If so,
+    look for an appropriate message handler and pass the message payload on
+    to it.
+
+  - Finally, does the message match any patterns that we are listening for?
+    If so, then pass the entire message contents onto the registered handler.
+**/
+module.exports = function(scope) {
+  var id = scope.id;
+  var handlers = require('./handlers')(scope);
+
+  function sendEvent(parts) {
+    // initialise the event name
+    var evtName = parts[0].slice(1);
+
+    // convert any valid json objects to json
+    var args = parts.slice(1).map(function(part) {
+      if (part.charAt(0) === '{') {
+        try {
+          part = JSON.parse(part);
+        }
+        catch (e) {
+        }
+      }
+
+      return part;
+    });
+
+    scope.emit.apply(scope, [evtName].concat(args));
+  }
+
+  return function(data) {
+    var isMatch = true;
+    var parts;
+    var handler;
+
+    // process /to messages
+    if (data.slice(0, 3) === '/to') {
+      isMatch = data.slice(4, id.length + 4) === id;
+      if (isMatch) {
+        data = data.slice(5 + id.length);
+      }
+    }
+
+    // if this is not a match, then bail
+    if (! isMatch) {
+      return;
+    }
+
+    // chop the data into parts
+    parts = data.split('|');
+
+    // if we have a specific handler for the action, then invoke
+    if (parts[0].charAt(0) === '/') {
+      handler = handlers[parts[0].slice(1)];
+
+      if (typeof handler == 'function') {
+        handler(parts.slice(1));
+      }
+      else {
+        sendEvent(parts);
+      }
+    }
+
+    // process matchers
+    scope.matchers = scope.matchers.filter(function(rule) {
+      var exec = data.slice(0, rule.prefix.length) === rule.prefix;
+
+      if (exec && typeof rule.handler == 'function') {
+        rule.handler(data);
+      }
+
+      // only keep if not executed
+      return !exec;
+    });
+  };
+};
+},{"./handlers":18}],25:[function(require,module,exports){
 return {}
-},{}],24:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 return {}
-},{}]},{},[5])(5)
+},{}]},{},[4])(4)
 });
 ;

@@ -20,6 +20,9 @@ var gen = require('./generators');
 // export detect
 var detect = exports.detect = require('./detect');
 
+// export cog logger for convenience
+exports.logger = require('cog/logger');
+
 // export peer connection
 var RTCPeerConnection =
 exports.RTCPeerConnection = detect('RTCPeerConnection');

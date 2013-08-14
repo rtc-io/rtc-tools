@@ -1,5 +1,3 @@
-// require('../debug').enable('*');
-
 var couple = require('../couple');
 var messenger = require('messenger-memory');
 var test = require('tape');

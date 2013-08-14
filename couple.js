@@ -1,7 +1,7 @@
 /* jshint node: true */
 'use strict';
 
-var debug = require('./debug')('couple');
+var debug = require('cog/logger')('couple');
 var monitor = require('./monitor');
 
 /**
@@ -37,7 +37,7 @@ module.exports = function(conn, targetAttr, signaller) {
   }
 
   function createHandshaker(methodName) {
-    var hsDebug = require('./debug')('handshake-' + methodName);
+    var hsDebug = require('cog/logger')('handshake-' + methodName);
 
     return function() {
       // clear the open channel
@@ -129,6 +129,15 @@ module.exports = function(conn, targetAttr, signaller) {
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleRemoteCandidate);
+
+  // when the connection closes, remove event handlers
+  mon.once('closed', function() {
+    debug('closed');
+
+    // remove listeners
+    signaller.removeListener('sdp', handleSdp);
+    signaller.removeListener('candidate', handleRemoteCandidate);
+  });
 
   // patch in the create offer function
   mon.createOffer = createOffer;

@@ -1,7 +1,7 @@
 /* jshint node: true */
 'use strict';
 
-var debug = require('rtc-core/debug')('monitor');
+var debug = require('cog/logger')('monitor');
 var EventEmitter = require('events').EventEmitter;
 var W3C_STATES = {
   NEW: 'new',
@@ -54,7 +54,8 @@ var monitor = module.exports = function(pc, tag) {
 
   function checkState() {
     var newState = getState(pc, tag);
-    debug('captured state change, new state: ' + newState);
+    debug('captured state change, new state: ' + newState +
+      ', current state: ' + currentState);
 
     // update the monitor active flag
     mon.active = newState === W3C_STATES.ACTIVE;
