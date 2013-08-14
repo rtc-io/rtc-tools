@@ -5,7 +5,7 @@
   "tags": [
     "webrtc"
   ],
-  "version": "0.2.2",
+  "version": "0.2.3",
   "dependencies": {
     "rtc-core": "~0.4.0",
     "rtc-media": "~0.2.0",
