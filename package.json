@@ -13,7 +13,6 @@
     "rtc-signaller": "~0.2.0"
   },
   "devDependencies": {
-    "jshint": "~2.1.4",
     "tape": "~1.0.4",
     "uuid": "~1.4.1",
     "browserify": "~2.26.0",
@@ -21,8 +20,8 @@
     "messenger-memory": "~0.1.1"
   },
   "scripts": {
-    "test": "$(npm bin)/jshint *.js && node test/all.js",
-    "gendocs": "sourcecat | emu > README.md"
+    "test": "node test/all.js",
+    "gendocs": "gendocs > README.md"
   },
   "main": "index.js",
   "directories": {

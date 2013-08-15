@@ -1,4 +1,6 @@
 /* jshint node: true */
+/* global RTCIceCandidate: false */
+/* global RTCSessionDescription: false */
 'use strict';
 
 var debug = require('cog/logger')('couple');
@@ -105,7 +107,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
           abort
         );
       });
-    }
+    };
   }
 
   function handleLocalCandidate(evt) {
