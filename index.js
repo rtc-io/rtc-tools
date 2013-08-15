@@ -47,7 +47,7 @@ exports.signaller = require('rtc-signaller');
 **/
 
 /**
-  ### createConnection(opts, constraints)
+  ### createConnection(opts?, constraints?)
 
   Create a new `RTCPeerConnection` auto generating default opts as required.
 

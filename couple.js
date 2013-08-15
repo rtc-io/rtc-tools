@@ -7,19 +7,33 @@ var monitor = require('./monitor');
 /**
   ## rtc/couple
 
+  ### couple(pc, targetAttr, signaller, opts?)
+
   Couple a WebRTC connection with another webrtc connection via a
-  signalling scope.
+  signalling scope.  The `targetAttr` argument specifies the criteria that
+  are passed onto a `/request` command when looking for remote peer
+  to couple and exchange messages with.
 
   ### Example Usage
 
   ```js
   var couple = require('rtc/couple');
 
-  couple(new RTCConnection(), { id: 'test' }, signaller);
+  couple(new RTCPeerConnection(), { id: 'test' }, signaller);
+
+  ### Using Filters
+
+  In certain instances you may wish to modify the raw SDP that is provided
+  by the `createOffer` and `createAnswer` calls.  This can be done by passing
+  a `sdpfilter` function (or array) in the options.  For example:
+
+  ```js
+  // run the sdp from through a local tweakSdp function.
+  couple(pc, { id: 'blah' }, signaller, { sdpfilter: tweakSdp });
   ```
 
 **/
-module.exports = function(conn, targetAttr, signaller) {
+module.exports = function(conn, targetAttr, signaller, opts) {
   // create a monitor for the connection
   var mon = monitor(conn);
   var blockId;
@@ -27,6 +41,7 @@ module.exports = function(conn, targetAttr, signaller) {
   var createOffer = createHandshaker('createOffer');
   var openChannel;
   var queuedCandidates = [];
+  var sdpFilter = (opts || {}).sdpfilter;
 
   function abort(err) {
     // log the error
@@ -57,6 +72,12 @@ module.exports = function(conn, targetAttr, signaller) {
         // create the offer
         conn[methodName](
           function(desc) {
+
+            // if a filter has been specified, then apply the filter
+            if (sdpFilter) {
+              desc.sdp = sdpFilter(desc.sdp);
+            }
+
             // initialise the local description
             conn.setLocalDescription(
               desc,

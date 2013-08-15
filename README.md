@@ -16,7 +16,7 @@ TO BE COMPLETED.
 
 ## Factories
 
-### createConnection(opts, constraints)
+### createConnection(opts?, constraints?)
 
 Create a new `RTCPeerConnection` auto generating default opts as required.
 
@@ -34,15 +34,29 @@ conn = rtc.createConnection({
 
 ## rtc/couple
 
+### couple(pc, targetAttr, signaller, opts?)
+
 Couple a WebRTC connection with another webrtc connection via a
-signalling scope.
+signalling scope.  The `targetAttr` argument specifies the criteria that
+are passed onto a `/request` command when looking for remote peer
+to couple and exchange messages with.
 
 ### Example Usage
 
 ```js
 var couple = require('rtc/couple');
 
-couple(new RTCConnection(), { id: 'test' }, signaller);
+couple(new RTCPeerConnection(), { id: 'test' }, signaller);
+
+### Using Filters
+
+In certain instances you may wish to modify the raw SDP that is provided
+by the `createOffer` and `createAnswer` calls.  This can be done by passing
+a `sdpfilter` function (or array) in the options.  For example:
+
+```js
+// run the sdp from through a local tweakSdp function.
+couple(pc, { id: 'blah' }, signaller, { sdpfilter: tweakSdp });
 ```
 
 ## rtc/detect

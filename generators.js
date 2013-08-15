@@ -55,9 +55,7 @@ var knownFlags = ['video', 'audio', 'data'];
 **/
 exports.config = function(config) {
   return defaults(config, {
-    iceServers: [
-      { url: 'stun:stun.l.google.com:19302' }
-    ]
+    iceServers: []
   });
 };
 
