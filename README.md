@@ -4,9 +4,15 @@ The `rtc` package is a convenience layer for working with the rtc.io toolkit.
 Consider it a boxed set of lego of the most common pieces required to build
 the front-end component of a WebRTC application.
 
+## Installation
+
+```
+npm install rtc --save
+```
+
 ## Getting Started
 
-TO BE COMPLETED
+TO BE COMPLETED.
 
 ## Factories
 
@@ -123,6 +129,11 @@ as to the connection state.
 Test an `RTCPeerConnection` to see if it's currently open.  The test for
 "openness" looks at a combination of current `signalingState` and
 `iceGatheringState`.
+
+## rtc/signaller
+
+Provide the core [rtc-signaller](https://github.com/rtc-io/rtc-signaller)
+for convenience.
 
 ## Internal RTC Helper Libraries
 
