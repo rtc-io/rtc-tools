@@ -9,12 +9,6 @@
   Consider it a boxed set of lego of the most common pieces required to build
   the front-end component of a WebRTC application.
 
-  ## Installation
-
-  ```
-  npm install rtc --save
-  ```
-
   ## Getting Started
 
   TO BE COMPLETED.

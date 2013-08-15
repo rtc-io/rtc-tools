@@ -11,12 +11,6 @@ the front-end component of a WebRTC application.
 [![browser support](https://ci.testling.com/rtc-io/rtc.png)](https://ci.testling.com/rtc-io/rtc)
 
 
-## Installation
-
-```
-npm install rtc --save
-```
-
 ## Getting Started
 
 TO BE COMPLETED.
