@@ -8,6 +8,9 @@ the front-end component of a WebRTC application.
 [![NPM](https://nodei.co/npm/rtc.png)](https://nodei.co/npm/rtc/)
 
 
+[![browser support](https://ci.testling.com/rtc-io/rtc.png)](https://ci.testling.com/rtc-io/rtc)
+
+
 ## Installation
 
 ```
