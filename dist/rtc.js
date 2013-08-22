@@ -1,6 +1,8 @@
 (function(e){if("function"==typeof bootstrap)bootstrap("rtc",e);else if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else if("undefined"!=typeof ses){if(!ses.ok())return;ses.makeRtc=e}else"undefined"!=typeof window?window.rtc=e():global.rtc=e()})(function(){var define,ses,bootstrap,module,exports;
 return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* jshint node: true */
+/* global RTCIceCandidate: false */
+/* global RTCSessionDescription: false */
 'use strict';
 
 var debug = require('cog/logger')('couple');
@@ -20,6 +22,7 @@ var monitor = require('./monitor');
 
   ```js
   var couple = require('rtc/couple');
+  ```
 
   couple(new RTCPeerConnection(), { id: 'test' }, signaller);
 
@@ -106,7 +109,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
           abort
         );
       });
-    }
+    };
   }
 
   function handleLocalCandidate(evt) {
@@ -315,12 +318,6 @@ var parseFlags = exports.parseFlags = function(options) {
   The `rtc` package is a convenience layer for working with the rtc.io toolkit.
   Consider it a boxed set of lego of the most common pieces required to build
   the front-end component of a WebRTC application.
-
-  ## Installation
-
-  ```
-  npm install rtc --save
-  ```
 
   ## Getting Started
 
@@ -1343,6 +1340,8 @@ detect.browser = undefined;
   sponsored by [NICTA](http://opennicta.com) and released under an
   [Apache 2.0 license](/LICENSE).
 
+  ## Example Usage
+
   Capturing media on your machine is as simple as:
 
   ```js
@@ -1352,11 +1351,7 @@ detect.browser = undefined;
   While this will in fact start the user media capture process, it won't 
   do anything with it.  Lets take a look at a more realistic example:
 
-  ```js
-  var media = require('rtc-media');
-
-  media().render(document.body);
-  ```
+  <<<js gist://6085450
 
   [run on requirebin](http://requirebin.com/?gist=6085450)
 
@@ -1375,6 +1370,19 @@ detect.browser = undefined;
   The code above is written in a more traditional JS style, but feel free
   to use the first style as it's quite safe (thanks to some checks in the
   code).
+
+  ### Media Events
+
+  If you want to know when media is captured (and you probably do), then
+  you can tap into the `capture` event of the created media object:
+
+  ```js
+  media().once('capture', function(stream) {
+    // stream references underlying media stream that was captured
+  });
+  ```
+
+  ## Reference
 
 **/
 
@@ -1397,7 +1405,43 @@ window.URL = window.URL || detect('URL');
 window.MediaStream = detect('MediaStream');
 
 /**
-  ## Media prototype reference
+  ### media(opts?)
+
+  Capture media using the underlying
+  [getUserMedia](http://www.w3.org/TR/mediacapture-streams/) API.
+
+  The function accepts a single argument which can be either be:
+
+  - a. An options object (see below), or;
+  - b. An existing
+    [MediaStream](http://www.w3.org/TR/mediacapture-streams/#mediastream) that
+    the media object will bind to and provide you some DOM helpers for.
+
+  The function supports the following options:
+
+  - `capture` - Whether capture should be initiated automatically. Defaults
+    to true, but toggled to false automatically if an existing stream is
+    provided.
+
+  - `muted` - Whether the video element created for this stream should be
+    muted.  Default is true but is set to false when an existing stream is
+    passed.
+
+  - `constraints` - The constraint option allows you to specify particular
+    media capture constraints which can allow you do do some pretty cool
+    tricks.  By default, the contraints used to request the media are 
+    fairly standard defaults:
+
+    ```js
+      {
+        video: {
+          mandatory: {},
+          optional: []
+        },
+        audio: true
+      }
+    ```
+
 **/
 function Media(opts) {
   if (! (this instanceof Media)) {
@@ -1446,9 +1490,9 @@ function Media(opts) {
   // TODO: revisit whether this is the best way to manage this
   this._bindings = [];
 
-  // if we are autostarting, then start
+  // if we are autostarting, capture media on the next tick
   if (opts.capture) {
-    this.capture();
+    setTimeout(this.capture.bind(this), 0);
   }
 }
 
@@ -1610,7 +1654,32 @@ Media.prototype.stop = function(opts) {
 };
 
 /**
-  ### _prepareElements()
+  ## Debugging Tips
+
+  Chrome and Chromium can both be started with the following flag:
+
+  ```
+  --use-fake-device-for-media-stream
+  ```
+
+  This uses a fake stream for the getUserMedia() call rather than attempting
+  to capture the actual camera.  This is useful when doing automated testing
+  and also if you want to test connectivity between two browser instances and
+  want to distinguish between the two local videos.
+
+  ## Internal Methods
+
+  There are a number of internal methods that are used in the `rtc-media`
+  implementation. These are outlined below, but not expected to be of
+  general use.
+
+**/
+
+/**
+  ### _prepareElements(opts, element)
+
+  The prepareElements function is used to prepare DOM elements that will
+  receive the media streams once the stream have been successfully captured.
 **/
 Media.prototype._prepareElements = function(opts, element) {
   var parent;
@@ -1654,7 +1723,10 @@ Media.prototype._prepareElements = function(opts, element) {
 };
 
 /**
-  ### _bindStream(element, stream)
+  ### _bindStream(stream)
+
+  Bind a stream to previously prepared DOM elements.
+
 **/
 Media.prototype._bindStream = function(stream) {
   var media = this;
@@ -1761,6 +1833,9 @@ Media.prototype._createObjectURL = function(stream) {
 
 /**
   ### _handleSuccess(stream)
+
+  Handle the success condition of a `getUserMedia` call.
+
 **/
 Media.prototype._handleSuccess = function(stream) {
   // update the active stream that we are connected to
@@ -1772,26 +1847,14 @@ Media.prototype._handleSuccess = function(stream) {
 
 /**
   ### _handleFail(evt)
+
+  Handle the failure condition of a `getUserMedia` call.
+
 **/
 Media.prototype._handleFail = function() {
   // TODO: make this more friendly
   this.emit('error', new Error('Unable to capture requested media'));
 };
-
-/**
-  ## Debugging Tips
-
-  Chrome and Chromium can both be started with the following flag:
-
-  ```
-  --use-fake-device-for-media-stream
-  ```
-
-  This uses a fake stream for the getUserMedia() call rather than attempting
-  to capture the actual camera.  This is useful when doing automated testing
-  and also if you want to test connectivity between two browser instances and
-  want to distinguish between the two local videos.
-**/
 },{"cog/extend":13,"cog/qsa":14,"events":7,"rtc-core/debug":15,"rtc-core/detect":16,"util":8}],13:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
@@ -2088,21 +2151,13 @@ var extend = require('cog/extend');
   # rtc-signaller
 
   The `rtc-signaller` module provides a transportless signalling
-  mechanism for WebRTC.  This is the second implementation of a signaller
-  in the rtc.io suite, where we have moving away from a central
-  processing model to a pure P2P signalling implementation.
+  mechanism for WebRTC.
 
-  [
-  ![Build Status]
-  (https://travis-ci.org/rtc-io/rtc-signaller.png?branch=master)
-  ](https://travis-ci.org/rtc-io/rtc-signaller)
+  ## Purpose
 
-  [
-  ![experimental]
-  (http://hughsk.github.io/stability-badges/dist/experimental.svg)
-  ](http://github.com/hughsk/stability-badges)
-
-  All that is required for the signaller to operate is a suitable messenger.
+  The signaller provides set of client-side tools that assist with the
+  setting up `RTCPeerConnections` and helping them communicate. All that is
+  required for the signaller to operate is a suitable messenger.
 
   A messenger is a simple object that implements node
   [EventEmitter](http://nodejs.org/api/events.html) style `on` events for
