@@ -10,7 +10,7 @@
     "rtc-core": "~0.4.0",
     "rtc-media": "~0.2.0",
     "cog": "~0.2.0",
-    "rtc-signaller": "~0.2.0"
+    "rtc-signaller": "~0.3.0"
   },
   "devDependencies": {
     "tape": "~1.0.4",
