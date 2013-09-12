@@ -170,7 +170,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
 
   return mon;
 };
-},{"./monitor":6,"cog/logger":10}],2:[function(require,module,exports){
+},{"./monitor":6,"cog/logger":11}],2:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -181,7 +181,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
   functionality.
 **/
 module.exports = require('rtc-core/detect');
-},{"rtc-core/detect":11}],3:[function(require,module,exports){
+},{"rtc-core/detect":12}],3:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -370,7 +370,7 @@ exports.signaller = require('rtc-signaller');
 exports.createConnection = function(opts, constraints) {
   return new RTCPeerConnection(gen.config(opts), constraints);
 };
-},{"./couple":1,"./detect":2,"./generators":3,"./media":5,"cog/logger":10,"rtc-signaller":20}],5:[function(require,module,exports){
+},{"./couple":1,"./detect":2,"./generators":3,"./media":5,"cog/logger":11,"rtc-signaller":21}],5:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -381,7 +381,7 @@ exports.createConnection = function(opts, constraints) {
   convenience.
 **/
 module.exports = require('rtc-media');
-},{"rtc-media":12}],6:[function(require,module,exports){
+},{"rtc-media":13}],6:[function(require,module,exports){
 var process=require("__browserify_process");/* jshint node: true */
 'use strict';
 
@@ -546,7 +546,7 @@ monitor.isActive = function(pc) {
   // return with the connection is active
   return isStable && getState(pc) === W3C_STATES.ACTIVE;
 };
-},{"__browserify_process":26,"cog/logger":10,"events":7}],7:[function(require,module,exports){
+},{"__browserify_process":26,"cog/logger":11,"events":7}],7:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -1131,6 +1131,37 @@ module.exports = function(target) {
 /* jshint node: true */
 'use strict';
 
+/** 
+## extend(target, *)
+
+Shallow copy object properties from the supplied source objects (*) into 
+the target object, returning the target object once completed:
+
+```js
+var extend = require('cog/extend');
+
+extend({ a: 1, b: 2 }, { c: 3 }, { d: 4 }, { b: 5 }));
+```
+
+See an example on [requirebin](http://requirebin.com/?gist=6079475).
+**/
+module.exports = function(target) {
+  [].slice.call(arguments, 1).forEach(function(source) {
+    if (! source) {
+      return;
+    }
+
+    for (var prop in source) {
+      target[prop] = source[prop];
+    }
+  });
+
+  return target;
+};
+},{}],11:[function(require,module,exports){
+/* jshint node: true */
+'use strict';
+
 /**
   ## cog/logger
 
@@ -1259,7 +1290,7 @@ logger.enable = function() {
 
   return logger;
 };
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /* jshint node: true */
 /* global window: false */
 /* global navigator: false */
@@ -1323,7 +1354,7 @@ detect.moz = !!navigator.mozGetUserMedia;
 
 // initialise the prefix as unknown
 detect.browser = undefined;
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /* jshint node: true */
 /* global navigator: false */
 /* global window: false */
@@ -1340,8 +1371,6 @@ detect.browser = undefined;
   sponsored by [NICTA](http://opennicta.com) and released under an
   [Apache 2.0 license](/LICENSE).
 
-  ## Example Usage
-
   Capturing media on your machine is as simple as:
 
   ```js
@@ -1351,7 +1380,11 @@ detect.browser = undefined;
   While this will in fact start the user media capture process, it won't 
   do anything with it.  Lets take a look at a more realistic example:
 
-  <<<js gist://6085450
+  ```js
+  var media = require('rtc-media');
+
+  media().render(document.body);
+  ```
 
   [run on requirebin](http://requirebin.com/?gist=6085450)
 
@@ -1370,19 +1403,6 @@ detect.browser = undefined;
   The code above is written in a more traditional JS style, but feel free
   to use the first style as it's quite safe (thanks to some checks in the
   code).
-
-  ### Media Events
-
-  If you want to know when media is captured (and you probably do), then
-  you can tap into the `capture` event of the created media object:
-
-  ```js
-  media().once('capture', function(stream) {
-    // stream references underlying media stream that was captured
-  });
-  ```
-
-  ## Reference
 
 **/
 
@@ -1405,43 +1425,7 @@ window.URL = window.URL || detect('URL');
 window.MediaStream = detect('MediaStream');
 
 /**
-  ### media(opts?)
-
-  Capture media using the underlying
-  [getUserMedia](http://www.w3.org/TR/mediacapture-streams/) API.
-
-  The function accepts a single argument which can be either be:
-
-  - a. An options object (see below), or;
-  - b. An existing
-    [MediaStream](http://www.w3.org/TR/mediacapture-streams/#mediastream) that
-    the media object will bind to and provide you some DOM helpers for.
-
-  The function supports the following options:
-
-  - `capture` - Whether capture should be initiated automatically. Defaults
-    to true, but toggled to false automatically if an existing stream is
-    provided.
-
-  - `muted` - Whether the video element created for this stream should be
-    muted.  Default is true but is set to false when an existing stream is
-    passed.
-
-  - `constraints` - The constraint option allows you to specify particular
-    media capture constraints which can allow you do do some pretty cool
-    tricks.  By default, the contraints used to request the media are 
-    fairly standard defaults:
-
-    ```js
-      {
-        video: {
-          mandatory: {},
-          optional: []
-        },
-        audio: true
-      }
-    ```
-
+  ## Media prototype reference
 **/
 function Media(opts) {
   if (! (this instanceof Media)) {
@@ -1490,9 +1474,9 @@ function Media(opts) {
   // TODO: revisit whether this is the best way to manage this
   this._bindings = [];
 
-  // if we are autostarting, capture media on the next tick
+  // if we are autostarting, then start
   if (opts.capture) {
-    setTimeout(this.capture.bind(this), 0);
+    this.capture();
   }
 }
 
@@ -1654,32 +1638,7 @@ Media.prototype.stop = function(opts) {
 };
 
 /**
-  ## Debugging Tips
-
-  Chrome and Chromium can both be started with the following flag:
-
-  ```
-  --use-fake-device-for-media-stream
-  ```
-
-  This uses a fake stream for the getUserMedia() call rather than attempting
-  to capture the actual camera.  This is useful when doing automated testing
-  and also if you want to test connectivity between two browser instances and
-  want to distinguish between the two local videos.
-
-  ## Internal Methods
-
-  There are a number of internal methods that are used in the `rtc-media`
-  implementation. These are outlined below, but not expected to be of
-  general use.
-
-**/
-
-/**
-  ### _prepareElements(opts, element)
-
-  The prepareElements function is used to prepare DOM elements that will
-  receive the media streams once the stream have been successfully captured.
+  ### _prepareElements()
 **/
 Media.prototype._prepareElements = function(opts, element) {
   var parent;
@@ -1723,10 +1682,7 @@ Media.prototype._prepareElements = function(opts, element) {
 };
 
 /**
-  ### _bindStream(stream)
-
-  Bind a stream to previously prepared DOM elements.
-
+  ### _bindStream(element, stream)
 **/
 Media.prototype._bindStream = function(stream) {
   var media = this;
@@ -1833,9 +1789,6 @@ Media.prototype._createObjectURL = function(stream) {
 
 /**
   ### _handleSuccess(stream)
-
-  Handle the success condition of a `getUserMedia` call.
-
 **/
 Media.prototype._handleSuccess = function(stream) {
   // update the active stream that we are connected to
@@ -1847,15 +1800,27 @@ Media.prototype._handleSuccess = function(stream) {
 
 /**
   ### _handleFail(evt)
-
-  Handle the failure condition of a `getUserMedia` call.
-
 **/
 Media.prototype._handleFail = function() {
   // TODO: make this more friendly
   this.emit('error', new Error('Unable to capture requested media'));
 };
-},{"cog/extend":13,"cog/qsa":14,"events":7,"rtc-core/debug":15,"rtc-core/detect":16,"util":8}],13:[function(require,module,exports){
+
+/**
+  ## Debugging Tips
+
+  Chrome and Chromium can both be started with the following flag:
+
+  ```
+  --use-fake-device-for-media-stream
+  ```
+
+  This uses a fake stream for the getUserMedia() call rather than attempting
+  to capture the actual camera.  This is useful when doing automated testing
+  and also if you want to test connectivity between two browser instances and
+  want to distinguish between the two local videos.
+**/
+},{"cog/extend":14,"cog/qsa":15,"events":7,"rtc-core/debug":16,"rtc-core/detect":17,"util":8}],14:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -1886,7 +1851,7 @@ module.exports = function(target) {
 
   return target;
 };
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 /* jshint node: true */
 /* global document: false */
 'use strict';
@@ -1926,7 +1891,7 @@ module.exports = function(selector, scope) {
               scope.querySelectorAll(selector)
     );
 };
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 /* jshint node: true */
 /* global console: false */
 'use strict';
@@ -1963,7 +1928,7 @@ var debug = module.exports = function(section) {
 debug.enable = function() {
   activeSections = [].slice.call(arguments);
 };
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 /* jshint node: true */
 /* global window: false */
 /* global navigator: false */
@@ -2027,7 +1992,7 @@ detect.moz = !!navigator.mozGetUserMedia;
 
 // initialise the prefix as unknown
 detect.browser = undefined;
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2051,7 +2016,7 @@ module.exports = function(scope) {
     }
   };
 };
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2066,7 +2031,7 @@ module.exports = function(scope) {
     request: require('./request')(scope)
   };
 };
-},{"./announce":17,"./request":19}],19:[function(require,module,exports){
+},{"./announce":18,"./request":20}],20:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2139,7 +2104,7 @@ module.exports = function(scope) {
     return false;
   };
 };
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2217,6 +2182,17 @@ module.exports = function(messenger, opts) {
     };
   }
 
+  function prepareArg(arg) {
+    if (typeof arg == 'object' && (! (arg instanceof String))) {
+      return JSON.stringify(arg);
+    }
+    else if (typeof arg == 'function') {
+      return null;
+    }
+
+    return arg;
+  }
+
   function once(prefix, handler) {
     scope.matchers.push({
       prefix: prefix,
@@ -2231,19 +2207,10 @@ module.exports = function(messenger, opts) {
   **/
   var send = scope.send = function() {
     // iterate over the arguments and stringify as required
-    var params = [].slice.call(arguments).map(function(data) {
-      if (typeof data == 'object' && (! (data instanceof String))) {
-        return JSON.stringify(data);
-      }
-      else if (typeof data == 'function') {
-        return null;
-      }
-
-      return data;
-    }).filter(Boolean);
+    var args = [].slice.call(arguments);
 
     // send the data over the messenger
-    return messenger.send(params.join('|'));
+    return messenger.send(args.map(prepareArg).filter(Boolean).join('|'));
   };
 
   /**
@@ -2268,12 +2235,12 @@ module.exports = function(messenger, opts) {
     connections are generally organised into rooms which is inferred
     information that limits the messaging scope.
   **/
-  scope.announce = function(data) {
+  scope.announce = function(data, sender) {
     // update internal attributes
     extend(attributes, data, { id: id });
 
     // send the attributes over the network
-    return send('/announce', attributes);
+    return (sender || send)('/announce', attributes);
   };
 
   /**
@@ -2365,6 +2332,28 @@ module.exports = function(messenger, opts) {
     }));
   };
 
+  /**
+    ### scope.to(targetId)
+
+    The to method returns an encapsulated 
+
+  **/
+  scope.to = function(targetId) {
+    // create a sender that will prepend messages with /to|targetId|
+    var sender = function() {
+      var args = ['/to', targetId].concat([].slice.call(arguments));
+      return messenger.send(args.map(prepareArg).filter(Boolean).join('|'));
+    };
+
+    return {
+      announce: function(data) {
+        return scope.announce(data, sender);
+      },
+
+      send: sender,
+    }
+  };
+
   // handle message data events
   messenger.on(dataEvent, require('./processor')(scope));
 
@@ -2375,38 +2364,100 @@ module.exports = function(messenger, opts) {
 
   return scope;
 };
-},{"./processor":24,"cog/extend":21,"events":7,"uuid":23}],21:[function(require,module,exports){
+},{"./processor":22,"cog/extend":10,"events":7,"uuid":24}],22:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
-/** 
-## extend(target, *)
+/**
+  ## signaller process handling
 
-Shallow copy object properties from the supplied source objects (*) into 
-the target object, returning the target object once completed:
+  When a signaller's underling messenger emits a `data` event this is
+  delegated to a simple message parser, which applies the following simple
+  logic:
 
-```js
-var extend = require('cog/extend');
+  - Is the message a `/to` message. If so, see if the message is for this
+    signaller scope (checking the target id - 2nd arg).  If so pass the
+    remainder of the message onto the standard processing chain.  If not,
+    discard the message.
 
-extend({ a: 1, b: 2 }, { c: 3 }, { d: 4 }, { b: 5 }));
-```
+  - Is the message a command message (prefixed with a forward slash). If so,
+    look for an appropriate message handler and pass the message payload on
+    to it.
 
-See an example on [requirebin](http://requirebin.com/?gist=6079475).
+  - Finally, does the message match any patterns that we are listening for?
+    If so, then pass the entire message contents onto the registered handler.
 **/
-module.exports = function(target) {
-  [].slice.call(arguments, 1).forEach(function(source) {
-    if (! source) {
+module.exports = function(scope) {
+  var id = scope.id;
+  var handlers = require('./handlers')(scope);
+
+  function sendEvent(parts) {
+    // initialise the event name
+    var evtName = parts[0].slice(1);
+
+    // convert any valid json objects to json
+    var args = parts.slice(1).map(function(part) {
+      if (part.charAt(0) === '{') {
+        try {
+          part = JSON.parse(part);
+        }
+        catch (e) {
+        }
+      }
+
+      return part;
+    });
+
+    scope.emit.apply(scope, [evtName].concat(args));
+  }
+
+  return function(data) {
+    var isMatch = true;
+    var parts;
+    var handler;
+
+    // process /to messages
+    if (data.slice(0, 3) === '/to') {
+      isMatch = data.slice(4, id.length + 4) === id;
+      if (isMatch) {
+        data = data.slice(5 + id.length);
+      }
+    }
+
+    // if this is not a match, then bail
+    if (! isMatch) {
       return;
     }
 
-    for (var prop in source) {
-      target[prop] = source[prop];
-    }
-  });
+    // chop the data into parts
+    parts = data.split('|');
 
-  return target;
+    // if we have a specific handler for the action, then invoke
+    if (parts[0].charAt(0) === '/') {
+      handler = handlers[parts[0].slice(1)];
+
+      if (typeof handler == 'function') {
+        handler(parts.slice(1));
+      }
+      else {
+        sendEvent(parts);
+      }
+    }
+
+    // process matchers
+    scope.matchers = scope.matchers.filter(function(rule) {
+      var exec = data.slice(0, rule.prefix.length) === rule.prefix;
+
+      if (exec && typeof rule.handler == 'function') {
+        rule.handler(data);
+      }
+
+      // only keep if not executed
+      return !exec;
+    });
+  };
 };
-},{}],22:[function(require,module,exports){
+},{"./handlers":19}],23:[function(require,module,exports){
 var global=require("__browserify_global");
 var rng;
 
@@ -2439,7 +2490,7 @@ if (!rng) {
 module.exports = rng;
 
 
-},{"__browserify_global":25}],23:[function(require,module,exports){
+},{"__browserify_global":25}],24:[function(require,module,exports){
 //     uuid.js
 //
 //     Copyright (c) 2010-2012 Robert Kieffer
@@ -2628,100 +2679,7 @@ uuid.BufferClass = BufferClass;
 
 module.exports = uuid;
 
-},{"./rng":22}],24:[function(require,module,exports){
-/* jshint node: true */
-'use strict';
-
-/**
-  ## signaller process handling
-
-  When a signaller's underling messenger emits a `data` event this is
-  delegated to a simple message parser, which applies the following simple
-  logic:
-
-  - Is the message a `/to` message. If so, see if the message is for this
-    signaller scope (checking the target id - 2nd arg).  If so pass the
-    remainder of the message onto the standard processing chain.  If not,
-    discard the message.
-
-  - Is the message a command message (prefixed with a forward slash). If so,
-    look for an appropriate message handler and pass the message payload on
-    to it.
-
-  - Finally, does the message match any patterns that we are listening for?
-    If so, then pass the entire message contents onto the registered handler.
-**/
-module.exports = function(scope) {
-  var id = scope.id;
-  var handlers = require('./handlers')(scope);
-
-  function sendEvent(parts) {
-    // initialise the event name
-    var evtName = parts[0].slice(1);
-
-    // convert any valid json objects to json
-    var args = parts.slice(1).map(function(part) {
-      if (part.charAt(0) === '{') {
-        try {
-          part = JSON.parse(part);
-        }
-        catch (e) {
-        }
-      }
-
-      return part;
-    });
-
-    scope.emit.apply(scope, [evtName].concat(args));
-  }
-
-  return function(data) {
-    var isMatch = true;
-    var parts;
-    var handler;
-
-    // process /to messages
-    if (data.slice(0, 3) === '/to') {
-      isMatch = data.slice(4, id.length + 4) === id;
-      if (isMatch) {
-        data = data.slice(5 + id.length);
-      }
-    }
-
-    // if this is not a match, then bail
-    if (! isMatch) {
-      return;
-    }
-
-    // chop the data into parts
-    parts = data.split('|');
-
-    // if we have a specific handler for the action, then invoke
-    if (parts[0].charAt(0) === '/') {
-      handler = handlers[parts[0].slice(1)];
-
-      if (typeof handler == 'function') {
-        handler(parts.slice(1));
-      }
-      else {
-        sendEvent(parts);
-      }
-    }
-
-    // process matchers
-    scope.matchers = scope.matchers.filter(function(rule) {
-      var exec = data.slice(0, rule.prefix.length) === rule.prefix;
-
-      if (exec && typeof rule.handler == 'function') {
-        rule.handler(data);
-      }
-
-      // only keep if not executed
-      return !exec;
-    });
-  };
-};
-},{"./handlers":18}],25:[function(require,module,exports){
+},{"./rng":23}],25:[function(require,module,exports){
 return {}
 },{}],26:[function(require,module,exports){
 return {}
