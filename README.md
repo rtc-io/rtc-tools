@@ -172,14 +172,3 @@ listen(pc).on('negotiationneeded', function(evt) {
 The `listen` helper provides an event emitter for a peer connection object
 that will bind to each of the core events WebRTC events (unless overriden
 by providing the listen function additional arguments).
-
-### inbound()
-
-The inbound function creates a pull-stream sink that will accept the 
-outbound messages from the signaller and route them to the server.
-
-### outbound()
-
-The outbound function creates a pull-stream source that will be fed into 
-the signaller input.  The source will be populated as messages are received
-from the websocket and closed if the websocket connection is closed.

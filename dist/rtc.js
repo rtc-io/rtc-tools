@@ -181,7 +181,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
   functionality.
 **/
 module.exports = require('rtc-core/detect');
-},{"rtc-core/detect":12}],3:[function(require,module,exports){
+},{"rtc-core/detect":13}],3:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -370,7 +370,7 @@ exports.signaller = require('rtc-signaller');
 exports.createConnection = function(opts, constraints) {
   return new RTCPeerConnection(gen.config(opts), constraints);
 };
-},{"./couple":1,"./detect":2,"./generators":3,"./media":5,"cog/logger":11,"rtc-signaller":21}],5:[function(require,module,exports){
+},{"./couple":1,"./detect":2,"./generators":3,"./media":5,"cog/logger":11,"rtc-signaller":18}],5:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -381,7 +381,7 @@ exports.createConnection = function(opts, constraints) {
   convenience.
 **/
 module.exports = require('rtc-media');
-},{"rtc-media":13}],6:[function(require,module,exports){
+},{"rtc-media":14}],6:[function(require,module,exports){
 var process=require("__browserify_process");/* jshint node: true */
 'use strict';
 
@@ -546,7 +546,7 @@ monitor.isActive = function(pc) {
   // return with the connection is active
   return isStable && getState(pc) === W3C_STATES.ACTIVE;
 };
-},{"__browserify_process":26,"cog/logger":11,"events":7}],7:[function(require,module,exports){
+},{"__browserify_process":23,"cog/logger":11,"events":7}],7:[function(require,module,exports){
 var process=require("__browserify_process");if (!process.EventEmitter) process.EventEmitter = function () {};
 
 var EventEmitter = exports.EventEmitter = process.EventEmitter;
@@ -742,7 +742,7 @@ EventEmitter.listenerCount = function(emitter, type) {
   return ret;
 };
 
-},{"__browserify_process":26}],8:[function(require,module,exports){
+},{"__browserify_process":23}],8:[function(require,module,exports){
 var events = require('events');
 
 exports.isArray = isArray;
@@ -1292,6 +1292,46 @@ logger.enable = function() {
 };
 },{}],12:[function(require,module,exports){
 /* jshint node: true */
+/* global document: false */
+'use strict';
+
+var classSelectorRE = /^\.([\w\-]+)$/;
+var idSelectorRE = /^#([\w\-]+)$/;
+var tagSelectorRE = /^[\w\-]+$/;
+
+/**
+## qsa(selector, element)
+
+This function is used to get the results of the querySelectorAll output 
+in the fastest possible way.  This code is very much based on the
+implementation in
+[zepto](https://github.com/madrobby/zepto/blob/master/src/zepto.js#L104),
+but perhaps not quite as terse.
+**/
+module.exports = function(selector, scope) {
+  var idSearch;
+
+  // default the element to the document
+  scope = scope || document;
+
+  // determine whether we are doing an id search or not
+  idSearch = scope === document && idSelectorRE.test(selector);
+
+  // perform the search
+  return idSearch ?
+    // we are doing an id search, return the element search in an array
+    [scope.getElementById(RegExp.$1)] :
+    // not an id search, call the appropriate selector
+    Array.prototype.slice.call(
+        classSelectorRE.test(selector) ?
+          scope.getElementsByClassName(RegExp.$1) :
+            tagSelectorRE.test(selector) ?
+              scope.getElementsByTagName(selector) :
+              scope.querySelectorAll(selector)
+    );
+};
+},{}],13:[function(require,module,exports){
+/* jshint node: true */
 /* global window: false */
 /* global navigator: false */
 
@@ -1339,7 +1379,7 @@ var detect = module.exports = function(target, prefixes) {
                             target.charAt(0).toUpperCase() + target.slice(1) :
                             target);
 
-    if (typeof hostObject[testName] == 'function') {
+    if (typeof hostObject[testName] != 'undefined') {
       // update the last used prefix
       detect.browser = detect.browser || prefix.toLowerCase();
 
@@ -1354,7 +1394,7 @@ detect.moz = !!navigator.mozGetUserMedia;
 
 // initialise the prefix as unknown
 detect.browser = undefined;
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /* jshint node: true */
 /* global navigator: false */
 /* global window: false */
@@ -1371,6 +1411,8 @@ detect.browser = undefined;
   sponsored by [NICTA](http://opennicta.com) and released under an
   [Apache 2.0 license](/LICENSE).
 
+  ## Example Usage
+
   Capturing media on your machine is as simple as:
 
   ```js
@@ -1380,11 +1422,7 @@ detect.browser = undefined;
   While this will in fact start the user media capture process, it won't 
   do anything with it.  Lets take a look at a more realistic example:
 
-  ```js
-  var media = require('rtc-media');
-
-  media().render(document.body);
-  ```
+  <<<js gist://6085450
 
   [run on requirebin](http://requirebin.com/?gist=6085450)
 
@@ -1404,11 +1442,24 @@ detect.browser = undefined;
   to use the first style as it's quite safe (thanks to some checks in the
   code).
 
+  ### Media Events
+
+  If you want to know when media is captured (and you probably do), then
+  you can tap into the `capture` event of the created media object:
+
+  ```js
+  media().once('capture', function(stream) {
+    // stream references underlying media stream that was captured
+  });
+  ```
+
+  ## Reference
+
 **/
 
 'use strict';
 
-var debug = require('rtc-core/debug')('media');
+var debug = require('cog/logger')('media');
 var extend = require('cog/extend');
 var qsa = require('cog/qsa');
 var detect = require('rtc-core/detect');
@@ -1425,7 +1476,43 @@ window.URL = window.URL || detect('URL');
 window.MediaStream = detect('MediaStream');
 
 /**
-  ## Media prototype reference
+  ### media(opts?)
+
+  Capture media using the underlying
+  [getUserMedia](http://www.w3.org/TR/mediacapture-streams/) API.
+
+  The function accepts a single argument which can be either be:
+
+  - a. An options object (see below), or;
+  - b. An existing
+    [MediaStream](http://www.w3.org/TR/mediacapture-streams/#mediastream) that
+    the media object will bind to and provide you some DOM helpers for.
+
+  The function supports the following options:
+
+  - `capture` - Whether capture should be initiated automatically. Defaults
+    to true, but toggled to false automatically if an existing stream is
+    provided.
+
+  - `muted` - Whether the video element created for this stream should be
+    muted.  Default is true but is set to false when an existing stream is
+    passed.
+
+  - `constraints` - The constraint option allows you to specify particular
+    media capture constraints which can allow you do do some pretty cool
+    tricks.  By default, the contraints used to request the media are 
+    fairly standard defaults:
+
+    ```js
+      {
+        video: {
+          mandatory: {},
+          optional: []
+        },
+        audio: true
+      }
+    ```
+
 **/
 function Media(opts) {
   if (! (this instanceof Media)) {
@@ -1436,7 +1523,7 @@ function Media(opts) {
   EventEmitter.call(this);
 
   // if the opts is a media stream instance, then handle that appropriately
-  if (opts instanceof MediaStream) {
+  if (opts && opts instanceof MediaStream) {
     opts = {
       stream: opts,
       capture: false,
@@ -1474,9 +1561,9 @@ function Media(opts) {
   // TODO: revisit whether this is the best way to manage this
   this._bindings = [];
 
-  // if we are autostarting, then start
+  // if we are autostarting, capture media on the next tick
   if (opts.capture) {
-    this.capture();
+    setTimeout(this.capture.bind(this), 0);
   }
 }
 
@@ -1638,7 +1725,32 @@ Media.prototype.stop = function(opts) {
 };
 
 /**
-  ### _prepareElements()
+  ## Debugging Tips
+
+  Chrome and Chromium can both be started with the following flag:
+
+  ```
+  --use-fake-device-for-media-stream
+  ```
+
+  This uses a fake stream for the getUserMedia() call rather than attempting
+  to capture the actual camera.  This is useful when doing automated testing
+  and also if you want to test connectivity between two browser instances and
+  want to distinguish between the two local videos.
+
+  ## Internal Methods
+
+  There are a number of internal methods that are used in the `rtc-media`
+  implementation. These are outlined below, but not expected to be of
+  general use.
+
+**/
+
+/**
+  ### _prepareElements(opts, element)
+
+  The prepareElements function is used to prepare DOM elements that will
+  receive the media streams once the stream have been successfully captured.
 **/
 Media.prototype._prepareElements = function(opts, element) {
   var parent;
@@ -1647,6 +1759,12 @@ Media.prototype._prepareElements = function(opts, element) {
   var preserveAspectRatio =
         typeof opts.preserveAspectRatio == 'undefined' ||
         opts.preserveAspectRatio;
+
+  // perform some additional checks for things that "look" like a
+  // media element
+  validElement = validElement || (typeof element.play == 'function') && (
+    typeof element.mozSrcObject != 'undefined' ||
+    typeof element.src != 'undefined');
 
   // if the element is not a video element, then create one
   if (! validElement) {
@@ -1682,7 +1800,10 @@ Media.prototype._prepareElements = function(opts, element) {
 };
 
 /**
-  ### _bindStream(element, stream)
+  ### _bindStream(stream)
+
+  Bind a stream to previously prepared DOM elements.
+
 **/
 Media.prototype._bindStream = function(stream) {
   var media = this;
@@ -1789,6 +1910,9 @@ Media.prototype._createObjectURL = function(stream) {
 
 /**
   ### _handleSuccess(stream)
+
+  Handle the success condition of a `getUserMedia` call.
+
 **/
 Media.prototype._handleSuccess = function(stream) {
   // update the active stream that we are connected to
@@ -1800,199 +1924,15 @@ Media.prototype._handleSuccess = function(stream) {
 
 /**
   ### _handleFail(evt)
+
+  Handle the failure condition of a `getUserMedia` call.
+
 **/
 Media.prototype._handleFail = function() {
   // TODO: make this more friendly
   this.emit('error', new Error('Unable to capture requested media'));
 };
-
-/**
-  ## Debugging Tips
-
-  Chrome and Chromium can both be started with the following flag:
-
-  ```
-  --use-fake-device-for-media-stream
-  ```
-
-  This uses a fake stream for the getUserMedia() call rather than attempting
-  to capture the actual camera.  This is useful when doing automated testing
-  and also if you want to test connectivity between two browser instances and
-  want to distinguish between the two local videos.
-**/
-},{"cog/extend":14,"cog/qsa":15,"events":7,"rtc-core/debug":16,"rtc-core/detect":17,"util":8}],14:[function(require,module,exports){
-/* jshint node: true */
-'use strict';
-
-/** 
-## extend(target, *)
-
-Shallow copy object properties from the supplied source objects (*) into 
-the target object, returning the target object once completed:
-
-```js
-var extend = require('cog/extend');
-
-extend({ a: 1, b: 2 }, { c: 3 }, { d: 4 }, { b: 5 }));
-```
-
-See an example on [requirebin](http://requirebin.com/?gist=6079475).
-**/
-module.exports = function(target) {
-  [].slice.call(arguments, 1).forEach(function(source) {
-    if (! source) {
-      return;
-    }
-
-    for (var prop in source) {
-      target[prop] = source[prop];
-    }
-  });
-
-  return target;
-};
-},{}],15:[function(require,module,exports){
-/* jshint node: true */
-/* global document: false */
-'use strict';
-
-var classSelectorRE = /^\.([\w\-]+)$/;
-var idSelectorRE = /^#([\w\-]+)$/;
-var tagSelectorRE = /^[\w\-]+$/;
-
-/**
-## qsa(selector, element)
-
-This function is used to get the results of the querySelectorAll output 
-in the fastest possible way.  This code is very much based on the
-implementation in
-[zepto](https://github.com/madrobby/zepto/blob/master/src/zepto.js#L104),
-but perhaps not quite as terse.
-**/
-module.exports = function(selector, scope) {
-  var idSearch;
-
-  // default the element to the document
-  scope = scope || document;
-
-  // determine whether we are doing an id search or not
-  idSearch = scope === document && idSelectorRE.test(selector);
-
-  // perform the search
-  return idSearch ?
-    // we are doing an id search, return the element search in an array
-    [scope.getElementById(RegExp.$1)] :
-    // not an id search, call the appropriate selector
-    Array.prototype.slice.call(
-        classSelectorRE.test(selector) ?
-          scope.getElementsByClassName(RegExp.$1) :
-            tagSelectorRE.test(selector) ?
-              scope.getElementsByTagName(selector) :
-              scope.querySelectorAll(selector)
-    );
-};
-},{}],16:[function(require,module,exports){
-/* jshint node: true */
-/* global console: false */
-'use strict';
-
-var activeSections = [];
-
-/**
-  ## rtc/lib/debug
-
-  Debug helper, usage is similar to
-  [visionmedia/debug](https://github.com/visionmedia/debug):
-
-  ```
-  var debug = require('rtc/lib/debug')('sectionname');
-
-  debug('Found blah');
-  ```
-**/
-var debug = module.exports = function(section) {
-  var enabled = activeSections.indexOf(section) >= 0 ||
-    activeSections.indexOf('*') >= 0;
-
-  return function(message) {
-    if (! enabled) return;
-
-    console.log.apply(
-      console, 
-      [section + ': ' + message].concat([].slice.call(arguments, 1))
-    );
-  };
-};
-
-// export the active sections
-debug.enable = function() {
-  activeSections = [].slice.call(arguments);
-};
-},{}],17:[function(require,module,exports){
-/* jshint node: true */
-/* global window: false */
-/* global navigator: false */
-
-'use strict';
-
-/**
-## rtc-core/detect
-
-A browser detection helper for accessing prefix-free versions of the various
-WebRTC types. 
-
-### Example Usage
-
-If you wanted to get the native `RTCPeerConnection` prototype in any browser
-you could do the following:
-
-```js
-var detect = require('rtc-core/detect'); // also available in rtc/detect
-var RTCPeerConnection = detect('RTCPeerConnection');
-```
-
-This would provide whatever the browser prefixed version of the
-RTCPeerConnection is available (`webkitRTCPeerConnection`, 
-`mozRTCPeerConnection`, etc).
-**/
-var detect = module.exports = function(target, prefixes) {
-  var prefixIdx;
-  var prefix;
-  var testName;
-  var hostObject = this || window;
-
-  // initialise to default prefixes 
-  // (reverse order as we use a decrementing for loop)
-  prefixes = (prefixes || ['ms', 'o', 'moz', 'webkit']).concat('');
-
-  // iterate through the prefixes and return the class if found in global
-  for (prefixIdx = prefixes.length; prefixIdx--; ) {
-    prefix = prefixes[prefixIdx];
-
-    // construct the test class name
-    // if we have a prefix ensure the target has an uppercase first character
-    // such that a test for getUserMedia would result in a 
-    // search for webkitGetUserMedia
-    testName = prefix + (prefix ?
-                            target.charAt(0).toUpperCase() + target.slice(1) :
-                            target);
-
-    if (typeof hostObject[testName] == 'function') {
-      // update the last used prefix
-      detect.browser = detect.browser || prefix.toLowerCase();
-
-      // return the host object member
-      return hostObject[testName];
-    }
-  }
-};
-
-// detect mozilla (yes, this feels dirty)
-detect.moz = !!navigator.mozGetUserMedia;
-
-// initialise the prefix as unknown
-detect.browser = undefined;
-},{}],18:[function(require,module,exports){
+},{"cog/extend":10,"cog/logger":11,"cog/qsa":12,"events":7,"rtc-core/detect":13,"util":8}],15:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2016,7 +1956,7 @@ module.exports = function(scope) {
     }
   };
 };
-},{}],19:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2031,7 +1971,7 @@ module.exports = function(scope) {
     request: require('./request')(scope)
   };
 };
-},{"./announce":18,"./request":20}],20:[function(require,module,exports){
+},{"./announce":15,"./request":17}],17:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2104,7 +2044,7 @@ module.exports = function(scope) {
     return false;
   };
 };
-},{}],21:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2145,25 +2085,25 @@ var extend = require('cog/extend');
   ## Reference
 
   The `rtc-signaller` module is designed to be used primarily in a functional
-  way and when called it creates a new signalling scope that will enable
+  way and when called it creates a new signaller that will enable
   you to communicate with other peers via your messaging network.
 
   ```js
-  var signaller = require('rtc-signaller');
-  var scope = signaller(messenger);
+  // create a signaller from something that knows how to send messages
+  var signaller = require('rtc-signaller')(messenger);
   ```
 
 **/
 module.exports = function(messenger, opts) {
 
-  // create the signalling scope
-  var scope = new EventEmitter();
+  // create the signaller
+  var signaller = new EventEmitter();
 
   // initialise the id
-  var id = scope.id = uuid.v4();
+  var id = signaller.id = uuid.v4();
 
   // initialise the attributes
-  var attributes = scope.attributes = {
+  var attributes = signaller.attributes = {
     id: id
   };
 
@@ -2171,8 +2111,8 @@ module.exports = function(messenger, opts) {
   var dataEvent = (opts || {}).dataEvent || 'data';
   var openEvent = (opts || {}).openEvent || 'open';
 
-  scope.blocks = [];
-  scope.matchers = [];
+  signaller.blocks = [];
+  signaller.matchers = [];
 
   function createChannel(targetId) {
     return {
@@ -2194,18 +2134,18 @@ module.exports = function(messenger, opts) {
   }
 
   function once(prefix, handler) {
-    scope.matchers.push({
+    signaller.matchers.push({
       prefix: prefix,
       handler: handler
     });
   }
 
   /**
-    ### scope.send(data)
+    ### signaller#send(data)
 
     Send data over the messenging interface.
   **/
-  var send = scope.send = function() {
+  var send = signaller.send = function() {
     // iterate over the arguments and stringify as required
     var args = [].slice.call(arguments);
 
@@ -2214,12 +2154,12 @@ module.exports = function(messenger, opts) {
   };
 
   /**
-    ### scope.announce(data?)
+    ### signaller#announce(data?)
 
-    The `announce` function of the scope will a scope message through the
-    messenger network.  When no additional data is supplied to this function
-    then only the id of the scope is sent to all active members of the
-    messenging network.
+    The `announce` function of the signaller will pass an `/announce` message
+    through the messenger network.  When no additional data is supplied to
+    this function then only the id of the signaller is sent to all active
+    members of the messenging network.
 
     As a unique it is generally insufficient information to determine whether
     a peer is a good match for another (for instance,  you might be looking
@@ -2227,7 +2167,7 @@ module.exports = function(messenger, opts) {
     some additional information during this announce call:
 
     ```js
-    scope.announce({ role: 'translator' });
+    signaller.announce({ role: 'translator' });
     ```
 
     __NOTE:__ In some particular messenger types may attach or infer
@@ -2235,7 +2175,7 @@ module.exports = function(messenger, opts) {
     connections are generally organised into rooms which is inferred
     information that limits the messaging scope.
   **/
-  scope.announce = function(data, sender) {
+  signaller.announce = function(data, sender) {
     // update internal attributes
     extend(attributes, data, { id: id });
 
@@ -2244,54 +2184,55 @@ module.exports = function(messenger, opts) {
   };
 
   /**
-    ### scope.block()
+    ### signaller#block()
 
-    Prevent the scope from responding to requests until the block
+    Prevent the signaller from responding to requests until the block
     is cleared with a clearBlock call.
   **/
-  scope.block = function() {
+  signaller.block = function() {
     // create a block id
     var id = uuid.v4();
 
     // add the active block
-    scope.blocks.push(id);
+    signaller.blocks.push(id);
 
     // return the id
     return id;
   };
 
   /**
-    ### scope.clearBlock(id)
+    ### signaller#clearBlock(id)
 
-    Clear the specified block id
+    Clear the specified block id.  Think `clearTimeout` but for signalling
+    blocks
   **/
-  scope.clearBlock = function(id) {
-    var wasBlocked = scope.blocks.length > 0;
+  signaller.clearBlock = function(id) {
+    var wasBlocked = signaller.blocks.length > 0;
 
     // remove blocks matching the id
-    scope.blocks = scope.blocks.filter(function(blockId) {
+    signaller.blocks = signaller.blocks.filter(function(blockId) {
       return blockId !== id;
     });
 
     // if unblocked, trigger the unblock event
-    if (wasBlocked && scope.blocks.length === 0) {
-      scope.emit('unblock');
+    if (wasBlocked && signaller.blocks.length === 0) {
+      signaller.emit('unblock');
     }
   };
 
   /**
-    ### scope.leave()
+    ### signaller#leave()
 
     Leave the messenger mesh
   **/
-  scope.leave = function() {
+  signaller.leave = function() {
     return send('/leave', { id: id });
   };
 
   /**
-    ### scope.request(data)
+    ### signaller#request(data)
 
-    The `scope.request` call is where one peer goes looking for a target
+    The `signaller.request` call is where one peer goes looking for a target
     peer that satisfies specific search parameters.  This may be a search
     for a peer with a particular id, or something more general such as
     a request for a peer with a particular name or role.
@@ -2305,7 +2246,7 @@ module.exports = function(messenger, opts) {
     destined for another signaller, but they are visible by default.  This
     can easily be handled however, by filtering `/to` messages.
   **/
-  scope.request = function(data, opts, callback) {
+  signaller.request = function(data, opts, callback) {
     // initialise a request id
     var reqid = uuid.v4();
 
@@ -2333,12 +2274,12 @@ module.exports = function(messenger, opts) {
   };
 
   /**
-    ### scope.to(targetId)
+    ### signaller#to(targetId)
 
     The to method returns an encapsulated 
 
   **/
-  scope.to = function(targetId) {
+  signaller.to = function(targetId) {
     // create a sender that will prepend messages with /to|targetId|
     var sender = function() {
       var args = ['/to', targetId].concat([].slice.call(arguments));
@@ -2347,7 +2288,7 @@ module.exports = function(messenger, opts) {
 
     return {
       announce: function(data) {
-        return scope.announce(data, sender);
+        return signaller.announce(data, sender);
       },
 
       send: sender,
@@ -2355,16 +2296,16 @@ module.exports = function(messenger, opts) {
   };
 
   // handle message data events
-  messenger.on(dataEvent, require('./processor')(scope));
+  messenger.on(dataEvent, require('./processor')(signaller));
 
   // handle open / connect events
   messenger.on(openEvent, function() {
-    scope.emit('open');
+    signaller.emit('open');
   });
 
-  return scope;
+  return signaller;
 };
-},{"./processor":22,"cog/extend":10,"events":7,"uuid":24}],22:[function(require,module,exports){
+},{"./processor":19,"cog/extend":10,"events":7,"uuid":21}],19:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 
@@ -2457,7 +2398,7 @@ module.exports = function(scope) {
     });
   };
 };
-},{"./handlers":19}],23:[function(require,module,exports){
+},{"./handlers":16}],20:[function(require,module,exports){
 var global=require("__browserify_global");
 var rng;
 
@@ -2490,7 +2431,7 @@ if (!rng) {
 module.exports = rng;
 
 
-},{"__browserify_global":25}],24:[function(require,module,exports){
+},{"__browserify_global":22}],21:[function(require,module,exports){
 //     uuid.js
 //
 //     Copyright (c) 2010-2012 Robert Kieffer
@@ -2679,10 +2620,11 @@ uuid.BufferClass = BufferClass;
 
 module.exports = uuid;
 
-},{"./rng":23}],25:[function(require,module,exports){
+},{"./rng":20}],22:[function(require,module,exports){
 return {}
-},{}],26:[function(require,module,exports){
-return {}
-},{}]},{},[4])(4)
+},{}],23:[function(require,module,exports){
+module.exports=require(22)
+},{}]},{},[4])
+(4)
 });
 ;

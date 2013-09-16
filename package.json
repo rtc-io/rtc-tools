@@ -15,9 +15,9 @@
   "devDependencies": {
     "tape": "~1.0.4",
     "uuid": "~1.4.1",
-    "browserify": "~2.26.0",
     "uglify-js": "~2.3.6",
-    "messenger-memory": "~0.1.1"
+    "messenger-memory": "~0.1.1",
+    "browserify": "~2.29.1"
   },
   "scripts": {
     "test": "node test/all.js",
