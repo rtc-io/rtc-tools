@@ -97,7 +97,6 @@ var monitor = module.exports = function(pc, tag) {
   as to the connection state.
 **/
 var getState = monitor.getState = function(pc, tag) {
-  var readyState = pc && pc.readyState;
   var signalingState = pc && pc.signalingState;
   var iceGatheringState = pc && pc.iceGatheringState;
   var iceConnectionState = pc && pc.iceConnectionState;
@@ -113,11 +112,6 @@ var getState = monitor.getState = function(pc, tag) {
 
   // initialise the tag to an empty string if not provided
   tag = tag || '';
-
-  // if we have a ready state, then return the ready state
-  if (typeof readyState != 'undefined') {
-    return readyState;
-  }
 
   // get the connection local and remote description
   localDesc = pc.localDescription;
