@@ -46,9 +46,9 @@ to couple and exchange messages with.
 
 ```js
 var couple = require('rtc/couple');
-```
 
 couple(new RTCPeerConnection(), { id: 'test' }, signaller);
+```
 
 ### Using Filters
 
