@@ -58,5 +58,11 @@ exports.signaller = require('rtc-signaller');
   ```
 **/
 exports.createConnection = function(opts, constraints) {
-  return new RTCPeerConnection(gen.config(opts), constraints);
+  return new RTCPeerConnection(
+    // generate the config based on options provided
+    gen.config(opts),
+
+    // generate appropriate connection constraints
+    gen.connectionConstraints(opts, constraints)
+  );
 };

@@ -6,6 +6,7 @@ test('can import rtc module', function(t) {
 });
 
 require('./generators');
+require('./generators-connection-constraints');
 require('./peerconnection');
 require('./coupling');
 // require('./data-channel');

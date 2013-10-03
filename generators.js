@@ -23,10 +23,15 @@ var mappings = {
 
   create: {
     // data enabler
-    // { data: true } in peer connection will enable video
     data: function(c) {
       if (! detect.moz) {
         c.optional = (c.optional || []).concat({ RtpDataChannels: true });
+      }
+    },
+
+    dtls: function(c) {
+      if (! detect.moz) {
+        c.optional = (c.optional || []).concat({ DtlsSrtpKeyAgreement: true });
       }
     }
   }
@@ -57,6 +62,37 @@ exports.config = function(config) {
   return defaults(config, {
     iceServers: []
   });
+};
+
+/**
+  ### generators.connectionConstraints(flags, constraints)
+
+  This is a helper function that will generate appropriate connection
+  constraints for a new `RTCPeerConnection` object which is constructed
+  in the following way:
+
+  ```js
+  var conn = new RTCPeerConnection(flags, constraints);
+  ```
+
+  In most cases the constraints object can be left empty, but when creating
+  data channels some additional options are required.  This function
+  can generate those additional options and intelligently combine any
+  user defined constraints (in `constraints`) with shorthand flags that
+  might be passed while using the `rtc.createConnection` helper.
+**/  
+exports.connectionConstraints = function(flags, constraints) {
+  var generated = {};
+  var m = mappings.create;
+
+  // iterate through the flags and apply the create mappings
+  Object.keys(flags || {}).forEach(function(key) {
+    if (m[key]) {
+      m[key](generated);
+    }
+  });
+
+  return defaults({}, constraints, generated);
 };
 
 /**
