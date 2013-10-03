@@ -17,7 +17,7 @@
     "uuid": "~1.4.1",
     "uglify-js": "~2.3.6",
     "messenger-memory": "~0.1.1",
-    "browserify": "~2.29.1"
+    "browserify": "~2.33.1"
   },
   "scripts": {
     "test": "node test/all.js",
