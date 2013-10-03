@@ -7,6 +7,9 @@ return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requi
 
 var debug = require('cog/logger')('couple');
 var monitor = require('./monitor');
+var detect = require('./detect');
+var RTCSessionDescription = detect('RTCSessionDescription');
+var RTCIceCandidate = detect('RTCIceCandidate');
 
 /**
   ## rtc/couple
@@ -170,7 +173,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
 
   return mon;
 };
-},{"./monitor":6,"cog/logger":11}],2:[function(require,module,exports){
+},{"./detect":2,"./monitor":6,"cog/logger":11}],2:[function(require,module,exports){
 /* jshint node: true */
 'use strict';
 

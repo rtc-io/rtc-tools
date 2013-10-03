@@ -5,6 +5,9 @@
 
 var debug = require('cog/logger')('couple');
 var monitor = require('./monitor');
+var detect = require('./detect');
+var RTCSessionDescription = detect('RTCSessionDescription');
+var RTCIceCandidate = detect('RTCIceCandidate');
 
 /**
   ## rtc/couple
