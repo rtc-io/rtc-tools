@@ -80,8 +80,8 @@ module.exports = function(conn, targetAttr, signaller, opts) {
           function(desc) {
 
             // if a filter has been specified, then apply the filter
-            if (sdpFilter) {
-              desc.sdp = sdpFilter(desc.sdp);
+            if (typeof sdpFilter == 'function') {
+              desc.sdp = sdpFilter(desc.sdp, methodName);
             }
 
             // initialise the local description
