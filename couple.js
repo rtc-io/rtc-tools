@@ -6,8 +6,6 @@
 var debug = require('cog/logger')('couple');
 var monitor = require('./monitor');
 var detect = require('./detect');
-var RTCSessionDescription = detect('RTCSessionDescription');
-var RTCIceCandidate = detect('RTCIceCandidate');
 
 /**
   ## rtc/couple
@@ -48,6 +46,13 @@ module.exports = function(conn, targetAttr, signaller, opts) {
   var openChannel;
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
+
+  // initialise session description and icecandidate objects
+  var RTCSessionDescription = (opts || {}).RTCSessionDescription ||
+    detect('RTCSessionDescription');
+
+  var RTCIceCandidate = (opts || {}).RTCIceCandidate ||
+    detect('RTCIceCandidate');
 
   function abort(err) {
     // log the error
