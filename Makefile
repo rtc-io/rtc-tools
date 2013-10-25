@@ -1,17 +1,23 @@
+MODULE_NAME=rtc
 LOCAL_BIN=node_modules/.bin
+REQUIRED_TOOLS=uglifyjs st inotifywait
 
-default: build min
+PHONY: dist
 
-lint:
-	@jshint index.js processor.js handlers/*.js
+$(REQUIRED_TOOLS):
+	@hash $@ 2>/dev/null || (echo "please install $@" && exit 1)
 
-build:
-	@echo "browserifying"
-	node build.js > dist/rtc.js
+dist: $(REQUIRED_TOOLS)
+	@mkdir -p dist
 
-min:
-	@echo "uglifying"
-	@${LOCAL_BIN}/uglifyjs < dist/rtc.js > dist/rtc.min.js
+	@echo "building"
+	@node build.js > dist/$(MODULE_NAME).js
+	@browserify index.js > dist/$(MODULE_NAME).js --debug --standalone $(MODULE_NAME)
 
-clean:
-	@rm dist/*.js
+	@echo "minifying"
+	@uglifyjs dist/$(MODULE_NAME).js > dist/$(MODULE_NAME).min.js 2>/dev/null
+
+devmode: dist
+	st --port 8000 --no-cache &
+
+	while true; do inotifywait -e create -e delete -e modify -q -r *.js node_modules || make dist; done
