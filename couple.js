@@ -37,7 +37,7 @@ var detect = require('./detect');
   ```
 
 **/
-function couple(conn, targetAttr, signaller, opts, attempt) {
+function couple(conn, targetAttr, signaller, opts) {
   // create a monitor for the connection
   var mon = monitor(conn);
   var blockId;
@@ -49,6 +49,8 @@ function couple(conn, targetAttr, signaller, opts, attempt) {
   // retry implementation
   var maxAttempts = (opts || {}).maxAttempts || 3;
   var attemptDelay = (opts || {}).attemptDelay || 500;
+  var attempt = 1;
+  var attemptTimer;
 
   // initialise session description and icecandidate objects
   var RTCSessionDescription = (opts || {}).RTCSessionDescription ||
@@ -70,9 +72,12 @@ function couple(conn, targetAttr, signaller, opts, attempt) {
       // TODO: report the data
 
       // reattempt coupling?
-      if (stageHandler && attempt < maxAttempts) {
-        setTimeout(function() {
-          debug('reattempting connection');
+      if (stageHandler && attempt < maxAttempts && (! attemptTimer)) {
+        attemptTimer = setTimeout(function() {
+          attempt += 1;
+          attemptTimer = 0;
+
+          debug('reattempting connection (attempt: ' + attempt + ')');
           stageHandler();
         }, attemptDelay);
       }
@@ -172,9 +177,6 @@ function couple(conn, targetAttr, signaller, opts, attempt) {
       abort(data.type === 'offer' ? 'createAnswer' : 'createOffer', data.sdp)
     );
   }
-
-  // initialise the attempt
-  attempt = attempt || 1;
 
   // create the stages
   ['createOffer', 'createAnswer'].forEach(function(stage) {
