@@ -48,7 +48,7 @@ function couple(conn, targetAttr, signaller, opts) {
 
   // retry implementation
   var maxAttempts = (opts || {}).maxAttempts || 3;
-  var attemptDelay = (opts || {}).attemptDelay || 500;
+  var attemptDelay = (opts || {}).attemptDelay || 3000;
   var attempt = 1;
   var attemptTimer;
 
