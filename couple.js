@@ -21,7 +21,7 @@ var detect = require('./detect');
 
   ```js
   var couple = require('rtc/couple');
-  
+
   couple(new RTCPeerConnection(), { id: 'test' }, signaller);
   ```
 
@@ -37,15 +37,18 @@ var detect = require('./detect');
   ```
 
 **/
-module.exports = function(conn, targetAttr, signaller, opts) {
+function couple(conn, targetAttr, signaller, opts, attempt) {
   // create a monitor for the connection
   var mon = monitor(conn);
   var blockId;
-  var createAnswer = createHandshaker('createAnswer');
-  var createOffer = createHandshaker('createOffer');
+  var stages = {};
   var openChannel;
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
+
+  // retry implementation
+  var maxAttempts = (opts || {}).maxAttempts || 3;
+  var attemptDelay = (opts || {}).attemptDelay || 500;
 
   // initialise session description and icecandidate objects
   var RTCSessionDescription = (opts || {}).RTCSessionDescription ||
@@ -54,12 +57,26 @@ module.exports = function(conn, targetAttr, signaller, opts) {
   var RTCIceCandidate = (opts || {}).RTCIceCandidate ||
     detect('RTCIceCandidate');
 
-  function abort(err) {
-    // log the error
-    debug('captured error: ', err);
+  function abort(stage, sdp) {
+    var stageHandler = stages[stage];
 
-    // clear any block
-    signaller.clearBlock(blockId);
+    return function(err) {
+      // log the error
+      debug('captured error: ', err);
+
+      // clear any block
+      signaller.clearBlock(blockId);
+
+      // TODO: report the data
+
+      // reattempt coupling?
+      if (stageHandler && attempt < maxAttempts) {
+        setTimeout(function() {
+          debug('reattempting connection');
+          stageHandler();
+        }, attemptDelay);
+      }
+    };
   }
 
   function createHandshaker(methodName) {
@@ -107,12 +124,12 @@ module.exports = function(conn, targetAttr, signaller, opts) {
               },
 
               // on error, abort
-              abort
+              abort(methodName, desc.sdp)
             );
           },
 
           // on error, abort
-          abort
+          abort(methodName)
         );
       });
     };
@@ -128,7 +145,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
     if (! conn.remoteDescription) {
       return queuedCandidates.push(data);
     }
-    
+
     debug('adding remote candidate');
     conn.addIceCandidate(new RTCIceCandidate(data));
   }
@@ -138,6 +155,7 @@ module.exports = function(conn, targetAttr, signaller, opts) {
     // once successful, send the answer
     conn.setRemoteDescription(
       new RTCSessionDescription(data),
+
       function() {
         // apply any queued candidates
         queuedCandidates.splice(0).forEach(function(data) {
@@ -147,15 +165,24 @@ module.exports = function(conn, targetAttr, signaller, opts) {
 
         // create the answer
         if (data.type === 'offer') {
-          createAnswer();
+          stages.createAnswer();
         }
       },
-      abort
+
+      abort(data.type === 'offer' ? 'createAnswer' : 'createOffer', data.sdp)
     );
   }
 
+  // initialise the attempt
+  attempt = attempt || 1;
+
+  // create the stages
+  ['createOffer', 'createAnswer'].forEach(function(stage) {
+    stages[stage] = createHandshaker(stage);
+  });
+
   // when regotiation is needed look for the peer
-  conn.addEventListener('negotiationneeded', createOffer);
+  conn.addEventListener('negotiationneeded', stages.createOffer);
   conn.addEventListener('icecandidate', handleLocalCandidate);
 
   // when we receive sdp, then
@@ -171,8 +198,10 @@ module.exports = function(conn, targetAttr, signaller, opts) {
     signaller.removeListener('candidate', handleRemoteCandidate);
   });
 
-  // patch in the create offer function
-  mon.createOffer = createOffer;
+  // patch in the create offer functions
+  mon.createOffer = stages.createOffer;
 
   return mon;
-};
+}
+
+module.exports = couple;
