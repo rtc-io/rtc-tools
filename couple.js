@@ -56,7 +56,7 @@ function couple(conn, targetAttr, signaller, opts) {
   // initialise the processing queue (one at a time please)
   var q = async.queue(function(task, cb) {
     // if the task has no operation, then trigger the callback immediately
-    if (typeof task.cb != 'function') {
+    if (typeof task.op != 'function') {
       return cb();
     }
 
@@ -71,7 +71,7 @@ function couple(conn, targetAttr, signaller, opts) {
   var RTCIceCandidate = (opts || {}).RTCIceCandidate ||
     detect('RTCIceCandidate');
 
-  function abort(stage, sdp) {
+  function abort(stage, sdp, cb) {
     var stageHandler = stages[stage];
 
     return function(err) {
@@ -93,13 +93,17 @@ function couple(conn, targetAttr, signaller, opts) {
           stageHandler();
         }, attemptDelay);
       }
+
+      if (typeof cb == 'function') {
+        cb(err);
+      }
     };
   }
 
   function createHandshaker(methodName) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
-    return q.push.bind(q, { op: function() {
+    return q.push.bind(q, { op: function(task, cb) {
       // clear the open channel
       openChannel = null;
 
@@ -138,15 +142,18 @@ function couple(conn, targetAttr, signaller, opts) {
                 // clear the block
                 signaller.clearBlock(blockId);
                 hsDebug('block cleared');
+
+                // callback
+                cb();
               },
 
               // on error, abort
-              abort(methodName, desc.sdp)
+              abort(methodName, desc.sdp, cb)
             );
           },
 
           // on error, abort
-          abort(methodName)
+          abort(methodName, '', cb)
         );
       });
     }});
@@ -169,7 +176,7 @@ function couple(conn, targetAttr, signaller, opts) {
 
   function handleSdp(data) {
     // queue the remote description operation
-    q.push({ op: function() {
+    q.push({ op: function(task, cb) {
       // update the remote description
       // once successful, send the answer
       conn.setRemoteDescription(
@@ -186,9 +193,12 @@ function couple(conn, targetAttr, signaller, opts) {
           if (data.type === 'offer') {
             stages.createAnswer();
           }
+
+          // trigger the callback
+          cb();
         },
 
-        abort(data.type === 'offer' ? 'createAnswer' : 'createOffer', data.sdp)
+        abort(data.type === 'offer' ? 'createAnswer' : 'createOffer', data.sdp, cb)
       );
     }});
   }
