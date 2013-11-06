@@ -4,6 +4,7 @@
 'use strict';
 
 var debug = require('cog/logger')('couple');
+var async = require('async');
 var monitor = require('./monitor');
 var detect = require('./detect');
 
@@ -52,6 +53,17 @@ function couple(conn, targetAttr, signaller, opts) {
   var attempt = 1;
   var attemptTimer;
 
+  // initialise the processing queue (one at a time please)
+  var q = async.queue(function(task, cb) {
+    // if the task has no operation, then trigger the callback immediately
+    if (typeof task.cb != 'function') {
+      return cb();
+    }
+
+    // process the task operation
+    task.op(task, cb);
+  }, 1);
+
   // initialise session description and icecandidate objects
   var RTCSessionDescription = (opts || {}).RTCSessionDescription ||
     detect('RTCSessionDescription');
@@ -87,7 +99,7 @@ function couple(conn, targetAttr, signaller, opts) {
   function createHandshaker(methodName) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
-    return function() {
+    return q.push.bind(q, { op: function() {
       // clear the open channel
       openChannel = null;
 
@@ -137,7 +149,7 @@ function couple(conn, targetAttr, signaller, opts) {
           abort(methodName)
         );
       });
-    };
+    }});
   }
 
   function handleLocalCandidate(evt) {
@@ -156,26 +168,29 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function handleSdp(data) {
-    // update the remote description
-    // once successful, send the answer
-    conn.setRemoteDescription(
-      new RTCSessionDescription(data),
+    // queue the remote description operation
+    q.push({ op: function() {
+      // update the remote description
+      // once successful, send the answer
+      conn.setRemoteDescription(
+        new RTCSessionDescription(data),
 
-      function() {
-        // apply any queued candidates
-        queuedCandidates.splice(0).forEach(function(data) {
-          debug('applying queued candidate');
-          conn.addIceCandidate(new RTCIceCandidate(data));
-        });
+        function() {
+          // apply any queued candidates
+          queuedCandidates.splice(0).forEach(function(data) {
+            debug('applying queued candidate');
+            conn.addIceCandidate(new RTCIceCandidate(data));
+          });
 
-        // create the answer
-        if (data.type === 'offer') {
-          stages.createAnswer();
-        }
-      },
+          // create the answer
+          if (data.type === 'offer') {
+            stages.createAnswer();
+          }
+        },
 
-      abort(data.type === 'offer' ? 'createAnswer' : 'createOffer', data.sdp)
-    );
+        abort(data.type === 'offer' ? 'createAnswer' : 'createOffer', data.sdp)
+      );
+    }});
   }
 
   // create the stages
