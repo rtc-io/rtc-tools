@@ -1,5 +1,6 @@
 var couple = require('../couple');
 var messenger = require('messenger-memory');
+var signaller = require('rtc-signaller');
 var test = require('tape');
 var rtc = require('..');
 var conns = [];
@@ -22,8 +23,8 @@ test('create peer connections', function(t) {
 test('create signallers', function(t) {
   t.plan(2);
 
-  t.ok(signallers[0] = rtc.signaller(messenger()), 'created signaller a');
-  t.ok(signallers[1] = rtc.signaller(messenger()), 'created signaller b');
+  t.ok(signallers[0] = signaller(messenger()), 'created signaller a');
+  t.ok(signallers[1] = signaller(messenger()), 'created signaller b');
 });
 
 test('couple a --> b', function(t) {
@@ -66,14 +67,12 @@ test('create a data channel on a', function(t) {
   );
 });
 
-/*
-test('close connections', function(t) {
-  t.plan(2);
+// test('close connections', function(t) {
+//   t.plan(2);
 
-  a.once('close', t.pass.bind(t, 'a closed'));
-  b.once('close', t.pass.bind(t, 'b closed'));
+//   a.once('close', t.pass.bind(t, 'a closed'));
+//   b.once('close', t.pass.bind(t, 'b closed'));
 
-  a.close();
-  b.close();
-});
-*/
+//   a.close();
+//   b.close();
+// });

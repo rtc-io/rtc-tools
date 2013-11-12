@@ -13,9 +13,9 @@ test('create via factory', function(t) {
   t.ok(rtc.createConnection(), 'created');
 });
 
-/*test('close the connection', function(t) {
-  t.plan(1);
+// test('close the connection', function(t) {
+//   t.plan(1);
 
-  conn.once('close', t.pass.bind(t, 'closed'));
-  conn.close();
-});*/
+//   conn.once('close', t.pass.bind(t, 'closed'));
+//   conn.close();
+// });
