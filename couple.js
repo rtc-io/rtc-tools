@@ -171,7 +171,12 @@ function couple(conn, targetAttr, signaller, opts) {
     }
 
     debug('adding remote candidate');
-    conn.addIceCandidate(new RTCIceCandidate(data));
+    try {
+      conn.addIceCandidate(new RTCIceCandidate(data));
+    }
+    catch (e) {
+      debug('invalidate candidate specified: ', data);
+    }
   }
 
   function handleSdp(data) {
