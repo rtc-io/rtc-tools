@@ -80,6 +80,22 @@ var generators = require('rtc/generators');
 Generate a configuration object suitable for passing into an W3C 
 RTCPeerConnection constructor first argument, based on our custom config.
 
+### generators.connectionConstraints(flags, constraints)
+
+This is a helper function that will generate appropriate connection
+constraints for a new `RTCPeerConnection` object which is constructed
+in the following way:
+
+```js
+var conn = new RTCPeerConnection(flags, constraints);
+```
+
+In most cases the constraints object can be left empty, but when creating
+data channels some additional options are required.  This function
+can generate those additional options and intelligently combine any
+user defined constraints (in `constraints`) with shorthand flags that
+might be passed while using the `rtc.createConnection` helper.
+
 ### generators.mediaConstraints(flags, context)
 
 Generate mediaConstraints appropriate for the context in which they are 
@@ -90,11 +106,6 @@ on the `createOffer` or `createAnswer` calls).
 
 This is a helper function that will extract known flags from a generic 
 options object.
-
-## rtc/media
-
-Provide the core [rtc-media](https://github.com/rtc-io/rtc-media) for
-convenience.
 
 ## rtc/monitor
 
@@ -145,11 +156,6 @@ as to the connection state.
 Test an `RTCPeerConnection` to see if it's currently open.  The test for
 "openness" looks at a combination of current `signalingState` and
 `iceGatheringState`.
-
-## rtc/signaller
-
-Provide the core [rtc-signaller](https://github.com/rtc-io/rtc-signaller)
-for convenience.
 
 ## Internal RTC Helper Libraries
 
