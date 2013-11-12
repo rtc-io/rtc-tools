@@ -30,12 +30,6 @@ exports.RTCPeerConnection = detect('RTCPeerConnection');
 // add the couple utility
 exports.couple = require('./couple');
 
-// export media
-exports.media = require('./media');
-
-// export the signaller
-exports.signaller = require('rtc-signaller');
-
 /**
   ## Factories
 **/
