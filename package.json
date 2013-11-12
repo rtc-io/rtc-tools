@@ -2,9 +2,6 @@
   "name": "rtc",
   "description": "Cross-browser WebRTC helpers",
   "author": "Damon Oehlman <damon.oehlman@nicta.com.au>",
-  "tags": [
-    "webrtc"
-  ],
   "version": "0.8.0",
   "dependencies": {
     "rtc-core": "~0.5.0",
@@ -32,8 +29,11 @@
   "testling": {
     "files": "test/all.js",
     "browsers": [
+      "firefox/23..latest",
+      "chrome/30..latest",
       "chrome/canary",
-      "firefox/nightly"
+      "opera/14..latest",
+      "opera/next"
     ]
   },
   "keywords": [
