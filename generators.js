@@ -1,6 +1,7 @@
 /* jshint node: true */
 'use strict';
 
+var debug = require('cog/logger')('generators');
 var detect = require('./detect');
 var defaults = require('cog/defaults');
 
@@ -84,6 +85,7 @@ exports.config = function(config) {
 exports.connectionConstraints = function(flags, constraints) {
   var generated = {};
   var m = mappings.create;
+  var out;
 
   // iterate through the flags and apply the create mappings
   Object.keys(flags || {}).forEach(function(key) {
@@ -92,7 +94,11 @@ exports.connectionConstraints = function(flags, constraints) {
     }
   });
 
-  return defaults({}, constraints, generated);
+  // generate the connection constraints
+  out = defaults({}, constraints, generated);
+  debug('generated connection constraints: ', out);
+
+  return out;
 };
 
 /**
