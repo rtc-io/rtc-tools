@@ -55,31 +55,3 @@ test('extend config', function(t) {
   t.ok(config = generators.config({ a: 1 }), 'generated config');
   t.equal(config.a, 1, 'setting preserved');
 });
-
-test('base media constraints match expected', function(t) {
-  t.plan(1);
-  t.deepEqual(generators.mediaConstraints(), testConstraints);
-});
-
-test('can disable video', function(t) {
-  var c = generators.mediaConstraints({ video: false });
-
-  t.plan(1);
-  t.notOk(c.mandatory.OfferToReceiveVideo, 'video turned off');
-});
-
-test('can disable audio', function(t) {
-  var c = generators.mediaConstraints({ audio: false });
-
-  t.plan(1);
-  t.notOk(c.mandatory.OfferToReceiveAudio, 'audio turned off');  
-});
-
-test('can flag data channels as required', function(t) {
-  var c = generators.mediaConstraints({ data: true }, 'create');
-
-  t.plan(1);
-  t.equal(c.optional.filter(function(data) {
-    return typeof data == 'object' && data.RtpDataChannels;
-  }).length, 1, 'found RtpDataChannels flag in optional');
-});

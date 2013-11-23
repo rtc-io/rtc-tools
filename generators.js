@@ -6,22 +6,6 @@ var detect = require('./detect');
 var defaults = require('cog/defaults');
 
 var mappings = {
-  offer: {
-    // audio toggle
-    // { audio: false } in peer connection config turns off audio
-    audio: function(c) {
-      c.mandatory = c.mandatory || {};
-      c.mandatory.OfferToReceiveAudio = true;
-    },
-
-    // video toggle
-    // { video: false } in peer connection config turns off video
-    video: function(c) {
-      c.mandatory = c.mandatory || {};
-      c.mandatory.OfferToReceiveVideo = true;
-    }
-  },
-
   create: {
     // data enabler
     data: function(c) {
@@ -99,45 +83,6 @@ exports.connectionConstraints = function(flags, constraints) {
   debug('generated connection constraints: ', out);
 
   return out;
-};
-
-/**
-  ### generators.mediaConstraints(flags, context)
-
-  Generate mediaConstraints appropriate for the context in which they are
-  being called (i.e. either constructing an RTCPeerConnection object, or
-  on the `createOffer` or `createAnswer` calls).
-**/
-exports.mediaConstraints = function(flags, context) {
-  // create an empty constraints object
-  var constraints = {
-    optional: [{ DtlsSrtpKeyAgreement: true }]
-  };
-
-  // provide default mandatory constraints for the offer
-  if (context === 'offer') {
-    constraints.mandatory = {
-      OfferToReceiveVideo: false,
-      OfferToReceiveAudio: false
-    };
-  }
-
-  // get the mappings for the context (defaulting to the offer context)
-  var contextMappings = mappings[context || 'offer'] || {};
-
-  // if we haven't been passed an array for flags, then return the constraints
-  if (! Array.isArray(flags)) {
-    flags = parseFlags(flags);
-  }
-
-  flags.map(function(flag) {
-    if (typeof contextMappings[flag] == 'function') {
-      // mutate the constraints
-      contextMappings[flag](constraints);
-    }
-  });
-
-  return constraints;
 };
 
 /**
