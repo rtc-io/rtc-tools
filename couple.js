@@ -54,6 +54,10 @@ function couple(conn, targetAttr, signaller, opts) {
   var attemptTimer;
   var offerTimeout;
 
+  // initilaise the negotiation helpers
+  var createOffer = negotiate('createOffer');
+  var createAnswer = negotiate('createAnswer');
+
   // initialise the processing queue (one at a time please)
   var q = async.queue(function(task, cb) {
     // if the task has no operation, then trigger the callback immediately
@@ -139,15 +143,6 @@ function couple(conn, targetAttr, signaller, opts) {
     };
   }
 
-  function createHandshaker(methodName) {
-    return function() {
-      q.push({ op: openChannel });
-      q.push({ op: lockAcquire });
-      q.push({ op: negotiate(methodName) });
-      q.push({ op: lockRelease });
-    };
-  }
-
   function handleLocalCandidate(evt) {
     if (evt.candidate && channel) {
       channel.send('/candidate', evt.candidate);
@@ -169,10 +164,8 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function handleSdp(targetId, data) {
-    // remove any previous tasks from the q
-    // as it will only be attempting to createOffers locally or
-    // previous sdp that is now irrelevant
-    q.tasks.splice(0, q.tasks.length);
+    // reset the queue
+    queueReset();
 
     // prioritize setting the remote description operation
     q.push({ op: function(task, cb) {
@@ -190,7 +183,7 @@ function couple(conn, targetAttr, signaller, opts) {
 
           // create the answer
           if (data.type === 'offer') {
-            stages.createAnswer();
+            queue(createAnswer)();
           }
 
           // trigger the callback
@@ -267,15 +260,27 @@ function couple(conn, targetAttr, signaller, opts) {
     });
   }
 
-  // create the stages
-  ['createOffer', 'createAnswer'].forEach(function(stage) {
-    stages[stage] = createHandshaker(stage);
-  });
+  function queue(negotiateTask) {
+    return function() {
+      q.push([
+        { op: openChannel },
+        { op: lockAcquire },
+        { op: negotiateTask },
+        { op: lockRelease }
+      ]);
+    };
+  }
+
+  function queueReset() {
+    q.tasks = q.tasks.filter(function(task) {
+      return task.op === lockRelease;
+    });
+  }
 
   // when regotiation is needed look for the peer
   conn.addEventListener('negotiationneeded', function() {
     clearTimeout(offerTimeout);
-    offerTimeout = setTimeout(stages.createOffer, 50);
+    offerTimeout = setTimeout(queue(createOffer), 50);
   });
 
   conn.addEventListener('icecandidate', handleLocalCandidate);
@@ -294,7 +299,7 @@ function couple(conn, targetAttr, signaller, opts) {
   });
 
   // patch in the create offer functions
-  mon.createOffer = stages.createOffer;
+  mon.createOffer = queue(createOffer);
 
   // open a channel
   q.push({ op: openChannel });
