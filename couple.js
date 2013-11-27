@@ -169,8 +169,13 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function handleSdp(targetId, data) {
+    // remove any previous tasks from the q
+    // as it will only be attempting to createOffers locally or
+    // previous sdp that is now irrelevant
+    q.tasks.splice(0, q.tasks.length);
+
     // prioritize setting the remote description operation
-    q.unshift({ op: function(task, cb) {
+    q.push({ op: function(task, cb) {
       // update the remote description
       // once successful, send the answer
       conn.setRemoteDescription(
