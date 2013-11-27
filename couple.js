@@ -43,12 +43,12 @@ function couple(conn, targetAttr, signaller, opts) {
   var mon = monitor(conn);
   var blockId;
   var stages = {};
-  var openChannel;
+  var channel;
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
 
   // retry implementation
-  var maxAttempts = (opts || {}).maxAttempts || 3;
+  var maxAttempts = (opts || {}).maxAttempts || 1;
   var attemptDelay = (opts || {}).attemptDelay || 3000;
   var attempt = 1;
   var attemptTimer;
@@ -77,11 +77,7 @@ function couple(conn, targetAttr, signaller, opts) {
     return function(err) {
       // log the error
       debug('captured error: ', err);
-
-      // clear any block
-      signaller.clearBlock(blockId);
-
-      // TODO: report the data
+      q.push({ op: lockRelease });
 
       // reattempt coupling?
       if (stageHandler && attempt < maxAttempts && (! attemptTimer)) {
@@ -100,72 +96,63 @@ function couple(conn, targetAttr, signaller, opts) {
     };
   }
 
-  function createHandshaker(methodName) {
+  function negotiate(methodName) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
-    return q.push.bind(q, { op: function(task, cb) {
-      // clear the open channel
-      openChannel = null;
+    return function(task, cb) {
+      // if we don't have an open channel, then abort
+      if (! channel) {
+        return cb(new Error('no channel for signalling'));
+      }
 
-      hsDebug('starting, making signaller request', conn.signalingState);
-      signaller.request(targetAttr, function(err, channel) {
-        if (err) {
-          return;
-        }
+      // create the offer
+      conn[methodName](
+        function(desc) {
 
-        hsDebug('request ok');
+          // if a filter has been specified, then apply the filter
+          if (typeof sdpFilter == 'function') {
+            desc.sdp = sdpFilter(desc.sdp, conn, methodName);
+          }
 
-        // block the signalling scope
-        blockId = signaller.block();
+          // initialise the local description
+          conn.setLocalDescription(
+            desc,
 
-        // create the offer
-        conn[methodName](
-          function(desc) {
+            // if successful, then send the sdp over the wire
+            function() {
+              // send the sdp
+              channel.send('/sdp', desc);
 
-            // if a filter has been specified, then apply the filter
-            if (typeof sdpFilter == 'function') {
-              desc.sdp = sdpFilter(desc.sdp, conn, methodName);
-            }
+              // callback
+              cb();
+            },
 
-            // initialise the local description
-            conn.setLocalDescription(
-              desc,
+            // on error, abort
+            abort(methodName, desc.sdp, cb)
+          );
+        },
 
-              // if successful, then send the sdp over the wire
-              function() {
-                // save the channel as open
-                openChannel = channel;
+        // on error, abort
+        abort(methodName, '', cb)
+      );
+    };
+  }
 
-                // send the sdp
-                channel.send('/sdp', desc);
-
-                // clear the block
-                signaller.clearBlock(blockId);
-                hsDebug('block cleared');
-
-                // callback
-                cb();
-              },
-
-              // on error, abort
-              abort(methodName, desc.sdp, cb)
-            );
-          },
-
-          // on error, abort
-          abort(methodName, '', cb)
-        );
-      });
-    }});
+  function createHandshaker(methodName) {
+    return function() {
+      q.push({ op: lockAcquire });
+      q.push({ op: negotiate(methodName) });
+      q.push({ op: lockRelease });
+    };
   }
 
   function handleLocalCandidate(evt) {
-    if (evt.candidate && openChannel) {
-      openChannel.send('/candidate', evt.candidate);
+    if (evt.candidate && channel) {
+      channel.send('/candidate', evt.candidate);
     }
   }
 
-  function handleRemoteCandidate(data) {
+  function handleRemoteCandidate(targetId, data) {
     if (! conn.remoteDescription) {
       return queuedCandidates.push(data);
     }
@@ -179,7 +166,7 @@ function couple(conn, targetAttr, signaller, opts) {
     }
   }
 
-  function handleSdp(data) {
+  function handleSdp(targetId, data) {
     // queue the remote description operation
     q.push({ op: function(task, cb) {
       // update the remote description
@@ -208,6 +195,48 @@ function couple(conn, targetAttr, signaller, opts) {
     }});
   }
 
+  function lockAcquire(task, cb) {
+    debug('attempting to acquire channel writelock');
+
+    // attempt to aquire a write lock for the channel
+    channel.writeLock(function(err, lock) {
+      // if we received an error, then wait for the lock to be released and
+      // try again
+      if (err) {
+        debug('could not acquire writelock, waiting for release notification');
+        channel.once('writelock:release', function() {
+          lockAquire(task, cb);
+        })
+
+        return;
+      }
+
+      debug('writelock acquired');
+
+      // proceed to the next step
+      cb(null, lock);
+    });
+  }
+
+  function lockRelease(task, cb) {
+    if (channel.lock) {
+      channel.lock.release();
+    }
+
+    cb();
+  }
+
+  function openChannel(task, cb) {
+    if (channel) {
+      // TODO: test channel active
+      return cb(null, channel);
+    }
+
+    signaller.request(targetAttr, function(err, c) {
+      cb(err, channel = err ? null : c);
+    });
+  }
+
   // create the stages
   ['createOffer', 'createAnswer'].forEach(function(stage) {
     stages[stage] = createHandshaker(stage);
@@ -232,6 +261,9 @@ function couple(conn, targetAttr, signaller, opts) {
 
   // patch in the create offer functions
   mon.createOffer = stages.createOffer;
+
+  // open a channel
+  q.push({ op: openChannel });
 
   return mon;
 }

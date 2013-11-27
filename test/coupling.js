@@ -8,6 +8,10 @@ var signallers = [];
 var monitors = [];
 
 var dcConstraints = {
+  mandatory: {
+    DtlsSrtpKeyAgreement: false,
+    internalSctpDataChannels: false
+  },
   optional: [
     { RtpDataChannels: true }
   ]
