@@ -205,7 +205,7 @@ function couple(conn, targetAttr, signaller, opts) {
       if (err) {
         debug('could not acquire writelock, waiting for release notification');
         channel.once('writelock:release', function() {
-          lockAquire(task, cb);
+          lockAcquire(task, cb);
         })
 
         return;
