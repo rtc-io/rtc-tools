@@ -220,7 +220,7 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function lockRelease(task, cb) {
-    if (channel.lock) {
+    if (channel.lock && typeof channel.lock.release == 'function') {
       debug('writelock released');
       channel.lock.release();
     }
