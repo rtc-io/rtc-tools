@@ -52,6 +52,7 @@ function couple(conn, targetAttr, signaller, opts) {
   var attemptDelay = (opts || {}).attemptDelay || 3000;
   var attempt = 1;
   var attemptTimer;
+  var offerTimeout;
 
   // initialise the processing queue (one at a time please)
   var q = async.queue(function(task, cb) {
@@ -267,7 +268,11 @@ function couple(conn, targetAttr, signaller, opts) {
   });
 
   // when regotiation is needed look for the peer
-  conn.addEventListener('negotiationneeded', stages.createOffer);
+  conn.addEventListener('negotiationneeded', function() {
+    clearTimeout(offerTimeout);
+    offerTimeout = setTimeout(stages.createOffer, 50);
+  });
+
   conn.addEventListener('icecandidate', handleLocalCandidate);
 
   // when we receive sdp, then
