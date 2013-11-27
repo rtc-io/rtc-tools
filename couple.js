@@ -168,8 +168,8 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function handleSdp(targetId, data) {
-    // queue the remote description operation
-    q.push({ op: function(task, cb) {
+    // prioritize setting the remote description operation
+    q.unshift({ op: function(task, cb) {
       // update the remote description
       // once successful, send the answer
       conn.setRemoteDescription(
@@ -206,6 +206,7 @@ function couple(conn, targetAttr, signaller, opts) {
       if (err) {
         debug('could not acquire writelock, waiting for release notification');
         channel.once('writelock:release', function() {
+          debug('release notification received');
           lockAcquire(task, cb);
         });
 
@@ -233,7 +234,11 @@ function couple(conn, targetAttr, signaller, opts) {
       // ping the channel, if not active then clear and reopen
       channel.ping(function(err) {
         if (err) {
+          // close the channel
+          signaller.closeChannel(channel);
           channel = null;
+
+          // try opening a new channel for the specified target
           return openChannel(task, cb);
         }
 
@@ -244,6 +249,14 @@ function couple(conn, targetAttr, signaller, opts) {
     }
 
     signaller.request(targetAttr, function(err, c) {
+      if (err) {
+        debug('was unable to open a channel for target: ', targetAttr);
+      }
+      else {
+        // update the target attributes to retarget the same peer
+        targetAttr = { id: c.targetId };
+      }
+
       cb(err, channel = err ? null : c);
     });
   }
