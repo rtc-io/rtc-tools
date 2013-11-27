@@ -140,6 +140,7 @@ function couple(conn, targetAttr, signaller, opts) {
 
   function createHandshaker(methodName) {
     return function() {
+      q.push({ op: openChannel });
       q.push({ op: lockAcquire });
       q.push({ op: negotiate(methodName) });
       q.push({ op: lockRelease });
@@ -206,7 +207,7 @@ function couple(conn, targetAttr, signaller, opts) {
         debug('could not acquire writelock, waiting for release notification');
         channel.once('writelock:release', function() {
           lockAcquire(task, cb);
-        })
+        });
 
         return;
       }
@@ -220,6 +221,7 @@ function couple(conn, targetAttr, signaller, opts) {
 
   function lockRelease(task, cb) {
     if (channel.lock) {
+      debug('writelock released');
       channel.lock.release();
     }
 
@@ -228,8 +230,17 @@ function couple(conn, targetAttr, signaller, opts) {
 
   function openChannel(task, cb) {
     if (channel) {
-      // TODO: test channel active
-      return cb(null, channel);
+      // ping the channel, if not active then clear and reopen
+      channel.ping(function(err) {
+        if (err) {
+          channel = null;
+          return openChannel(task, cb);
+        }
+
+        cb(null, channel);
+      });
+
+      return;
     }
 
     signaller.request(targetAttr, function(err, c) {
