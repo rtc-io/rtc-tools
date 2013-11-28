@@ -315,13 +315,6 @@ function couple(conn, targetAttr, signaller, opts) {
 
   conn.addEventListener('icecandidate', handleLocalCandidate);
 
-  conn.oniceconnectionstatechange = function() {
-    // when connected close the channel
-    if (conn.iceConnectionState === 'connected') {
-      q.push({ op: closeChannel });
-    }
-  }
-
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleRemoteCandidate);
