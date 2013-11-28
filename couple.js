@@ -44,6 +44,7 @@ function couple(conn, targetAttr, signaller, opts) {
   var blockId;
   var stages = {};
   var channel;
+  var localCandidates = [];
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
 
@@ -111,6 +112,7 @@ function couple(conn, targetAttr, signaller, opts) {
       }
 
       // create the offer
+      debug('calling ' + methodName);
       conn[methodName](
         function(desc) {
 
@@ -144,8 +146,13 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function handleLocalCandidate(evt) {
-    if (evt.candidate && channel) {
-      channel.send('/candidate', evt.candidate);
+    if (evt.candidate) {
+      localCandidates.push(evt.candidate);
+    }
+
+    if (conn.iceGatheringState === 'complete') {
+      debug('ice gathering state complete, sending candidates')
+      channel.send('/candidates', localCandidates.splice(0));
     }
   }
 
@@ -154,13 +161,18 @@ function couple(conn, targetAttr, signaller, opts) {
       return queuedCandidates.push(data);
     }
 
-    debug('adding remote candidate');
     try {
       conn.addIceCandidate(new RTCIceCandidate(data));
     }
     catch (e) {
       debug('invalidate candidate specified: ', data);
     }
+  }
+
+  function handleRemoteCandidateArray(targetId, data) {
+    data.forEach(function(candidate) {
+      handleRemoteCandidate(targetId, candidate);
+    });
   }
 
   function handleSdp(targetId, data) {
@@ -196,7 +208,15 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function lockAcquire(task, cb) {
+    var monitoringRelease = false;
+
     debug('attempting to acquire channel writelock');
+
+    function releaseNotified() {
+      debug('release notification received');
+      monitoringRelease = false;
+      lockAcquire(task, cb);
+    }
 
     // attempt to aquire a write lock for the channel
     channel.writeLock(function(err, lock) {
@@ -204,10 +224,11 @@ function couple(conn, targetAttr, signaller, opts) {
       // try again
       if (err) {
         debug('could not acquire writelock, waiting for release notification');
-        channel.once('writelock:release', function() {
-          debug('release notification received');
-          lockAcquire(task, cb);
-        });
+
+        if (! monitoringRelease) {
+          channel.once('writelock:release', releaseNotified);
+          monitoringRelease = true;
+        }
 
         return;
       }
@@ -226,6 +247,14 @@ function couple(conn, targetAttr, signaller, opts) {
     }
 
     cb();
+  }
+
+  function closeChannel(task, cb) {
+    if (channel) {
+      debug('closing signaling channel');
+      signaller.closeChannel(channel);
+      channel = null;
+    }
   }
 
   function openChannel(task, cb) {
@@ -279,15 +308,24 @@ function couple(conn, targetAttr, signaller, opts) {
 
   // when regotiation is needed look for the peer
   conn.addEventListener('negotiationneeded', function() {
+    debug('renegotiation required, will create offer in 50ms');
     clearTimeout(offerTimeout);
     offerTimeout = setTimeout(queue(createOffer), 50);
   });
 
   conn.addEventListener('icecandidate', handleLocalCandidate);
 
+  conn.oniceconnectionstatechange = function() {
+    // when connected close the channel
+    if (conn.iceConnectionState === 'connected') {
+      q.push({ op: closeChannel });
+    }
+  }
+
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleRemoteCandidate);
+  signaller.on('candidates', handleRemoteCandidateArray);
 
   // when the connection closes, remove event handlers
   mon.once('closed', function() {
