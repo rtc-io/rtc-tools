@@ -18,7 +18,24 @@ var detect = require('./detect');
   are passed onto a `/request` command when looking for remote peer
   to couple and exchange messages with.
 
-  ### Example Usage
+  The following options can be provided in the `opts` argument:
+
+  - `sdpfilter`: (default: null)
+
+    A simple function for filtering SDP as part of the peer
+    connection handshake (see the Using Filters details below).
+
+  - `maxAttempts`: (default: 1)
+
+    How many times should negotiation be attempted.  This is
+    **experimental** functionality for attempting connection negotiation
+    if it fails.
+
+  - `attemptDelay`: (default: 3000)
+
+    The amount of ms to wait between connection negotiation attempts.
+
+  #### Example Usage
 
   ```js
   var couple = require('rtc/couple');
@@ -26,7 +43,7 @@ var detect = require('./detect');
   couple(new RTCPeerConnection(), { id: 'test' }, signaller);
   ```
 
-  ### Using Filters
+  #### Using Filters
 
   In certain instances you may wish to modify the raw SDP that is provided
   by the `createOffer` and `createAnswer` calls.  This can be done by passing

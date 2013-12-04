@@ -43,7 +43,24 @@ signalling scope.  The `targetAttr` argument specifies the criteria that
 are passed onto a `/request` command when looking for remote peer
 to couple and exchange messages with.
 
-### Example Usage
+The following options can be provided in the `opts` argument:
+
+- `sdpfilter`: (default: null)
+
+  A simple function for filtering SDP as part of the peer
+  connection handshake (see the Using Filters details below).
+
+- `maxAttempts`: (default: 1)
+
+  How many times should negotiation be attempted.  This is
+  **experimental** functionality for attempting connection negotiation
+  if it fails.
+
+- `attemptDelay`: (default: 3000)
+
+  The amount of ms to wait between connection negotiation attempts.
+
+#### Example Usage
 
 ```js
 var couple = require('rtc/couple');
@@ -51,7 +68,7 @@ var couple = require('rtc/couple');
 couple(new RTCPeerConnection(), { id: 'test' }, signaller);
 ```
 
-### Using Filters
+#### Using Filters
 
 In certain instances you may wish to modify the raw SDP that is provided
 by the `createOffer` and `createAnswer` calls.  This can be done by passing
@@ -78,7 +95,7 @@ var generators = require('rtc/generators');
 
 ### generators.config(config)
 
-Generate a configuration object suitable for passing into an W3C 
+Generate a configuration object suitable for passing into an W3C
 RTCPeerConnection constructor first argument, based on our custom config.
 
 ### generators.connectionConstraints(flags, constraints)
@@ -97,15 +114,9 @@ can generate those additional options and intelligently combine any
 user defined constraints (in `constraints`) with shorthand flags that
 might be passed while using the `rtc.createConnection` helper.
 
-### generators.mediaConstraints(flags, context)
-
-Generate mediaConstraints appropriate for the context in which they are 
-being called (i.e. either constructing an RTCPeerConnection object, or
-on the `createOffer` or `createAnswer` calls).
-
 ### parseFlags(opts)
 
-This is a helper function that will extract known flags from a generic 
+This is a helper function that will extract known flags from a generic
 options object.
 
 ## rtc/monitor
