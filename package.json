@@ -5,14 +5,14 @@
   "version": "0.10.3",
   "dependencies": {
     "rtc-core": "~0.5.0",
-    "cog": "~0.3.1",
+    "cog": "~0.4.1",
     "async": "~0.2.9"
   },
   "devDependencies": {
     "tape": "~2.3.0",
     "uuid": "~1.4.1",
     "messenger-memory": "~0.1.1",
-    "rtc-signaller": "~0.9.0"
+    "rtc-signaller": "rtc-io/rtc-signaller#next"
   },
   "scripts": {
     "test": "node test/all.js",
