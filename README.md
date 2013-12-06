@@ -33,12 +33,10 @@ conn = rtc.createConnection({
 
 ## rtc/couple
 
-### couple(pc, targetAttr, signaller, opts?)
+### couple(pc, targetId, signaller, opts?)
 
-Couple a WebRTC connection with another webrtc connection via a
-signalling scope.  The `targetAttr` argument specifies the criteria that
-are passed onto a `/request` command when looking for remote peer
-to couple and exchange messages with.
+Couple a WebRTC connection with another webrtc connection identified by
+`targetId` via the signaller.
 
 The following options can be provided in the `opts` argument:
 
@@ -62,7 +60,7 @@ The following options can be provided in the `opts` argument:
 ```js
 var couple = require('rtc/couple');
 
-couple(pc, { id: 'test' }, signaller);
+couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller);
 ```
 
 #### Using Filters
@@ -73,7 +71,9 @@ a `sdpfilter` function (or array) in the options.  For example:
 
 ```js
 // run the sdp from through a local tweakSdp function.
-couple(pc, { id: 'blah' }, signaller, { sdpfilter: tweakSdp });
+couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller, {
+  sdpfilter: tweakSdp
+});
 ```
 
 ## rtc/detect
