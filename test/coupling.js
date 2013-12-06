@@ -6,6 +6,8 @@ var rtc = require('..');
 var conns = [];
 var signallers = [];
 var monitors = [];
+var scope = [];
+var messengers = [];
 
 var dcConstraints = {
   mandatory: {
@@ -24,11 +26,20 @@ test('create peer connections', function(t) {
   t.ok(conns[1] = rtc.createConnection({}, dcConstraints), 'created b');
 });
 
+test('create test messengers', function(t) {
+  t.plan(1);
+  messengers = [
+    messenger({ delay: Math.random() * 200, scope: scope }),
+    messenger({ delay: Math.random() * 200, scope: scope })
+  ];
+  t.ok(messengers.length == 2, 'created');
+});
+
 test('create signallers', function(t) {
   t.plan(2);
 
-  t.ok(signallers[0] = signaller(messenger()), 'created signaller a');
-  t.ok(signallers[1] = signaller(messenger()), 'created signaller b');
+  t.ok(signallers[0] = signaller(messengers[0]), 'created signaller a');
+  t.ok(signallers[1] = signaller(messengers[1]), 'created signaller b');
 });
 
 test('announce signallers', function(t) {
@@ -36,7 +47,8 @@ test('announce signallers', function(t) {
   signallers[0].announce();
   signallers[1].announce();
 
-  setTimeout(t.pass.bind(t, 'done'), 50);
+  // TODO: do this better....
+  setTimeout(t.pass.bind(t, 'done'), 600);
 });
 
 test('couple a --> b', function(t) {
