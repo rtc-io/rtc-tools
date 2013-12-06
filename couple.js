@@ -196,9 +196,6 @@ function couple(conn, targetId, signaller, opts) {
       return;
     }
 
-    // reset the queue
-    queueReset();
-
     // prioritize setting the remote description operation
     q.push({ op: function(task, cb) {
       // update the remote description
@@ -254,9 +251,7 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function queueReset() {
-    q.tasks = q.tasks.filter(function(task) {
-      return task.op === lockRelease;
-    });
+    q.tasks.splice(0);
   }
 
   // if the target id is not a string, then complain
