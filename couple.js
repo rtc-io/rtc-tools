@@ -11,12 +11,10 @@ var detect = require('./detect');
 /**
   ## rtc/couple
 
-  ### couple(pc, targetAttr, signaller, opts?)
+  ### couple(pc, targetId, signaller, opts?)
 
-  Couple a WebRTC connection with another webrtc connection via a
-  signalling scope.  The `targetAttr` argument specifies the criteria that
-  are passed onto a `/request` command when looking for remote peer
-  to couple and exchange messages with.
+  Couple a WebRTC connection with another webrtc connection identified by
+  `targetId` via the signaller.
 
   The following options can be provided in the `opts` argument:
 
@@ -40,7 +38,7 @@ var detect = require('./detect');
   ```js
   var couple = require('rtc/couple');
 
-  couple(pc, { id: 'test' }, signaller);
+  couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller);
   ```
 
   #### Using Filters
@@ -51,16 +49,17 @@ var detect = require('./detect');
 
   ```js
   // run the sdp from through a local tweakSdp function.
-  couple(pc, { id: 'blah' }, signaller, { sdpfilter: tweakSdp });
+  couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller, {
+    sdpfilter: tweakSdp
+  });
   ```
 
 **/
-function couple(conn, targetAttr, signaller, opts) {
+function couple(conn, targetId, signaller, opts) {
   // create a monitor for the connection
   var mon = monitor(conn);
   var blockId;
   var stages = {};
-  var channel;
   var localCandidates = [];
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
@@ -123,11 +122,6 @@ function couple(conn, targetAttr, signaller, opts) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
     return function(task, cb) {
-      // if we don't have an open channel, then abort
-      if (! channel) {
-        return cb(new Error('no channel for signalling'));
-      }
-
       // create the offer
       debug('calling ' + methodName);
       conn[methodName](
@@ -145,7 +139,7 @@ function couple(conn, targetAttr, signaller, opts) {
             // if successful, then send the sdp over the wire
             function() {
               // send the sdp
-              channel.send('/sdp', desc);
+              signaller.to(targetId).send('/sdp', desc);
 
               // callback
               cb();
@@ -169,7 +163,7 @@ function couple(conn, targetAttr, signaller, opts) {
 
     if (conn.iceGatheringState === 'complete') {
       debug('ice gathering state complete, sending candidates')
-      channel.send('/candidates', localCandidates.splice(0));
+      signaller.to(targetId).send('/candidates', localCandidates.splice(0));
     }
   }
 
@@ -186,13 +180,22 @@ function couple(conn, targetAttr, signaller, opts) {
     }
   }
 
-  function handleRemoteCandidateArray(targetId, data) {
+  function handleRemoteCandidateArray(src, data) {
+    if ((! src) || (src.id !== targetId)) {
+      return;
+    }
+
     data.forEach(function(candidate) {
       handleRemoteCandidate(targetId, candidate);
     });
   }
 
-  function handleSdp(targetId, data) {
+  function handleSdp(src, data) {
+    // if the source is unknown or not a match, then abort
+    if ((! src) || (src.id !== targetId)) {
+      return;
+    }
+
     // reset the queue
     queueReset();
 
@@ -225,91 +228,17 @@ function couple(conn, targetAttr, signaller, opts) {
   }
 
   function lockAcquire(task, cb) {
-    var monitoringRelease = false;
-
-    debug('attempting to acquire channel writelock');
-
-    function releaseNotified() {
-      debug('release notification received');
-      monitoringRelease = false;
-      lockAcquire(task, cb);
-    }
-
-    // attempt to aquire a write lock for the channel
-    channel.writeLock(function(err, lock) {
-      // if we received an error, then wait for the lock to be released and
-      // try again
-      if (err) {
-        debug('could not acquire writelock, waiting for release notification');
-
-        if (! monitoringRelease) {
-          channel.once('writelock:release', releaseNotified);
-          monitoringRelease = true;
-        }
-
-        return;
-      }
-
-      debug('writelock acquired');
-
-      // proceed to the next step
-      cb(null, lock);
-    });
+    debug('attempting to acquire negotiate lock with target: ' + targetId);
+    signaller.lock(targetId, { label: 'negotiate' }, cb);
   }
 
   function lockRelease(task, cb) {
-    if (channel.lock && typeof channel.lock.release == 'function') {
-      debug('writelock released');
-      channel.lock.release();
-    }
-
-    cb();
-  }
-
-  function closeChannel(task, cb) {
-    if (channel) {
-      debug('closing signaling channel');
-      signaller.closeChannel(channel);
-      channel = null;
-    }
-  }
-
-  function openChannel(task, cb) {
-    if (channel) {
-      // ping the channel, if not active then clear and reopen
-      channel.ping(function(err) {
-        if (err) {
-          // close the channel
-          signaller.closeChannel(channel);
-          channel = null;
-
-          // try opening a new channel for the specified target
-          return openChannel(task, cb);
-        }
-
-        cb(null, channel);
-      });
-
-      return;
-    }
-
-    signaller.request(targetAttr, function(err, c) {
-      if (err) {
-        debug('was unable to open a channel for target: ', targetAttr);
-      }
-      else {
-        // update the target attributes to retarget the same peer
-        targetAttr = { id: c.targetId };
-      }
-
-      cb(err, channel = err ? null : c);
-    });
+    signaller.unlock(targetId, { label: 'negotiate' }, cb);
   }
 
   function queue(negotiateTask) {
     return function() {
       q.push([
-        { op: openChannel },
         { op: lockAcquire },
         { op: negotiateTask },
         { op: lockRelease }
@@ -321,6 +250,11 @@ function couple(conn, targetAttr, signaller, opts) {
     q.tasks = q.tasks.filter(function(task) {
       return task.op === lockRelease;
     });
+  }
+
+  // if the target id is not a string, then complain
+  if (typeof targetId != 'string' && (! (targetId instanceof String))) {
+    throw new Error('2nd argument (targetId) should be a string');
   }
 
   // when regotiation is needed look for the peer
@@ -348,9 +282,6 @@ function couple(conn, targetAttr, signaller, opts) {
 
   // patch in the create offer functions
   mon.createOffer = queue(createOffer);
-
-  // open a channel
-  q.push({ op: openChannel });
 
   return mon;
 }

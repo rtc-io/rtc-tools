@@ -31,11 +31,19 @@ test('create signallers', function(t) {
   t.ok(signallers[1] = signaller(messenger()), 'created signaller b');
 });
 
+test('announce signallers', function(t) {
+  t.plan(1);
+  signallers[0].announce();
+  signallers[1].announce();
+
+  setTimeout(t.pass.bind(t, 'done'), 50);
+});
+
 test('couple a --> b', function(t) {
   t.plan(1);
 
   t.ok(
-    monitors[0] = couple(conns[0], { id: signallers[1].id }, signallers[0]),
+    monitors[0] = couple(conns[0], signallers[1].id, signallers[0]),
     'ok'
   );
 });
@@ -43,7 +51,7 @@ test('couple a --> b', function(t) {
 test('couple b --> a', function(t) {
   t.plan(1);
   t.ok(
-    monitors[1] = couple(conns[1], { id: signallers[0].id }, signallers[1]),
+    monitors[1] = couple(conns[1], signallers[0].id, signallers[1]),
     'ok'
   );
 });
@@ -58,18 +66,18 @@ test('activate connection', function(t) {
   monitors[0].createOffer();
 });
 
-test('create a data channel on a', function(t) {
-  t.plan(2);
+// test('create a data channel on a', function(t) {
+//   t.plan(2);
 
-  conns[1].addEventListener('datachannel', function(evt) {
-    t.pass('got data channel');
-  });
+//   conns[1].addEventListener('datachannel', function(evt) {
+//     t.pass('got data channel');
+//   });
 
-  t.ok(
-    conns[0].createDataChannel('RTCDataChannel', { reliable: false }),
-    'a created'
-  );
-});
+//   t.ok(
+//     conns[0].createDataChannel('RTCDataChannel', { reliable: false }),
+//     'a created'
+//   );
+// });
 
 // test('close connections', function(t) {
 //   t.plan(2);
