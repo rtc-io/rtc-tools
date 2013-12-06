@@ -229,7 +229,14 @@ function couple(conn, targetId, signaller, opts) {
 
   function lockAcquire(task, cb) {
     debug('attempting to acquire negotiate lock with target: ' + targetId);
-    signaller.lock(targetId, { label: 'negotiate' }, cb);
+    signaller.lock(targetId, { label: 'negotiate' }, function(err) {
+      if (err) {
+        debug('error getting lock, resetting queue');
+        queueReset();
+      }
+
+      cb(err);
+    });
   }
 
   function lockRelease(task, cb) {
