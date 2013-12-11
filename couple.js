@@ -98,7 +98,7 @@ function couple(conn, targetId, signaller, opts) {
 
     return function(err) {
       // log the error
-      debug('captured error: ', err);
+      console.error('rtc/couple error (' + stage + '): ', err);
       q.push({ op: lockRelease });
 
       // reattempt coupling?
