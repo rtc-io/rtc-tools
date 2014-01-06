@@ -8,16 +8,9 @@ var signallers = [];
 var monitors = [];
 var scope = [];
 var messengers = [];
+var dcConstraints = {};
 
-var dcConstraints = {
-  mandatory: {
-    DtlsSrtpKeyAgreement: false,
-    internalSctpDataChannels: false
-  },
-  optional: [
-    { RtpDataChannels: true }
-  ]
-};
+require('cog/logger').enable('*');
 
 test('create peer connections', function(t) {
   t.plan(2);
