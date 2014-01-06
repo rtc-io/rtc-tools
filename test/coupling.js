@@ -69,6 +69,7 @@ test('activate connection', function(t) {
   });
 
   monitors[0].createOffer();
+  monitors[1].createOffer();
 });
 
 // test('create a data channel on a', function(t) {
