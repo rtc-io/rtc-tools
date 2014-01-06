@@ -128,6 +128,16 @@ function couple(conn, targetId, signaller, opts) {
       return false;
     }
 
+    // if the connection state is checking we should wait before creating
+    // an offer also
+    if (connState === 'checking') {
+      debug('connection state is checking, will wait to create a new offer');
+      mon.once('active', function() {
+        q.push({ op: createOffer });
+      });
+
+      return false;
+    }
     // console.log('checking gather state: ' + gatherState);
     // if (gatherState !== 'new' && gatherState !== 'complete') {
     //   console.warn('cannot create offer, intermediate ice gathering state, will retry', conn);
