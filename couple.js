@@ -60,7 +60,6 @@ function couple(conn, targetId, signaller, opts) {
   var mon = monitor(conn);
   var blockId;
   var stages = {};
-  var localCandidates = [];
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
 
@@ -75,7 +74,7 @@ function couple(conn, targetId, signaller, opts) {
 
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
-  var createOffer = negotiate('createOffer', isMaster);
+  var createOffer = negotiate('createOffer', isMaster, checkValidOfferState);
   var createAnswer = negotiate('createAnswer', true);
 
   // initialise the processing queue (one at a time please)
@@ -109,7 +108,41 @@ function couple(conn, targetId, signaller, opts) {
     };
   }
 
-  function negotiate(methodName, allowed) {
+  function checkValidOfferState() {
+    var sigState = conn.signalingState;
+    var gatherState = conn.iceGatheringState;
+    var connState = conn.iceConnectionState;
+
+    function waitForStable() {
+      if (conn.signalingState === 'stable') {
+        q.push({ op: createOffer });
+      }
+
+      mon.removeListener('change', waitForStable);
+    }
+
+    if (sigState !== 'stable') {
+      debug('cannot create offer, signaling state != stable, will retry');
+      mon.on('change', waitForStable);
+
+      return false;
+    }
+
+    // console.log('checking gather state: ' + gatherState);
+    // if (gatherState !== 'new' && gatherState !== 'complete') {
+    //   console.warn('cannot create offer, intermediate ice gathering state, will retry', conn);
+    //   mon.once('active', function() {
+    //     console.log('connection is active');
+    //     q.push({ op: createOffer });
+    //   });
+
+    //   return false;
+    // }
+
+    return true;
+  }
+
+  function negotiate(methodName, allowed, preflightChecks) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
     return function(task, cb) {
@@ -117,6 +150,11 @@ function couple(conn, targetId, signaller, opts) {
       // peer
       if (! allowed) {
         signaller.to(targetId).send('/negotiate');
+        return cb();
+      }
+
+      // if we are creating an offer and not stable, then wait until stable
+      if (typeof preflightChecks == 'function' && (! preflightChecks())) {
         return cb();
       }
 
@@ -156,16 +194,18 @@ function couple(conn, targetId, signaller, opts) {
 
   function handleLocalCandidate(evt) {
     if (evt.candidate) {
-      localCandidates.push(evt.candidate);
+      signaller.to(targetId).send('/candidate', evt.candidate);
     }
-
-    if (conn.iceGatheringState === 'complete') {
-      debug('ice gathering state complete, sending candidates')
-      signaller.to(targetId).send('/candidates', localCandidates.splice(0));
+    else if (conn.iceGatheringState === 'complete') {
+      debug('ice gathering state complete')
     }
   }
 
-  function handleRemoteCandidate(targetId, data) {
+  function handleRemoteCandidate(data, src) {
+    if ((! src) || (src.id !== targetId)) {
+      return;
+    }
+
     if (! conn.remoteDescription) {
       return queuedCandidates.push(data);
     }
@@ -176,16 +216,6 @@ function couple(conn, targetId, signaller, opts) {
     catch (e) {
       debug('invalidate candidate specified: ', data);
     }
-  }
-
-  function handleRemoteCandidateArray(data, src) {
-    if ((! src) || (src.id !== targetId)) {
-      return;
-    }
-
-    data.forEach(function(candidate) {
-      handleRemoteCandidate(targetId, candidate);
-    });
   }
 
   function handleSdp(data, src) {
@@ -246,22 +276,14 @@ function couple(conn, targetId, signaller, opts) {
 
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
-  signaller.on('candidates', handleRemoteCandidateArray);
+  signaller.on('candidate', handleRemoteCandidate);
 
   // if this is a master connection, listen for negotiate events
   if (isMaster) {
     signaller.on('negotiate', function(src) {
       if (src.id === targetId) {
-        if (conn.signalingState === 'stable')  {
-          debug('got negotiate request from ' + targetId + ', creating offer');
-          q.push({ op: createOffer });
-        }
-        else {
-          debug('recv /negotiatie from ' + targetId + ', waiting for stable');
-          mon.once('stable', function() {
-            q.push({ op: createOffer });
-          });
-        }
+        debug('got negotiate request from ' + targetId + ', creating offer');
+        q.push({ op: createOffer });
       }
     });
   }
@@ -272,7 +294,7 @@ function couple(conn, targetId, signaller, opts) {
 
     // remove listeners
     signaller.removeListener('sdp', handleSdp);
-    signaller.removeListener('candidates', handleRemoteCandidateArray);
+    signaller.removeListener('candidate', handleRemoteCandidate);
   });
 
   // patch in the create offer functions
