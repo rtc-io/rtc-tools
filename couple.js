@@ -65,10 +65,6 @@ function couple(conn, targetId, signaller, opts) {
   var sdpFilter = (opts || {}).sdpfilter;
 
   // retry implementation
-  var maxAttempts = (opts || {}).maxAttempts || 1;
-  var attemptDelay = (opts || {}).attemptDelay || 3000;
-  var attempt = 1;
-  var attemptTimer;
   var offerTimeout;
 
   // if the signaller does not support this isMaster function throw an
@@ -80,7 +76,7 @@ function couple(conn, targetId, signaller, opts) {
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
   var createOffer = negotiate('createOffer', isMaster);
-  var createAnswer = negotiate('createAnswer');
+  var createAnswer = negotiate('createAnswer', true);
 
   // initialise the processing queue (one at a time please)
   var q = async.queue(function(task, cb) {
@@ -106,18 +102,6 @@ function couple(conn, targetId, signaller, opts) {
     return function(err) {
       // log the error
       console.error('rtc/couple error (' + stage + '): ', err);
-      q.push({ op: lockRelease });
-
-      // reattempt coupling?
-      if (stageHandler && attempt < maxAttempts && (! attemptTimer)) {
-        attemptTimer = setTimeout(function() {
-          attempt += 1;
-          attemptTimer = 0;
-
-          debug('reattempting connection (attempt: ' + attempt + ')');
-          stageHandler();
-        }, attemptDelay);
-      }
 
       if (typeof cb == 'function') {
         cb(err);
