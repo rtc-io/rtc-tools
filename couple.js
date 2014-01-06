@@ -252,8 +252,16 @@ function couple(conn, targetId, signaller, opts) {
   if (isMaster) {
     signaller.on('negotiate', function(src) {
       if (src.id === targetId) {
-        debug('got negotiate request from ' + targetId + ', creating offer');
-        q.push({ op: createOffer });
+        if (conn.signalingState === 'stable')  {
+          debug('got negotiate request from ' + targetId + ', creating offer');
+          q.push({ op: createOffer });
+        }
+        else {
+          debug('recv /negotiatie from ' + targetId + ', waiting for stable');
+          mon.once('stable', function() {
+            q.push({ op: createOffer });
+          });
+        }
       }
     });
   }
