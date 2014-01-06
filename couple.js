@@ -105,7 +105,7 @@ function couple(conn, targetId, signaller, opts) {
 
     return function(err) {
       // log the error
-      debug('captured error: ', err);
+      console.error('rtc/couple error (' + stage + '): ', err);
       q.push({ op: lockRelease });
 
       // reattempt coupling?
@@ -194,7 +194,7 @@ function couple(conn, targetId, signaller, opts) {
     }
   }
 
-  function handleRemoteCandidateArray(src, data) {
+  function handleRemoteCandidateArray(data, src) {
     if ((! src) || (src.id !== targetId)) {
       return;
     }
@@ -204,7 +204,7 @@ function couple(conn, targetId, signaller, opts) {
     });
   }
 
-  function handleSdp(src, data) {
+  function handleSdp(data, src) {
     // if the source is unknown or not a match, then abort
     if ((! src) || (src.id !== targetId)) {
       return;
@@ -262,7 +262,6 @@ function couple(conn, targetId, signaller, opts) {
 
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
-  signaller.on('candidate', handleRemoteCandidate);
   signaller.on('candidates', handleRemoteCandidateArray);
 
   // if this is a master connection, listen for negotiate events
@@ -281,7 +280,7 @@ function couple(conn, targetId, signaller, opts) {
 
     // remove listeners
     signaller.removeListener('sdp', handleSdp);
-    signaller.removeListener('candidate', handleRemoteCandidate);
+    signaller.removeListener('candidates', handleRemoteCandidateArray);
   });
 
   // patch in the create offer functions
