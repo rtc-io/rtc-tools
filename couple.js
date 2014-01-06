@@ -71,8 +71,15 @@ function couple(conn, targetId, signaller, opts) {
   var attemptTimer;
   var offerTimeout;
 
+  // if the signaller does not support this isMaster function throw an
+  // exception
+  if (typeof signaller.isMaster != 'function') {
+    throw new Error('rtc-signaller instance >= 0.14.0 required');
+  }
+
   // initilaise the negotiation helpers
-  var createOffer = negotiate('createOffer');
+  var isMaster = signaller.isMaster(targetId);
+  var createOffer = negotiate('createOffer', isMaster);
   var createAnswer = negotiate('createAnswer');
 
   // initialise the processing queue (one at a time please)
@@ -118,10 +125,17 @@ function couple(conn, targetId, signaller, opts) {
     };
   }
 
-  function negotiate(methodName) {
+  function negotiate(methodName, allowed) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
     return function(task, cb) {
+      // if the task is not allowed, then send a negotiate request to our
+      // peer
+      if (! allowed) {
+        signaller.to(targetId).send('/negotiate');
+        return cb();
+      }
+
       // create the offer
       debug('calling ' + methodName);
       conn[methodName](
@@ -224,34 +238,12 @@ function couple(conn, targetId, signaller, opts) {
     }});
   }
 
-  function lockAcquire(task, cb) {
-    debug('attempting to acquire negotiate lock with target: ' + targetId);
-    signaller.lock(targetId, { label: 'negotiate' }, function(err) {
-      if (err) {
-        debug('error getting lock, resetting queue');
-        queueReset();
-      }
-
-      cb(err);
-    });
-  }
-
-  function lockRelease(task, cb) {
-    signaller.unlock(targetId, { label: 'negotiate' }, cb);
-  }
-
   function queue(negotiateTask) {
     return function() {
       q.push([
-        { op: lockAcquire },
-        { op: negotiateTask },
-        { op: lockRelease }
+        { op: negotiateTask }
       ]);
     };
-  }
-
-  function queueReset() {
-    q.tasks.splice(0);
   }
 
   // if the target id is not a string, then complain
@@ -272,6 +264,16 @@ function couple(conn, targetId, signaller, opts) {
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleRemoteCandidate);
   signaller.on('candidates', handleRemoteCandidateArray);
+
+  // if this is a master connection, listen for negotiate events
+  if (isMaster) {
+    signaller.on('negotiate', function(src) {
+      if (src.id === targetId) {
+        debug('got negotiate request from ' + targetId + ', creating offer');
+        q.push({ op: createOffer });
+      }
+    });
+  }
 
   // when the connection closes, remove event handlers
   mon.once('closed', function() {
