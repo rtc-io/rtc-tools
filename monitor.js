@@ -62,7 +62,7 @@ var monitor = module.exports = function(pc, tag) {
 
     // if we have a state change, emit an event for the new state
     if (newState !== currentState) {
-      mon.emit('change', newState);
+      mon.emit('change', newState, pc);
       mon.emit(currentState = newState);
     }
   }
