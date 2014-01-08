@@ -10,7 +10,7 @@ var scope = [];
 var messengers = [];
 var dcConstraints = {};
 
-// require('cog/logger').enable('*');
+// require('cog/logger').enable('couple');
 
 test('create peer connections', function(t) {
   t.plan(2);
@@ -69,6 +69,18 @@ test('activate connection', function(t) {
   });
 
   monitors[0].createOffer();
+});
+
+test('create an offer from the other party', function(t) {
+  t.plan(1);
+
+  monitors[0].on('change', function handleChange(status, conn) {
+    if (conn.signalingState === 'stable') {
+      monitors[0].removeListener('change', handleChange);
+      t.pass('signaling state stable again');
+    }
+  });
+
   monitors[1].createOffer();
 });
 
@@ -79,18 +91,15 @@ test('activate connection', function(t) {
 //     t.pass('got data channel');
 //   });
 
-//   t.ok(
-//     conns[0].createDataChannel('RTCDataChannel', { reliable: false }),
-//     'a created'
-//   );
+//   t.ok(conns[0].createDataChannel('RTCDataChannel'), 'a created');
 // });
 
 // test('close connections', function(t) {
 //   t.plan(2);
 
-//   a.once('close', t.pass.bind(t, 'a closed'));
-//   b.once('close', t.pass.bind(t, 'b closed'));
+//   monitors[0].once('closed', t.pass.bind(t, 'a closed'));
+//   monitors[1].once('closed', t.pass.bind(t, 'b closed'));
 
-//   a.close();
-//   b.close();
+//   conns[0].close();
+//   conns[1].close();
 // });
