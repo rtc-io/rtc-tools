@@ -3,7 +3,6 @@
 /* global RTCSessionDescription: false */
 'use strict';
 
-var debug = require('cog/logger')('couple');
 var async = require('async');
 var monitor = require('./monitor');
 var detect = require('./detect');
@@ -56,6 +55,8 @@ var detect = require('./detect');
 
 **/
 function couple(conn, targetId, signaller, opts) {
+  var debug = require('cog/logger')('couple');
+
   // create a monitor for the connection
   var mon = monitor(conn);
   var blockId;
@@ -74,8 +75,19 @@ function couple(conn, targetId, signaller, opts) {
 
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
-  var createOffer = negotiate('createOffer', isMaster, checkValidOfferState);
-  var createAnswer = negotiate('createAnswer', true);
+
+
+  var createOffer = negotiate(
+    'createOffer',
+    isMaster,
+    [ checkStable, checkNotConnecting ]
+  );
+
+  var createAnswer = negotiate(
+    'createAnswer',
+    true,
+    [ checkNotConnecting ]
+  );
 
   // initialise the processing queue (one at a time please)
   var q = async.queue(function(task, cb) {
@@ -108,54 +120,45 @@ function couple(conn, targetId, signaller, opts) {
     };
   }
 
-  function checkValidOfferState() {
-    var sigState = conn.signalingState;
-    var gatherState = conn.iceGatheringState;
-    var connState = conn.iceConnectionState;
+  function checkNotConnecting() {
+    if (conn.iceConnectionState != 'checking') {
+      return true;
+    }
 
-    function waitForStable() {
+    debug('connection state is checking, will wait to create a new offer');
+    mon.once('active', function() {
+      q.push({ op: createOffer });
+    });
+
+    return false;
+  }
+
+  function checkStable() {
+    if (conn.signalingState === 'stable') {
+      return true;
+    }
+
+    debug('cannot create offer, signaling state != stable, will retry');
+    mon.on('change', function waitForStable() {
       if (conn.signalingState === 'stable') {
         q.push({ op: createOffer });
       }
 
       mon.removeListener('change', waitForStable);
-    }
+    });
 
-    if (sigState !== 'stable') {
-      debug('cannot create offer, signaling state != stable, will retry');
-      mon.on('change', waitForStable);
-
-      return false;
-    }
-
-    // if the connection state is checking we should wait before creating
-    // an offer also
-    if (connState === 'checking') {
-      debug('connection state is checking, will wait to create a new offer');
-      mon.once('active', function() {
-        q.push({ op: createOffer });
-      });
-
-      return false;
-    }
-    // console.log('checking gather state: ' + gatherState);
-    // if (gatherState !== 'new' && gatherState !== 'complete') {
-    //   console.warn('cannot create offer, intermediate ice gathering state, will retry', conn);
-    //   mon.once('active', function() {
-    //     console.log('connection is active');
-    //     q.push({ op: createOffer });
-    //   });
-
-    //   return false;
-    // }
-
-    return true;
+    return false;
   }
 
   function negotiate(methodName, allowed, preflightChecks) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
+    // ensure we have a valid preflightChecks array
+    preflightChecks = [].concat(preflightChecks || []);
+
     return function(task, cb) {
+      var checksOK = true;
+
       // if the task is not allowed, then send a negotiate request to our
       // peer
       if (! allowed) {
@@ -163,8 +166,13 @@ function couple(conn, targetId, signaller, opts) {
         return cb();
       }
 
-      // if we are creating an offer and not stable, then wait until stable
-      if (typeof preflightChecks == 'function' && (! preflightChecks())) {
+      // run the preflight checks
+      preflightChecks.forEach(function(check) {
+        checksOK = checksOK && check();
+      });
+
+      // if the checks have not passed, then abort for the moment
+      if (! checksOK) {
         return cb();
       }
 
