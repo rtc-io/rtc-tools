@@ -63,8 +63,6 @@ function couple(conn, targetId, signaller, opts) {
   var stages = {};
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
-
-  // retry implementation
   var offerTimeout;
 
   // if the signaller does not support this isMaster function throw an
@@ -178,6 +176,10 @@ function couple(conn, targetId, signaller, opts) {
 
       // create the offer
       debug('calling ' + methodName);
+      // debug('gathering state = ' + conn.iceGatheringState);
+      // debug('connection state = ' + conn.iceConnectionState);
+      // debug('signaling state = ' + conn.signalingState);
+
       conn[methodName](
         function(desc) {
 
@@ -186,22 +188,8 @@ function couple(conn, targetId, signaller, opts) {
             desc.sdp = sdpFilter(desc.sdp, conn, methodName);
           }
 
-          // initialise the local description
-          conn.setLocalDescription(
-            desc,
-
-            // if successful, then send the sdp over the wire
-            function() {
-              // send the sdp
-              signaller.to(targetId).send('/sdp', desc);
-
-              // callback
-              cb();
-            },
-
-            // on error, abort
-            abort(methodName, desc.sdp, cb)
-          );
+          q.push({ op: queueLocalDesc(desc) });
+          cb();
         },
 
         // on error, abort
@@ -275,6 +263,38 @@ function couple(conn, targetId, signaller, opts) {
       q.push([
         { op: negotiateTask }
       ]);
+    };
+  }
+
+  function queueLocalDesc(desc) {
+    return function setLocalDesc(task, cb, retryCount) {
+      debug('setting local description');
+
+      // initialise the local description
+      conn.setLocalDescription(
+        desc,
+
+        // if successful, then send the sdp over the wire
+        function() {
+          // send the sdp
+          signaller.to(targetId).send('/sdp', desc);
+
+          // callback
+          cb();
+        },
+
+        // abort('setLocalDesc', desc.sdp, cb)
+        // on error, abort
+        function(err) {
+          debug('error setting local description', err);
+          debug(desc.sdp);
+          // setTimeout(function() {
+          //   setLocalDesc(task, cb, (retryCount || 0) + 1);
+          // }, 500);
+
+          cb(err);
+        }
+      );
     };
   }
 
