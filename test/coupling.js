@@ -8,15 +8,15 @@ var signallers = [];
 var monitors = [];
 var scope = [];
 var messengers = [];
-var dcConstraints = {};
+var dcs = [];
 
-// require('cog/logger').enable('couple');
+// require('cog/logger').enable('couple'qqq);
 
 test('create peer connections', function(t) {
   t.plan(2);
 
-  t.ok(conns[0] = rtc.createConnection({}, dcConstraints), 'created a');
-  t.ok(conns[1] = rtc.createConnection({}, dcConstraints), 'created b');
+  t.ok(conns[0] = rtc.createConnection(), 'created a');
+  t.ok(conns[1] = rtc.createConnection(), 'created b');
 });
 
 test('create test messengers', function(t) {
@@ -82,6 +82,18 @@ test('create an offer from the other party', function(t) {
   });
 
   monitors[1].createOffer();
+});
+
+test('create a data channel on the master connection', function(t) {
+  var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
+
+  t.plan(1);
+
+  dcs[masterIdx] = conns[masterIdx].createDataChannel('test');
+  conns[masterIdx ^ 1].ondatachannel = function(evt) {
+    dcs[masterIdx ^ 1] = evt.channel;
+    t.pass('got data channel');
+  };
 });
 
 // test('create a data channel on a', function(t) {
