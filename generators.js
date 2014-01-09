@@ -9,9 +9,9 @@ var mappings = {
   create: {
     // data enabler
     data: function(c) {
-      if (! detect.moz) {
-        c.optional = (c.optional || []).concat({ RtpDataChannels: true });
-      }
+      // if (! detect.moz) {
+      //   c.optional = (c.optional || []).concat({ RtpDataChannels: true });
+      // }
     },
 
     dtls: function(c) {
