@@ -75,13 +75,13 @@ function couple(conn, targetId, signaller, opts) {
   var isMaster = signaller.isMaster(targetId);
 
 
-  var createOffer = negotiate(
+  var createOffer = prepNegotiate(
     'createOffer',
     isMaster,
     [ checkStable, checkNotConnecting ]
   );
 
-  var createAnswer = negotiate(
+  var createAnswer = prepNegotiate(
     'createAnswer',
     true,
     [ checkNotConnecting ]
@@ -137,20 +137,20 @@ function couple(conn, targetId, signaller, opts) {
     }
   }
 
-  function checkNotConnecting() {
+  function checkNotConnecting(negotiate) {
     if (conn.iceConnectionState != 'checking') {
       return true;
     }
 
     debug('connection state is checking, will wait to create a new offer');
     mon.once('active', function() {
-      q.push({ op: createOffer });
+      q.push({ op: negotiate });
     });
 
     return false;
   }
 
-  function checkStable() {
+  function checkStable(negotiate) {
     if (conn.signalingState === 'stable') {
       return true;
     }
@@ -158,7 +158,7 @@ function couple(conn, targetId, signaller, opts) {
     debug('cannot create offer, signaling state != stable, will retry');
     mon.on('change', function waitForStable() {
       if (conn.signalingState === 'stable') {
-        q.push({ op: createOffer });
+        q.push({ op: negotiate });
       }
 
       mon.removeListener('change', waitForStable);
@@ -167,13 +167,13 @@ function couple(conn, targetId, signaller, opts) {
     return false;
   }
 
-  function negotiate(methodName, allowed, preflightChecks) {
+  function prepNegotiate(methodName, allowed, preflightChecks) {
     var hsDebug = require('cog/logger')('handshake-' + methodName);
 
     // ensure we have a valid preflightChecks array
     preflightChecks = [].concat(preflightChecks || []);
 
-    return function(task, cb) {
+    return function negotiate(task, cb) {
       var checksOK = true;
 
       // if the task is not allowed, then send a negotiate request to our
@@ -185,7 +185,7 @@ function couple(conn, targetId, signaller, opts) {
 
       // run the preflight checks
       preflightChecks.forEach(function(check) {
-        checksOK = checksOK && check();
+        checksOK = checksOK && check(negotiate);
       });
 
       // if the checks have not passed, then abort for the moment
