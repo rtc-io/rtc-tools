@@ -118,6 +118,25 @@ function couple(conn, targetId, signaller, opts) {
     };
   }
 
+  function applyCandidatesWhenStable() {
+    if (conn.signalingState == 'stable' && conn.remoteDescription) {
+      debug('signaling state = stable, applying queued candidates');
+      mon.removeListener('change', applyCandidatesWhenStable);
+
+      // apply any queued candidates
+      queuedCandidates.splice(0).forEach(function(data) {
+        debug('applying queued candidate', data);
+
+        try {
+          conn.addIceCandidate(new RTCIceCandidate(data));
+        }
+        catch (e) {
+          debug('invalidate candidate specified: ', data);
+        }
+      });
+    }
+  }
+
   function checkNotConnecting() {
     if (conn.iceConnectionState != 'checking') {
       return true;
@@ -212,8 +231,13 @@ function couple(conn, targetId, signaller, opts) {
       return;
     }
 
-    if (! conn.remoteDescription) {
-      return queuedCandidates.push(data);
+    // queue candidates while the signaling state is not stable
+    if (conn.signalingState != 'stable' || (! conn.remoteDescription)) {
+      queuedCandidates.push(data);
+
+      mon.removeListener('change', applyCandidatesWhenStable);
+      mon.on('change', applyCandidatesWhenStable);
+      return;
     }
 
     try {
@@ -238,12 +262,6 @@ function couple(conn, targetId, signaller, opts) {
         new RTCSessionDescription(data),
 
         function() {
-          // apply any queued candidates
-          queuedCandidates.splice(0).forEach(function(data) {
-            debug('applying queued candidate');
-            conn.addIceCandidate(new RTCIceCandidate(data));
-          });
-
           // create the answer
           if (data.type === 'offer') {
             queue(createAnswer)();
