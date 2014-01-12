@@ -9,7 +9,7 @@ channel.
 In most cases, it is recommended that you use one of the higher-level
 modules that uses the `rtc` module under the hood.  Such as:
 
-- [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect); or,
+- [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect)
 - [rtc-glue](https://github.com/rtc-io/rtc-glue)
 
 
@@ -35,37 +35,37 @@ var localMedia = media();
 // render the local media to the document body
 localMedia.render(document.body);
 
-// look for friends
-signaller.on('peer:announce', function(data) {
-  // create a peer connection for our new friend
-  var pc = rtc.createConnection();
+// capture local media first as firefox
+// will want a local stream and doesn't support onnegotiationneeded event
+localMedia.once('capture', function(localStream) {
+  // look for friends
+  signaller.on('peer:announce', function(data) {
+    // create a peer connection for our new friend
+    var pc = rtc.createConnection();
 
-  // couple our connection via the signalling channel
-  var monitor = rtc.couple(pc, data.id, signaller);
+    // couple our connection via the signalling channel
+    var monitor = rtc.couple(pc, data.id, signaller);
 
-  if (localMedia.stream) {
-    pc.addStream(localMedia.stream);
-  }
-  else {
-    localMedia.once('capture', function(stream) {
-      pc.addStream(stream);
+    // add the stream to the connection
+    pc.addStream(localStream);
+
+    // once the connection is active, log a console message
+    monitor.once('active', function() {
+      console.log('connection active to: ' + data.id);
     });
-  }
 
-  // once the connection is active, log a console message
-  monitor.once('active', function() {
-    console.log('connection active to: ' + data.id);
+    // when the peer connection receives a remote stream render it to the
+    // screen
+    pc.onaddstream = function(remoteStream) {
+      media(remoteStream).render(document.body);
+    };
   });
 
-  // when the peer connection receives a remote stream render it to the
-  // screen
-  pc.onaddstream = function(stream) {
-    media(stream).render(document.body);
-  };
+  // announce ourself in the rtc-getting-started room
+  signaller.announce({ room: 'rtc-getting-started' });
 });
 
-// announce ourself in the rtc-getting-started room
-signaller.announce({ room: 'rtc-getting-started' });
+
 ```
 
 This code definitely doesn't cover all the cases that you need to consider

@@ -14,7 +14,7 @@
   In most cases, it is recommended that you use one of the higher-level
   modules that uses the `rtc` module under the hood.  Such as:
 
-  - [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect); or,
+  - [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect)
   - [rtc-glue](https://github.com/rtc-io/rtc-glue)
 
   ## Getting Started
