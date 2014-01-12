@@ -11,7 +11,22 @@
 
   ## Getting Started
 
-  TO BE COMPLETED.
+  If you decide that the `rtc` module is a better fit for you than either
+  [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect) or
+  [rtc-glue](https://github.com/rtc-io/rtc-glue) then the code snippet below
+  will provide you a guide on how to get started using it in conjunction with
+  the [rtc-signaller](https://github.com/rtc-io/rtc-signaller) and
+  [rtc-media](https://github.com/rtc-io/rtc-media) modules:
+
+  <<< examples/getting-started.js
+
+  This code definitely doesn't cover all the cases that you need to consider
+  (i.e. peers leaving, etc) but it should demonstrate how to:
+
+  1. Capture video and add it to a peer connection
+  2. Couple a local peer connection with a remote peer connection
+  3. How to deal with the remote steam being discovered and how to render
+     that to the local interface.
 
 **/
 

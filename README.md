@@ -11,7 +11,62 @@ the front-end component of a WebRTC application.
 
 ## Getting Started
 
-TO BE COMPLETED.
+If you decide that the `rtc` module is a better fit for you than either
+[rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect) or
+[rtc-glue](https://github.com/rtc-io/rtc-glue) then the code snippet below
+will provide you a guide on how to get started using it in conjunction with
+the [rtc-signaller](https://github.com/rtc-io/rtc-signaller) and
+[rtc-media](https://github.com/rtc-io/rtc-media) modules:
+
+```js
+var signaller = require('rtc-signaller')('http://rtc.io/switchboard/');
+var rtc = require('rtc');
+var media = require('rtc-media');
+var localMedia = media();
+
+// render the local media to the document body
+localMedia.render(document.body);
+
+// look for friends
+signaller.on('peer:announce', function(data) {
+  // create a peer connection for our new friend
+  var pc = rtc.createConnection();
+
+  // couple our connection via the signalling channel
+  var monitor = rtc.couple(pc, data.id, signaller);
+
+  if (localMedia.stream) {
+    pc.addStream(localMedia.stream);
+  }
+  else {
+    localMedia.once('capture', function(stream) {
+      pc.addStream(stream);
+    });
+  }
+
+  // once the connection is active, log a console message
+  monitor.once('active', function() {
+    console.log('connection active to: ' + data.id);
+  });
+
+  // when the peer connection receives a remote stream render it to the
+  // screen
+  pc.onaddstream = function(stream) {
+    media(stream).render(document.body);
+  };
+});
+
+// announce ourself in the rtc-getting-started room
+signaller.announce({ room: 'rtc-getting-started' });
+```
+
+This code definitely doesn't cover all the cases that you need to consider
+(i.e. peers leaving, etc) but it should demonstrate how to:
+
+1. Capture video and add it to a peer connection
+2. Couple a local peer connection with a remote peer connection
+3. How to deal with the remote steam being discovered and how to render
+   that to the local interface.
 
 ## Factories
 
@@ -192,7 +247,7 @@ by providing the listen function additional arguments).
 
 ### Apache 2.0
 
-Copyright 2013 National ICT Australia Limited (NICTA)
+Copyright 2014 National ICT Australia Limited (NICTA)
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
