@@ -1,8 +1,16 @@
 # rtc
 
-The `rtc` package is a convenience layer for working with the rtc.io toolkit.
-Consider it a boxed set of lego of the most common pieces required to build
-the front-end component of a WebRTC application.
+The `rtc` module does most of the heavy lifting within the
+[rtc.io](http://rtc.io) suite.  Primarily it handles the logic of coupling
+a local `RTCPeerConnection` with it's remote counterpart via an
+[rtc-signaller](https://github.com/rtc-io/rtc-signaller) signalling
+channel.
+
+In most cases, it is recommended that you use one of the higher-level
+modules that uses the `rtc` module under the hood.  Such as:
+
+- [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect); or,
+- [rtc-glue](https://github.com/rtc-io/rtc-glue)
 
 
 [![NPM](https://nodei.co/npm/rtc.png)](https://nodei.co/npm/rtc/)
