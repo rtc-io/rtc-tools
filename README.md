@@ -65,7 +65,7 @@ This code definitely doesn't cover all the cases that you need to consider
 
 1. Capture video and add it to a peer connection
 2. Couple a local peer connection with a remote peer connection
-3. How to deal with the remote steam being discovered and how to render
+3. Deal with the remote steam being discovered and how to render
    that to the local interface.
 
 ## Factories
