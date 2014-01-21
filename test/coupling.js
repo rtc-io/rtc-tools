@@ -61,29 +61,6 @@ test('couple b --> a', function(t) {
   );
 });
 
-test('activate connection', function(t) {
-  t.plan(monitors.length);
-
-  monitors.forEach(function(mon, index) {
-    mon.once('active', t.pass.bind(t, 'connection ' + index + ' active'));
-  });
-
-  monitors[0].createOffer();
-});
-
-test('create an offer from the other party', function(t) {
-  t.plan(1);
-
-  monitors[0].on('change', function handleChange(status, conn) {
-    if (conn.signalingState === 'stable') {
-      monitors[0].removeListener('change', handleChange);
-      t.pass('signaling state stable again');
-    }
-  });
-
-  monitors[1].createOffer();
-});
-
 test('create a data channel on the master connection', function(t) {
   var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
 
@@ -94,24 +71,6 @@ test('create a data channel on the master connection', function(t) {
     dcs[masterIdx ^ 1] = evt.channel;
     t.pass('got data channel');
   };
+
+  monitors[0].createOffer();
 });
-
-// test('create a data channel on a', function(t) {
-//   t.plan(2);
-
-//   conns[1].addEventListener('datachannel', function(evt) {
-//     t.pass('got data channel');
-//   });
-
-//   t.ok(conns[0].createDataChannel('RTCDataChannel'), 'a created');
-// });
-
-// test('close connections', function(t) {
-//   t.plan(2);
-
-//   monitors[0].once('closed', t.pass.bind(t, 'a closed'));
-//   monitors[1].once('closed', t.pass.bind(t, 'b closed'));
-
-//   conns[0].close();
-//   conns[1].close();
-// });
