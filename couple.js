@@ -63,6 +63,7 @@ function couple(conn, targetId, signaller, opts) {
   var stages = {};
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
+  var reactive = (opts || {}).reactive;
   var offerTimeout;
 
   // if the signaller does not support this isMaster function throw an
@@ -322,11 +323,13 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   // when regotiation is needed look for the peer
-  conn.addEventListener('negotiationneeded', function() {
-    debug('renegotiation required, will create offer in 50ms');
-    clearTimeout(offerTimeout);
-    offerTimeout = setTimeout(queue(createOffer), 50);
-  });
+  if (reactive) {
+    conn.addEventListener('negotiationneeded', function() {
+      debug('renegotiation required, will create offer in 50ms');
+      clearTimeout(offerTimeout);
+      offerTimeout = setTimeout(queue(createOffer), 50);
+    });
+  }
 
   conn.addEventListener('icecandidate', handleLocalCandidate);
 
