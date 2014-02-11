@@ -75,7 +75,7 @@ exports.couple = require('./couple');
   ```
 **/
 exports.createConnection = function(opts, constraints) {
-  return new RTCPeerConnection(
+  return new ((opts || {}).RTCPeerConnection || RTCPeerConnection)(
     // generate the config based on options provided
     gen.config(opts),
 
