@@ -73,13 +73,13 @@ var monitor = module.exports = function(pc, tag) {
   }
 
   // start watching stuff on the pc
-  pc.addEventListener('signalingstatechange', checkState);
-  pc.addEventListener('iceconnectionstatechange', checkState);
+  pc.onsignalingstatechange = checkState;
+  pc.oniceconnectionstatechange = checkState;
 
   // patch in a stop method into the emitter
   mon.stop = function() {
-    pc.removeEventListener('signalingstatechange', checkState);
-    pc.removeEventListener('iceconnectionstatechange', checkState);
+    pc.onsignalingstatechange = null;
+    pc.oniceconnectionstatechange = null;
   };
 
   return mon;

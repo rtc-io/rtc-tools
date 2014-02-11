@@ -324,14 +324,14 @@ function couple(conn, targetId, signaller, opts) {
 
   // when regotiation is needed look for the peer
   if (reactive) {
-    conn.addEventListener('negotiationneeded', function() {
+    conn.onnegotiationneeded = function() {
       debug('renegotiation required, will create offer in 50ms');
       clearTimeout(offerTimeout);
       offerTimeout = setTimeout(queue(createOffer), 50);
-    });
+    };
   }
 
-  conn.addEventListener('icecandidate', handleLocalCandidate);
+  conn.onicecandidate = handleLocalCandidate;
 
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
