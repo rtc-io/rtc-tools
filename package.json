@@ -5,14 +5,14 @@
   "version": "0.14.0",
   "dependencies": {
     "rtc-core": "~0.7.1",
-    "cog": "~0.4.1",
+    "cog": "~0.5.1",
     "async": "~0.2.9"
   },
   "devDependencies": {
-    "tape": "~2.3.0",
+    "tape": "~2.4.2",
     "uuid": "~1.4.1",
     "messenger-memory": "~0.3.0",
-    "rtc-signaller": "~0.15.0",
+    "rtc-signaller": "~0.18.2",
     "rtc-media": "~1.5.1"
   },
   "scripts": {
