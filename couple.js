@@ -224,7 +224,7 @@ function couple(conn, targetId, signaller, opts) {
     }
     else if (conn.iceGatheringState === 'complete') {
       debug('ice gathering state complete')
-      signaller.to(targetId).send('/endofcandidates');
+      signaller.to(targetId).send('/endofcandidates', {});
     }
   }
 
