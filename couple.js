@@ -1,6 +1,4 @@
 /* jshint node: true */
-/* global RTCIceCandidate: false */
-/* global RTCSessionDescription: false */
 'use strict';
 
 var async = require('async');
@@ -59,8 +57,6 @@ function couple(conn, targetId, signaller, opts) {
 
   // create a monitor for the connection
   var mon = monitor(conn);
-  var blockId;
-  var stages = {};
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
   var reactive = (opts || {}).reactive;
@@ -107,8 +103,6 @@ function couple(conn, targetId, signaller, opts) {
     detect('RTCIceCandidate');
 
   function abort(stage, sdp, cb) {
-    var stageHandler = stages[stage];
-
     return function(err) {
       // log the error
       console.error('rtc/couple error (' + stage + '): ', err);
@@ -169,8 +163,6 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function prepNegotiate(methodName, allowed, preflightChecks) {
-    var hsDebug = require('cog/logger')('handshake-' + methodName);
-
     // ensure we have a valid preflightChecks array
     preflightChecks = [].concat(preflightChecks || []);
 
@@ -223,7 +215,7 @@ function couple(conn, targetId, signaller, opts) {
       signaller.to(targetId).send('/candidate', evt.candidate);
     }
     else if (conn.iceGatheringState === 'complete') {
-      debug('ice gathering state complete')
+      debug('ice gathering state complete');
       signaller.to(targetId).send('/endofcandidates', {});
     }
   }
@@ -251,6 +243,8 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function handleSdp(data, src) {
+    var abortType = data.type === 'offer' ? 'createAnswer' : 'createOffer';
+
     // if the source is unknown or not a match, then abort
     if ((! src) || (src.id !== targetId)) {
       return;
@@ -273,7 +267,7 @@ function couple(conn, targetId, signaller, opts) {
           cb();
         },
 
-        abort(data.type === 'offer' ? 'createAnswer' : 'createOffer', data.sdp, cb)
+        abort(abortType, data.sdp, cb)
       );
     }});
   }
@@ -287,7 +281,7 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function queueLocalDesc(desc) {
-    return function setLocalDesc(task, cb, retryCount) {
+    return function setLocalDesc(task, cb) {
       debug('setting local description');
 
       // initialise the local description
