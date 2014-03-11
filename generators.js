@@ -7,13 +7,6 @@ var defaults = require('cog/defaults');
 
 var mappings = {
   create: {
-    // data enabler
-    data: function(c) {
-      // if (! detect.moz) {
-      //   c.optional = (c.optional || []).concat({ RtpDataChannels: true });
-      // }
-    },
-
     dtls: function(c) {
       if (! detect.moz) {
         c.optional = (c.optional || []).concat({ DtlsSrtpKeyAgreement: true });
@@ -91,7 +84,7 @@ exports.connectionConstraints = function(flags, constraints) {
   This is a helper function that will extract known flags from a generic
   options object.
 **/
-var parseFlags = exports.parseFlags = function(options) {
+exports.parseFlags = function(options) {
   // ensure we have opts
   var opts = options || {};
 
