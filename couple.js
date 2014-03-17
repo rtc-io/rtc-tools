@@ -138,7 +138,7 @@ function couple(conn, targetId, signaller, opts) {
     }
 
     debug('connection state is checking, will wait to create a new offer');
-    mon.once('active', function() {
+    mon.once('connected', function() {
       q.push({ op: negotiate });
     });
 
@@ -183,6 +183,7 @@ function couple(conn, targetId, signaller, opts) {
 
       // if the checks have not passed, then abort for the moment
       if (! checksOK) {
+        debug('preflight checks did not pass, aborting ' + methodName);
         return cb();
       }
 
@@ -210,11 +211,19 @@ function couple(conn, targetId, signaller, opts) {
     };
   }
 
+  function handleConnectionClose() {
+    debug('captured pc close, iceConnectionState = ' + conn.iceConnectionState);
+
+    // remove listeners
+    signaller.removeListener('sdp', handleSdp);
+    signaller.removeListener('candidate', handleRemoteCandidate);
+  }
+
   function handleLocalCandidate(evt) {
     if (evt.candidate) {
       signaller.to(targetId).send('/candidate', evt.candidate);
     }
-    else if (conn.iceGatheringState === 'complete') {
+    else {
       debug('ice gathering state complete');
       signaller.to(targetId).send('/endofcandidates', {});
     }
@@ -343,13 +352,8 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   // when the connection closes, remove event handlers
-  mon.once('closed', function() {
-    debug('closed');
-
-    // remove listeners
-    signaller.removeListener('sdp', handleSdp);
-    signaller.removeListener('candidate', handleRemoteCandidate);
-  });
+  mon.once('closed', handleConnectionClose);
+  mon.once('disconnected', handleConnectionClose);
 
   // patch in the create offer functions
   mon.createOffer = queue(createOffer);
