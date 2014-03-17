@@ -15,7 +15,8 @@ modules that uses the `rtc` module under the hood.  Such as:
 
 [![NPM](https://nodei.co/npm/rtc.png)](https://nodei.co/npm/rtc/)
 
-[![unstable](http://hughsk.github.io/stability-badges/dist/unstable.svg)](http://github.com/hughsk/stability-badges)
+[![Build Status](https://img.shields.io/travis/rtc-io/rtc.svg?branch=master)](https://travis-ci.org/rtc-io/rtc)
+![unstable](https://img.shields.io/badge/stability-unstable-yellowgreen.svg)
 
 ## Getting Started
 
