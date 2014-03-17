@@ -52,11 +52,11 @@ var detect = require('./detect');
   ```
 
 **/
-function couple(conn, targetId, signaller, opts) {
+function couple(pc, targetId, signaller, opts) {
   var debug = require('cog/logger')('couple');
 
   // create a monitor for the connection
-  var mon = monitor(conn);
+  var mon = monitor(pc);
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
   var reactive = (opts || {}).reactive;
@@ -114,7 +114,7 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function applyCandidatesWhenStable() {
-    if (conn.signalingState == 'stable' && conn.remoteDescription) {
+    if (pc.signalingState == 'stable' && pc.remoteDescription) {
       debug('signaling state = stable, applying queued candidates');
       mon.removeListener('change', applyCandidatesWhenStable);
 
@@ -123,7 +123,7 @@ function couple(conn, targetId, signaller, opts) {
         debug('applying queued candidate', data);
 
         try {
-          conn.addIceCandidate(new RTCIceCandidate(data));
+          pc.addIceCandidate(new RTCIceCandidate(data));
         }
         catch (e) {
           debug('invalidate candidate specified: ', data);
@@ -133,7 +133,7 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function checkNotConnecting(negotiate) {
-    if (conn.iceConnectionState != 'checking') {
+    if (pc.iceConnectionState != 'checking') {
       return true;
     }
 
@@ -146,13 +146,13 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function checkStable(negotiate) {
-    if (conn.signalingState === 'stable') {
+    if (pc.signalingState === 'stable') {
       return true;
     }
 
     debug('cannot create offer, signaling state != stable, will retry');
     mon.on('change', function waitForStable() {
-      if (conn.signalingState === 'stable') {
+      if (pc.signalingState === 'stable') {
         q.push({ op: negotiate });
       }
 
@@ -193,12 +193,12 @@ function couple(conn, targetId, signaller, opts) {
       // debug('connection state = ' + conn.iceConnectionState);
       // debug('signaling state = ' + conn.signalingState);
 
-      conn[methodName](
+      pc[methodName](
         function(desc) {
 
           // if a filter has been specified, then apply the filter
           if (typeof sdpFilter == 'function') {
-            desc.sdp = sdpFilter(desc.sdp, conn, methodName);
+            desc.sdp = sdpFilter(desc.sdp, pc, methodName);
           }
 
           q.push({ op: queueLocalDesc(desc) });
@@ -212,7 +212,7 @@ function couple(conn, targetId, signaller, opts) {
   }
 
   function handleConnectionClose() {
-    debug('captured pc close, iceConnectionState = ' + conn.iceConnectionState);
+    debug('captured pc close, iceConnectionState = ' + pc.iceConnectionState);
 
     // remove listeners
     signaller.removeListener('sdp', handleSdp);
@@ -235,7 +235,7 @@ function couple(conn, targetId, signaller, opts) {
     }
 
     // queue candidates while the signaling state is not stable
-    if (conn.signalingState != 'stable' || (! conn.remoteDescription)) {
+    if (pc.signalingState != 'stable' || (! pc.remoteDescription)) {
       queuedCandidates.push(data);
 
       mon.removeListener('change', applyCandidatesWhenStable);
@@ -244,7 +244,7 @@ function couple(conn, targetId, signaller, opts) {
     }
 
     try {
-      conn.addIceCandidate(new RTCIceCandidate(data));
+      pc.addIceCandidate(new RTCIceCandidate(data));
     }
     catch (e) {
       debug('invalidate candidate specified: ', data);
@@ -263,7 +263,7 @@ function couple(conn, targetId, signaller, opts) {
     q.push({ op: function(task, cb) {
       // update the remote description
       // once successful, send the answer
-      conn.setRemoteDescription(
+      pc.setRemoteDescription(
         new RTCSessionDescription(data),
 
         function() {
@@ -294,7 +294,7 @@ function couple(conn, targetId, signaller, opts) {
       debug('setting local description');
 
       // initialise the local description
-      conn.setLocalDescription(
+      pc.setLocalDescription(
         desc,
 
         // if successful, then send the sdp over the wire
@@ -328,14 +328,14 @@ function couple(conn, targetId, signaller, opts) {
 
   // when regotiation is needed look for the peer
   if (reactive) {
-    conn.onnegotiationneeded = function() {
+    pc.onnegotiationneeded = function() {
       debug('renegotiation required, will create offer in 50ms');
       clearTimeout(offerTimeout);
       offerTimeout = setTimeout(queue(createOffer), 50);
     };
   }
 
-  conn.onicecandidate = handleLocalCandidate;
+  pc.onicecandidate = handleLocalCandidate;
 
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
