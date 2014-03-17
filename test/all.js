@@ -10,6 +10,7 @@ require('./generators');
 require('./generators-connection-constraints');
 require('./peerconnection');
 require('./coupling');
+require('./capture-close');
 
 // only test reactive coupling in chrome
 if (! detect.moz) {
