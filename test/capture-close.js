@@ -10,7 +10,7 @@ var scope = [];
 var messengers = [];
 var dcs = [];
 
-// require('cog/logger').enable('couple');
+require('cog/logger').enable('monitor');
 
 test('create peer connections', function(t) {
   t.plan(2);
@@ -61,18 +61,34 @@ test('couple b --> a', function(t) {
   );
 });
 
-test('close a, b aware', function(t) {
-  var closeTimeout = setTimeout(function() {
-    t.fail('close monitor timed out');
-  }, 1000);
+test('create a data channel on the master connection', function(t) {
+  var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
 
   t.plan(1);
 
-  monitors[1].once('close', function() {
+  dcs[masterIdx] = conns[masterIdx].createDataChannel('test');
+  conns[masterIdx ^ 1].ondatachannel = function(evt) {
+    dcs[masterIdx ^ 1] = evt.channel;
+    t.pass('got data channel');
+  };
+
+  monitors[0].createOffer();
+});
+
+test('close a, b aware', function(t) {
+  var closeTimeout = setTimeout(function() {
+    t.fail('close monitor timed out');
+  }, 10000);
+
+  function handleClose() {
     t.pass('captured close');
     clearTimeout(closeTimeout);
     console.log(conns[1].onclose);
-  });
+  };
 
+
+  t.plan(1);
+  monitors[1].once('closed', handleClose);
+  monitors[1].once('disconnected', handleClose); // disconnect ok
   conns[0].close();
 });
