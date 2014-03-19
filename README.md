@@ -195,23 +195,15 @@ var monitor = require('rtc/monitor');
 var pc = new RTCPeerConnection(config);
 
 // watch pc and when active do something
-monitor(pc).once('active', function() {
+monitor(pc).once('connected', function() {
   // active and ready to go
 });
 ```
 
-Events provided by the monitor are as follows:
-
-- `active`: triggered when the connection is active and ready for use
-- `stable`: triggered when the connection is in a stable signalling state
-- `unstable`: trigger when the connection is renegotiating.
-
-It should be noted, that the monitor does a check when it is first passed
-an `RTCPeerConnection` object to see if the `active` state passes checks.
-If so, the `active` event will be fired in the next tick.
-
-If you require a synchronous check of a connection's "openness" then
-use the `monitor.isActive` test outlined below.
+The monitor is reporting the changes in `iceConnectionState` of the peer
+connection, hence why the example above is looking for the `connected`
+event.  If you do want to monitor the general `iceConnectionState` of the
+peer connection then you can also listen for `change` with the monitor.
 
 ### monitor.getState(pc)
 
