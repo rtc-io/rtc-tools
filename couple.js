@@ -4,6 +4,7 @@
 var async = require('async');
 var monitor = require('./monitor');
 var detect = require('./detect');
+var CLOSED_STATES = [ 'closed', 'failed' ];
 
 /**
   ## rtc/couple
@@ -61,6 +62,11 @@ function couple(pc, targetId, signaller, opts) {
   var sdpFilter = (opts || {}).sdpfilter;
   var reactive = (opts || {}).reactive;
   var offerTimeout;
+
+  // configure the time to wait between receiving a 'disconnect'
+  // iceConnectionState and determining that we are closed
+  var disconnectTimeout = (opts || {}).disconnectTimeout || 10000;
+  var disconnectTimer;
 
   // if the signaller does not support this isMaster function throw an
   // exception
@@ -219,6 +225,34 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('candidate', handleRemoteCandidate);
   }
 
+  function handleDisconnect() {
+    debug('captured pc disconnect, monitoring connection status');
+
+    // start the disconnect timer
+    disconnectTimer = setTimeout(function() {
+      pc.close();
+    }, disconnectTimeout);
+
+    mon.on('change', handleDisconnectAbort);
+  }
+
+  function handleDisconnectAbort() {
+    mon.removeListener('change', handleDisconnectAbort);
+
+    // clear the disconnect timer
+    debug('reset disconnect timer, state: ' + pc.iceConnectionState);
+    clearTimeout(disconnectTimer);
+
+    // if we have a closed or failed status, then close the connection
+    if (CLOSED_STATES.indexOf(pc.iceConnectionState) >= 0) {
+      handleConnectionClose();
+    }
+    // otherwise, reconnect the disconnect monitor
+    else {
+      mon.once('disconnect', handleDisconnect);
+    }
+  };
+
   function handleLocalCandidate(evt) {
     if (evt.candidate) {
       signaller.to(targetId).send('/candidate', evt.candidate);
@@ -353,7 +387,7 @@ function couple(pc, targetId, signaller, opts) {
 
   // when the connection closes, remove event handlers
   mon.once('closed', handleConnectionClose);
-  mon.once('disconnected', handleConnectionClose);
+  mon.once('disconnected', handleDisconnect);
 
   // patch in the create offer functions
   mon.createOffer = queue(createOffer);
