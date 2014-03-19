@@ -21,16 +21,6 @@ var CLOSED_STATES = [ 'closed', 'failed' ];
     A simple function for filtering SDP as part of the peer
     connection handshake (see the Using Filters details below).
 
-  - `maxAttempts` (default: 1)
-
-    How many times should negotiation be attempted.  This is
-    **experimental** functionality for attempting connection negotiation
-    if it fails.
-
-  - `attemptDelay` (default: 3000)
-
-    The amount of ms to wait between connection negotiation attempts.
-
   #### Example Usage
 
   ```js
