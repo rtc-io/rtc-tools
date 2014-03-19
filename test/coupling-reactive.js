@@ -65,7 +65,7 @@ test('activate connection', function(t) {
   t.plan(monitors.length);
 
   monitors.forEach(function(mon, index) {
-    mon.once('active', t.pass.bind(t, 'connection ' + index + ' active'));
+    mon.once('connected', t.pass.bind(t, 'connection ' + index + ' active'));
   });
 
   monitors[0].createOffer();
@@ -74,7 +74,7 @@ test('activate connection', function(t) {
 test('create an offer from the other party', function(t) {
   t.plan(1);
 
-  monitors[0].on('change', function handleChange(status, conn) {
+  monitors[0].on('change', function handleChange(conn) {
     if (conn.signalingState === 'stable') {
       monitors[0].removeListener('change', handleChange);
       t.pass('signaling state stable again');
