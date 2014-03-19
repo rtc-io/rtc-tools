@@ -83,7 +83,6 @@ test('close a, b aware', function(t) {
   function handleClose() {
     t.pass('captured close');
     clearTimeout(closeTimeout);
-    console.log(conns[1].onclose);
   };
 
 
