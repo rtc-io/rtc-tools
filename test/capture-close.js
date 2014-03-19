@@ -10,7 +10,7 @@ var scope = [];
 var messengers = [];
 var dcs = [];
 
-require('cog/logger').enable('monitor');
+// require('cog/logger').enable('monitor');
 
 test('create peer connections', function(t) {
   t.plan(2);
