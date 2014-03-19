@@ -215,42 +215,19 @@ use the `monitor.isActive` test outlined below.
 
 ### monitor.getState(pc)
 
-Provides a unified state definition for the RTCPeerConnection based
-on a few checks.
+The `getState` method of the monitor provides the state combination for
+the specified peer connection as a 3 element array comprised of the
+following (in order):
 
-In emerging versions of the spec we have various properties such as
-`readyState` that provide a definitive answer on the state of the 
-connection.  In older versions we need to look at things like
-`signalingState` and `iceGatheringState` to make an educated guess 
-as to the connection state.
+- `iceConnectionState`
+- `signalingState`
+- `iceGatheringState`
 
 ### monitor.isActive(pc) -> Boolean
 
 Test an `RTCPeerConnection` to see if it's currently open.  The test for
 "openness" looks at a combination of current `signalingState` and
 `iceGatheringState`.
-
-## Internal RTC Helper Libraries
-
-The RTC library uses a number of helper modules that are contained within
-the `lib/` folder of the `rtc-io/rtc` repository.  While these are designed
-primarily for internal use, they can be accessed by directly requiring
-the modules, e.g. `require('rtc/lib/helpermodule')`
-
-## rtc/lib/listen
-
-```js
-var listen = require('rtc/lib/listen');
-
-// listen for negotiation needed events
-listen(pc).on('negotiationneeded', function(evt) {
-
-});
-```
-
-The `listen` helper provides an event emitter for a peer connection object
-that will bind to each of the core events WebRTC events (unless overriden
-by providing the listen function additional arguments).
 
 ## License(s)
 
