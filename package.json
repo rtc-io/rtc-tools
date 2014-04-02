@@ -5,8 +5,8 @@
   "version": "0.16.0",
   "dependencies": {
     "rtc-core": "~0.7.1",
-    "cog": "~0.5.1",
-    "async": "~0.2.9"
+    "cog": "^0.5.3",
+    "async": "^0.6.2"
   },
   "devDependencies": {
     "tape": "~2.4.2",
