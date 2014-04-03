@@ -9,10 +9,10 @@
     "async": "^0.6.2"
   },
   "devDependencies": {
-    "tape": "~2.4.2",
+    "tape": "^2.12.2",
     "uuid": "~1.4.1",
-    "messenger-memory": "~0.3.0",
-    "rtc-signaller": "~0.18.2",
+    "messenger-memory": "^1.0.0",
+    "rtc-signaller": "^0.22.0",
     "rtc-media": "~1.5.1",
     "zuul": "^1.5.4"
   },
