@@ -52,6 +52,7 @@ function couple(pc, targetId, signaller, opts) {
   var sdpFilter = (opts || {}).sdpfilter;
   var reactive = (opts || {}).reactive;
   var offerTimeout;
+  var endOfCandidates = true;
 
   // configure the time to wait between receiving a 'disconnect'
   // iceConnectionState and determining that we are closed
@@ -255,8 +256,10 @@ function couple(pc, targetId, signaller, opts) {
   function handleLocalCandidate(evt) {
     if (evt.candidate) {
       signaller.to(targetId).send('/candidate', evt.candidate);
+      endOfCandidates = false;
     }
-    else {
+    else if (! endOfCandidates) {
+      endOfCandidates = true;
       debug('ice gathering state complete');
       signaller.to(targetId).send('/endofcandidates', {});
     }
