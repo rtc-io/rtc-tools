@@ -158,6 +158,18 @@ function couple(pc, targetId, signaller, opts) {
     return false;
   }
 
+  function decouple() {
+    debug('decoupling ' + signaller.id + ' from ' + targetId);
+
+    // remove local pc event handlers
+    pc.onicecandidate = null;
+    pc.onnegotiationneeded = null;
+
+    // remove listeners
+    signaller.removeListener('sdp', handleSdp);
+    signaller.removeListener('candidate', handleRemoteCandidate);
+  }
+
   function prepNegotiate(methodName, allowed, preflightChecks) {
     // ensure we have a valid preflightChecks array
     preflightChecks = [].concat(preflightChecks || []);
@@ -209,10 +221,7 @@ function couple(pc, targetId, signaller, opts) {
 
   function handleConnectionClose() {
     debug('captured pc close, iceConnectionState = ' + pc.iceConnectionState);
-
-    // remove listeners
-    signaller.removeListener('sdp', handleSdp);
-    signaller.removeListener('candidate', handleRemoteCandidate);
+    decouple();
   }
 
   function handleDisconnect() {
