@@ -44,10 +44,11 @@ var CLOSED_STATES = [ 'closed', 'failed' ];
 
 **/
 function couple(pc, targetId, signaller, opts) {
-  var debug = require('cog/logger')('couple');
+  var debugLabel = (opts || {}).debugLabel || 'rtc';
+  var debug = require('cog/logger')(debugLabel + '/couple');
 
   // create a monitor for the connection
-  var mon = monitor(pc);
+  var mon = monitor(pc, targetId, signaller, opts);
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
   var reactive = (opts || {}).reactive;
@@ -272,6 +273,7 @@ function couple(pc, targetId, signaller, opts) {
 
     // queue candidates while the signaling state is not stable
     if (pc.signalingState != 'stable' || (! pc.remoteDescription)) {
+      debug('queuing candidate');
       queuedCandidates.push(data);
 
       mon.removeListener('change', applyCandidatesWhenStable);

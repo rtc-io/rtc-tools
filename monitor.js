@@ -1,14 +1,13 @@
 /* jshint node: true */
 'use strict';
 
-var debug = require('cog/logger')('monitor');
 var EventEmitter = require('events').EventEmitter;
 
-var comboStates = {
-  active: [
-    'connected', 'stable'
-  ]
-};
+// define the various ICEConnectionStates that are active
+var activeStates = [
+  'connected',
+  'completed'
+];
 
 /**
   ## rtc/monitor
@@ -37,11 +36,14 @@ var comboStates = {
   peer connection then you can also listen for `change` with the monitor.
 
 **/
-var monitor = module.exports = function(pc) {
+var monitor = module.exports = function(pc, targetId, signaller, opts) {
+  var debugLabel = (opts || {}).debugLabel || 'rtc';
+  var debug = require('cog/logger')(debugLabel + '/monitor');
+
   // create a new event emitter which will communicate events
   var mon = new EventEmitter();
   var currentState = getState(pc);
-  var isActive = mon.active = currentState[0] === 'connected';
+  var isActive = mon.active = activeStates.indexOf(currentState[0]) >= 0;
   var lastConnectionState = pc && pc.iceConnectionState;
 
   function checkState() {
