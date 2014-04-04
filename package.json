@@ -16,6 +16,7 @@
     "uuid": "^1",
     "messenger-memory": "^1",
     "rtc-media": "^1",
+    "rtc-signaller": "^1",
     "zuul": "^1"
   },
   "scripts": {
