@@ -19,28 +19,21 @@ var peerStateEvents = [
 /**
   ## rtc/monitor
 
-  In most current implementations of `RTCPeerConnection` it is quite
-  difficult to determine whether a peer connection is active and ready
-  for use or not.  The monitor provides some assistance here by providing
-  a simple function that provides an `EventEmitter` which gives updates
-  on a connections state.
-
-  ### monitor(pc) -> EventEmitter
-
-  ```js
-  var monitor = require('rtc/monitor');
-  var pc = new RTCPeerConnection(config);
-
-  // watch pc and when active do something
-  monitor(pc).once('connected', function() {
-    // active and ready to go
-  });
   ```
-  
-  The monitor is reporting the changes in `iceConnectionState` of the peer
-  connection, hence why the example above is looking for the `connected`
-  event.  If you do want to monitor the general `iceConnectionState` of the
-  peer connection then you can also listen for `change` with the monitor.
+  monitor(pc, targetId, signaller, opts?) => EventEmitter
+  ```
+
+  The monitor is a useful tool for determining the state of `pc` (an
+  `RTCPeerConnection`) instance in the context of your application. The
+  monitor uses both the `iceConnectionState` information of the peer
+  connection and also the various
+  [signaller events](https://github.com/rtc-io/rtc-signaller#signaller-events)
+  to determine when the connection has been `connected` and when it has
+  been `disconnected`.
+
+  A monitor created `EventEmitter` is returned as the result of a
+  [couple](https://github.com/rtc-io/rtc#rtccouple) between a local peer
+  connection and it's remote counterpart.
 
 **/
 module.exports = function(pc, targetId, signaller, opts) {
