@@ -10,7 +10,7 @@ var messengers = [];
 var dcs = [];
 var roomId = require('uuid').v4();
 
-require('cog/logger').enable('*');
+// require('cog/logger').enable('*');
 
 module.exports = function(suiteName, ids) {
   test(suiteName + ': create peer connections', function(t) {
