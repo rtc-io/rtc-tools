@@ -96,4 +96,11 @@ module.exports = function(suiteName, ids) {
     monitors[1].once('closed', handleClose);
     signallers[0].send('/fake:leave');
   });
+
+  test(suiteName + ': disconnect signaller:1', function(t) {
+    t.plan(1);
+    // signallers[1].once('disconnect', t.pass.bind(t, 'closed'));
+    signallers[1].leave();
+    t.pass('disconnected');
+  });
 };
