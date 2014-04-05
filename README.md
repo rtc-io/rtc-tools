@@ -18,6 +18,9 @@ modules that uses the `rtc` module under the hood.  Such as:
 [![Build Status](https://img.shields.io/travis/rtc-io/rtc.svg?branch=master)](https://travis-ci.org/rtc-io/rtc)
 ![unstable](https://img.shields.io/badge/stability-unstable-yellowgreen.svg)
 
+[![Gitter chat](https://badges.gitter.im/rtc-io/discuss.png)](https://gitter.im/rtc-io/discuss)
+
+
 ## Getting Started
 
 If you decide that the `rtc` module is a better fit for you than either
@@ -194,22 +197,6 @@ The monitor is reporting the changes in `iceConnectionState` of the peer
 connection, hence why the example above is looking for the `connected`
 event.  If you do want to monitor the general `iceConnectionState` of the
 peer connection then you can also listen for `change` with the monitor.
-
-### monitor.getState(pc)
-
-The `getState` method of the monitor provides the state combination for
-the specified peer connection as a 3 element array comprised of the
-following (in order):
-
-- `iceConnectionState`
-- `signalingState`
-- `iceGatheringState`
-
-### monitor.isActive(pc) -> Boolean
-
-Test an `RTCPeerConnection` to see if it's currently open.  The test for
-"openness" looks at a combination of current `signalingState` and
-`iceGatheringState`.
 
 ## License(s)
 
