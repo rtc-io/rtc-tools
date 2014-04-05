@@ -21,15 +21,16 @@ localMedia.once('capture', function(localStream) {
     pc.addStream(localStream);
 
     // once the connection is active, log a console message
-    monitor.once('active', function() {
+    monitor.once('connected', function() {
       console.log('connection active to: ' + data.id);
+  
+      pc.getRemoteStreams().forEach(function(stream) {
+        media(stream).render(document.body);
+      });
     });
 
-    // when the peer connection receives a remote stream render it to the
-    // screen
-    pc.onaddstream = function(remoteStream) {
-      media(remoteStream).render(document.body);
-    };
+
+    monitor.createOffer();
   });
 
   // announce ourself in the rtc-getting-started room
