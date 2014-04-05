@@ -1,5 +1,4 @@
 var couple = require('../couple');
-var messenger = require('messenger-memory');
 var signaller = require('rtc-signaller');
 var test = require('tape');
 var rtc = require('..');
@@ -9,6 +8,7 @@ var monitors = [];
 var scope = [];
 var messengers = [];
 var dcs = [];
+var roomId = require('uuid').v4();
 
 // require('cog/logger').enable('*');
 
@@ -19,29 +19,20 @@ test('create peer connections', function(t) {
   t.ok(conns[1] = rtc.createConnection(), 'created b');
 });
 
-test('create test messengers', function(t) {
-  t.plan(1);
-  messengers = [
-    messenger({ delay: Math.random() * 200, scope: scope }),
-    messenger({ delay: Math.random() * 200, scope: scope })
-  ];
-  t.ok(messengers.length == 2, 'created');
-});
-
 test('create signallers', function(t) {
   t.plan(2);
 
-  t.ok(signallers[0] = signaller(messengers[0]), 'created signaller a');
-  t.ok(signallers[1] = signaller(messengers[1]), 'created signaller b');
+  t.ok(signallers[0] = signaller(location.origin), 'created signaller a');
+  t.ok(signallers[1] = signaller(location.origin), 'created signaller b');
 });
 
 test('announce signallers', function(t) {
-  t.plan(1);
-  signallers[0].announce();
-  signallers[1].announce();
+  t.plan(2);
+  signallers[0].once('peer:announce', t.pass.bind(t, '0 knows about 1'));
+  signallers[1].once('peer:announce', t.pass.bind(t, '1 knows about 0'));
 
-  // TODO: do this better....
-  setTimeout(t.pass.bind(t, 'done'), 600);
+  signallers[0].announce({ room: roomId });
+  signallers[1].announce({ room: roomId });
 });
 
 test('couple a --> b', function(t) {
