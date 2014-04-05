@@ -16,6 +16,8 @@ if (! detect.moz) {
   require('./coupling-reactive');
   require('./capture-close');
 }
+
+require('./capture-close-signaller');
 // require('./data-channel');
 
 // test the signalling

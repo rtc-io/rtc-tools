@@ -10,7 +10,7 @@ var messengers = [];
 var dcs = [];
 var roomId = require('uuid').v4();
 
-require('cog/logger').enable('*');
+// require('cog/logger').enable('*');
 
 test('create peer connections', function(t) {
   t.plan(2);
@@ -39,7 +39,6 @@ test('couple a --> b', function(t) {
   t.plan(1);
 
   monitors[0] = couple(conns[0], signallers[1].id, signallers[0], {
-    reactive: true,
     debugLabel: 'conn:0'
   });
 
@@ -50,66 +49,38 @@ test('couple b --> a', function(t) {
   t.plan(1);
 
   monitors[1] = couple(conns[1], signallers[0].id, signallers[1], {
-    reactive: true,
     debugLabel: 'conn:1'
   });
 
   t.ok(monitors[1], 'ok');
 });
 
-test('activate connection', function(t) {
-  t.plan(monitors.length);
+test('create a data channel on the master connection', function(t) {
+  var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
 
-  monitors.forEach(function(mon, index) {
-    mon.once('connected', t.pass.bind(t, 'connection ' + index + ' active'));
-  });
+  t.plan(2);
+
+  dcs[masterIdx] = conns[masterIdx].createDataChannel('test');
+  conns[masterIdx ^ 1].ondatachannel = function(evt) {
+    dcs[masterIdx ^ 1] = evt.channel;
+    t.ok(evt && evt.channel, 'got data channel');
+    t.equal(evt.channel.label, 'test', 'dc named test');
+  };
 
   monitors[0].createOffer();
 });
 
-test('create an offer from the other party', function(t) {
+test('close a, b aware', function(t) {
+  var closeTimeout = setTimeout(function() {
+    t.fail('close monitor timed out');
+  }, 20000);
 
-  function handleChange(conn) {
-    if (conn.signalingState === 'stable') {
-      monitors[0].removeListener('change', handleChange);
-      t.pass('signaling state stable again');
-    }
-  }
-
-  t.plan(1);
-  monitors[0].on('change', handleChange);
-  monitors[1].createOffer();
-});
-
-test('create a data channel on the master connection', function(t) {
-  var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
-
-  t.plan(1);
-
-  conns[masterIdx ^ 1].ondatachannel = function(evt) {
-    dcs[masterIdx ^ 1] = evt.channel;
-    t.pass('got data channel');
+  function handleClose() {
+    t.pass('captured close');
+    clearTimeout(closeTimeout);
   };
 
-  dcs[masterIdx] = conns[masterIdx].createDataChannel('test');
+  t.plan(1);
+  monitors[1].once('closed', handleClose);
+  signallers[0].send('/fake:leave');
 });
-
-// test('create a data channel on a', function(t) {
-//   t.plan(2);
-
-//   conns[1].addEventListener('datachannel', function(evt) {
-//     t.pass('got data channel');
-//   });
-
-//   t.ok(conns[0].createDataChannel('RTCDataChannel'), 'a created');
-// });
-
-// test('close connections', function(t) {
-//   t.plan(2);
-
-//   monitors[0].once('closed', t.pass.bind(t, 'a closed'));
-//   monitors[1].once('closed', t.pass.bind(t, 'b closed'));
-
-//   conns[0].close();
-//   conns[1].close();
-// });
