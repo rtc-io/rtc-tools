@@ -30,6 +30,8 @@
   3. Deal with the remote steam being discovered and how to render
      that to the local interface.
 
+  ## Reference
+
 **/
 
 var gen = require('./generators');
@@ -48,11 +50,11 @@ exports.RTCPeerConnection = detect('RTCPeerConnection');
 exports.couple = require('./couple');
 
 /**
-  ## Factories
-**/
+  ## rtc.createConnection
 
-/**
-  ### createConnection(opts?, constraints?)
+  ```
+  createConnection(opts?, constraints?) => RTCPeerConnection
+  ```
 
   Create a new `RTCPeerConnection` auto generating default opts as required.
 

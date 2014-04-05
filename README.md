@@ -75,9 +75,13 @@ This code definitely doesn't cover all the cases that you need to consider
 3. Deal with the remote steam being discovered and how to render
    that to the local interface.
 
-## Factories
+## Reference
 
-### createConnection(opts?, constraints?)
+## rtc.createConnection
+
+```
+createConnection(opts?, constraints?) => RTCPeerConnection
+```
 
 Create a new `RTCPeerConnection` auto generating default opts as required.
 
