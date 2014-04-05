@@ -6,12 +6,6 @@ a local `RTCPeerConnection` with it's remote counterpart via an
 [rtc-signaller](https://github.com/rtc-io/rtc-signaller) signalling
 channel.
 
-In most cases, it is recommended that you use one of the higher-level
-modules that uses the `rtc` module under the hood.  Such as:
-
-- [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect)
-- [rtc-glue](https://github.com/rtc-io/rtc-glue)
-
 
 [![NPM](https://nodei.co/npm/rtc.png)](https://nodei.co/npm/rtc/)
 
