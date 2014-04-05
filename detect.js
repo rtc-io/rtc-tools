@@ -2,7 +2,7 @@
 'use strict';
 
 /**
-  ## rtc/detect
+  ### rtc/detect
 
   Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
   functionality.

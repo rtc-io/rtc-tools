@@ -19,7 +19,7 @@ var mappings = {
 var knownFlags = ['video', 'audio', 'data'];
 
 /**
-  ## rtc/generators
+  ### rtc/generators
 
   The generators package provides some utility methods for generating
   constraint objects and similar constructs.
@@ -31,7 +31,7 @@ var knownFlags = ['video', 'audio', 'data'];
 **/
 
 /**
-  ### generators.config(config)
+  #### generators.config(config)
 
   Generate a configuration object suitable for passing into an W3C
   RTCPeerConnection constructor first argument, based on our custom config.
@@ -43,7 +43,7 @@ exports.config = function(config) {
 };
 
 /**
-  ### generators.connectionConstraints(flags, constraints)
+  #### generators.connectionConstraints(flags, constraints)
 
   This is a helper function that will generate appropriate connection
   constraints for a new `RTCPeerConnection` object which is constructed
@@ -79,7 +79,7 @@ exports.connectionConstraints = function(flags, constraints) {
 };
 
 /**
-  ### parseFlags(opts)
+  #### generators.parseFlags(opts)
 
   This is a helper function that will extract known flags from a generic
   options object.

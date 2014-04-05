@@ -77,7 +77,7 @@ This code definitely doesn't cover all the cases that you need to consider
 
 ## Reference
 
-## rtc.createConnection
+### rtc.createConnection
 
 ```
 createConnection(opts?, constraints?) => RTCPeerConnection
@@ -97,9 +97,9 @@ conn = rtc.createConnection({
 });
 ```
 
-## rtc/couple
+### rtc/couple
 
-### couple(pc, targetId, signaller, opts?)
+#### couple(pc, targetId, signaller, opts?)
 
 Couple a WebRTC connection with another webrtc connection identified by
 `targetId` via the signaller.
@@ -111,7 +111,7 @@ The following options can be provided in the `opts` argument:
   A simple function for filtering SDP as part of the peer
   connection handshake (see the Using Filters details below).
 
-#### Example Usage
+##### Example Usage
 
 ```js
 var couple = require('rtc/couple');
@@ -119,7 +119,7 @@ var couple = require('rtc/couple');
 couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller);
 ```
 
-#### Using Filters
+##### Using Filters
 
 In certain instances you may wish to modify the raw SDP that is provided
 by the `createOffer` and `createAnswer` calls.  This can be done by passing
@@ -132,12 +132,12 @@ couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller, {
 });
 ```
 
-## rtc/detect
+### rtc/detect
 
 Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
 functionality.
 
-## rtc/generators
+### rtc/generators
 
 The generators package provides some utility methods for generating
 constraint objects and similar constructs.
@@ -146,12 +146,12 @@ constraint objects and similar constructs.
 var generators = require('rtc/generators');
 ```
 
-### generators.config(config)
+#### generators.config(config)
 
 Generate a configuration object suitable for passing into an W3C
 RTCPeerConnection constructor first argument, based on our custom config.
 
-### generators.connectionConstraints(flags, constraints)
+#### generators.connectionConstraints(flags, constraints)
 
 This is a helper function that will generate appropriate connection
 constraints for a new `RTCPeerConnection` object which is constructed
@@ -167,12 +167,12 @@ can generate those additional options and intelligently combine any
 user defined constraints (in `constraints`) with shorthand flags that
 might be passed while using the `rtc.createConnection` helper.
 
-### parseFlags(opts)
+#### generators.parseFlags(opts)
 
 This is a helper function that will extract known flags from a generic
 options object.
 
-## rtc/monitor
+### rtc/monitor
 
 ```
 monitor(pc, targetId, signaller, opts?) => EventEmitter

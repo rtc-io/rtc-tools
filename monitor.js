@@ -16,7 +16,7 @@ var peerStateEvents = [
 ];
 
 /**
-  ## rtc/monitor
+  ### rtc/monitor
 
   ```
   monitor(pc, targetId, signaller, opts?) => EventEmitter

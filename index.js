@@ -50,7 +50,7 @@ exports.RTCPeerConnection = detect('RTCPeerConnection');
 exports.couple = require('./couple');
 
 /**
-  ## rtc.createConnection
+  ### rtc.createConnection
 
   ```
   createConnection(opts?, constraints?) => RTCPeerConnection

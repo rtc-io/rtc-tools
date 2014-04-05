@@ -7,9 +7,9 @@ var detect = require('./detect');
 var CLOSED_STATES = [ 'closed', 'failed' ];
 
 /**
-  ## rtc/couple
+  ### rtc/couple
 
-  ### couple(pc, targetId, signaller, opts?)
+  #### couple(pc, targetId, signaller, opts?)
 
   Couple a WebRTC connection with another webrtc connection identified by
   `targetId` via the signaller.
@@ -21,7 +21,7 @@ var CLOSED_STATES = [ 'closed', 'failed' ];
     A simple function for filtering SDP as part of the peer
     connection handshake (see the Using Filters details below).
 
-  #### Example Usage
+  ##### Example Usage
 
   ```js
   var couple = require('rtc/couple');
@@ -29,7 +29,7 @@ var CLOSED_STATES = [ 'closed', 'failed' ];
   couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller);
   ```
 
-  #### Using Filters
+  ##### Using Filters
 
   In certain instances you may wish to modify the raw SDP that is provided
   by the `createOffer` and `createAnswer` calls.  This can be done by passing
