@@ -170,6 +170,9 @@ function couple(pc, targetId, signaller, opts) {
     // remove listeners
     signaller.removeListener('sdp', handleSdp);
     signaller.removeListener('candidate', handleRemoteCandidate);
+
+    // stop the monitor
+    mon.stop();
   }
 
   function prepNegotiate(methodName, allowed, preflightChecks) {
@@ -231,6 +234,7 @@ function couple(pc, targetId, signaller, opts) {
 
     // start the disconnect timer
     disconnectTimer = setTimeout(function() {
+      debug('manually closing connection after disconnect timeout');
       pc.close();
     }, disconnectTimeout);
 
@@ -238,24 +242,21 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function handleDisconnectAbort() {
-    mon.removeListener('change', handleDisconnectAbort);
-
-    // clear the disconnect timer
-    debug('reset disconnect timer, state: ' + pc.iceConnectionState);
-    clearTimeout(disconnectTimer);
+    debug('connection state changed to: ' + pc.iceConnectionState);
+    resetDisconnectTimer();
 
     // if we have a closed or failed status, then close the connection
     if (CLOSED_STATES.indexOf(pc.iceConnectionState) >= 0) {
-      handleConnectionClose();
+      return mon.emit('closed');
     }
-    // otherwise, reconnect the disconnect monitor
-    else {
-      mon.once('disconnect', handleDisconnect);
-    }
+
+    mon.once('disconnect', handleDisconnect);
   };
 
   function handleLocalCandidate(evt) {
     if (evt.candidate) {
+      resetDisconnectTimer();
+
       signaller.to(targetId).send('/candidate', evt.candidate);
       endOfCandidates = false;
     }
@@ -357,6 +358,14 @@ function couple(pc, targetId, signaller, opts) {
         }
       );
     };
+  }
+
+  function resetDisconnectTimer() {
+    mon.removeListener('change', handleDisconnectAbort);
+
+    // clear the disconnect timer
+    debug('reset disconnect timer, state: ' + pc.iceConnectionState);
+    clearTimeout(disconnectTimer);
   }
 
   // if the target id is not a string, then complain
