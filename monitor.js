@@ -42,14 +42,6 @@ module.exports = function(pc, targetId, signaller, opts) {
   var monitor = new EventEmitter();
   var state;
 
-  // if we haven't been provided a valid peer connection, abort
-  if (! pc) {
-    return monitor;
-  }
-
-  // determine the initial is active state
-  state = getMappedState(pc.iceConnectionState);
-
   function checkState() {
     var newState = getMappedState(pc.iceConnectionState);
     debug('state changed: ' + pc.iceConnectionState + ', mapped: ' + newState);
@@ -64,6 +56,19 @@ module.exports = function(pc, targetId, signaller, opts) {
     monitor.emit('change', pc);
   }
 
+  function handlePeerLeave(peerId) {
+    debug('captured peer leave for peer: ' + peerId);
+
+    // if the peer leaving is not the peer we are connected to
+    // then we aren't interested
+    if (peerId !== targetId) {
+      return;
+    }
+
+    // trigger a closed event
+    monitor.emit('closed');
+  }
+
   peerStateEvents.forEach(function(evtName) {
     pc['on' + evtName] = checkState;
   });
@@ -72,9 +77,27 @@ module.exports = function(pc, targetId, signaller, opts) {
     peerStateEvents.forEach(function(evtName) {
       pc['on' + evtName] = null;
     });
+
+    // remove the peer:leave listener
+    if (signaller && typeof signaller.removeListener == 'function') {
+      signaller.removeListener('peer:leave', handlePeerLeave);
+    }
   };
 
   monitor.checkState = checkState;
+
+  // if we haven't been provided a valid peer connection, abort
+  if (! pc) {
+    return monitor;
+  }
+
+  // determine the initial is active state
+  state = getMappedState(pc.iceConnectionState);
+
+  // if we've been provided a signaller, then watch for peer:leave events
+  if (signaller && typeof signaller.on == 'function') {
+    signaller.on('peer:leave', handlePeerLeave);
+  }
 
   // if we are active, trigger the connected state
   // setTimeout(monitor.emit.bind(monitor, state), 0);
