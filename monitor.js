@@ -3,10 +3,17 @@
 
 var EventEmitter = require('events').EventEmitter;
 
-// define the various ICEConnectionStates that are active
-var activeStates = [
-  'connected',
-  'completed'
+// define some state mappings to simplify the events we generate
+var stateMappings = {
+  completed: 'connected'
+};
+
+// define the events that we need to watch for peer connection
+// state changes
+var peerStateEvents = [
+  'signalingstatechange',
+  'iceconnectionstatechange',
+  'close'
 ];
 
 /**
@@ -36,94 +43,54 @@ var activeStates = [
   peer connection then you can also listen for `change` with the monitor.
 
 **/
-var monitor = module.exports = function(pc, targetId, signaller, opts) {
+module.exports = function(pc, targetId, signaller, opts) {
   var debugLabel = (opts || {}).debugLabel || 'rtc';
   var debug = require('cog/logger')(debugLabel + '/monitor');
+  var monitor = new EventEmitter();
+  var state;
 
-  // create a new event emitter which will communicate events
-  var mon = new EventEmitter();
-  var currentState = getState(pc);
-  var isActive = mon.active = activeStates.indexOf(currentState[0]) >= 0;
-  var lastConnectionState = pc && pc.iceConnectionState;
+  // if we haven't been provided a valid peer connection, abort
+  if (! pc) {
+    return monitor;
+  }
+
+  // determine the initial is active state
+  state = getMappedState(pc.iceConnectionState);
 
   function checkState() {
-    var newState = getState(pc);
-    var testState = [].concat(newState);
-    var isChange = false;
+    var newState = getMappedState(pc.iceConnectionState);
+    debug('state changed: ' + pc.iceConnectionState + ', mapped: ' + newState);
 
-    debug('captured state change: ', newState);
-    while ((! isChange) && testState.length > 0) {
-      isChange = isChange || testState.shift() !== currentState.shift();
+    // if the active state has changed, then send the appopriate message
+    if (state !== newState) {
+      monitor.emit(newState);
+      state = newState;
     }
 
-    // update the monitor active flag
-    mon.active = newState[0] === 'connected';
-
-    // if we have a state change, emit an event for the new state
-    if (isChange) {
-      mon.emit('change', pc);
-    }
-
-    // check for iceConnectionState changes and report those
-    if (lastConnectionState != newState[0]) {
-      debug('iceConnectionState change: ' + lastConnectionState + ' --> ' +
-        newState[0]);
-
-      mon.emit(newState[0], pc);
-      lastConnectionState = newState[0];
-    }
-
-    currentState = [].concat(newState);
+    // flag the we had a state change
+    monitor.emit('change', pc);
   }
 
-  // if the current state is active, trigger the active event
-  if (isActive) {
-    process.nextTick(mon.emit.bind(mon, 'connected', pc));
-  }
+  peerStateEvents.forEach(function(evtName) {
+    pc['on' + evtName] = checkState;
+  });
 
-  // start watching stuff on the pc
-  pc.onsignalingstatechange = checkState;
-  pc.oniceconnectionstatechange = checkState;
-  pc.onclose = checkState;
-
-  // patch in a stop method into the emitter
-  mon.stop = function() {
-    pc.onsignalingstatechange = null;
-    pc.oniceconnectionstatechange = null;
-    pc.onclose = null;
+  monitor.stop = function() {
+    peerStateEvents.forEach(function(evtName) {
+      pc['on' + evtName] = null;
+    });
   };
 
-  return mon;
+  monitor.checkState = checkState;
+
+  // if we are active, trigger the connected state
+  // setTimeout(monitor.emit.bind(monitor, state), 0);
+
+  return monitor;
 };
 
-/**
-  ### monitor.getState(pc)
+/* internal helpers */
 
-  The `getState` method of the monitor provides the state combination for
-  the specified peer connection as a 3 element array comprised of the
-  following (in order):
-
-  - `iceConnectionState`
-  - `signalingState`
-  - `iceGatheringState`
-
-**/
-var getState = monitor.getState = function(pc) {
-  return pc ?
-    [ pc.iceConnectionState, pc.signalingState, pc.iceGatheringState] :
-    [];
-};
-
-/**
-  ### monitor.isActive(pc) -> Boolean
-
-  Test an `RTCPeerConnection` to see if it's currently open.  The test for
-  "openness" looks at a combination of current `signalingState` and
-  `iceGatheringState`.
-**/
-monitor.isActive = function(pc) {
-  var isStable = pc && pc.signalingState === 'stable';
-
-  // return with the connection is active
-  return isStable && getState(pc) === W3C_STATES.ACTIVE;
-};
+function getMappedState(state) {
+  return stateMappings[state] || state;
+}
