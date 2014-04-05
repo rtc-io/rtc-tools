@@ -10,7 +10,7 @@ var scope = [];
 var messengers = [];
 var dcs = [];
 
-// require('cog/logger').enable('couple');
+// require('cog/logger').enable('*');
 
 test('create peer connections', function(t) {
   t.plan(2);
@@ -47,18 +47,21 @@ test('announce signallers', function(t) {
 test('couple a --> b', function(t) {
   t.plan(1);
 
-  t.ok(
-    monitors[0] = couple(conns[0], signallers[1].id, signallers[0]),
-    'ok'
-  );
+  monitors[0] = couple(conns[0], signallers[1].id, signallers[0], {
+    debugLabel: 'conn:0'
+  });
+
+  t.ok(monitors[0], 'ok');
 });
 
 test('couple b --> a', function(t) {
   t.plan(1);
-  t.ok(
-    monitors[1] = couple(conns[1], signallers[0].id, signallers[1]),
-    'ok'
-  );
+
+  monitors[1] = couple(conns[1], signallers[0].id, signallers[1], {
+    debugLabel: 'conn:1'
+  });
+
+  t.ok(monitors[1], 'ok');
 });
 
 test('create a data channel on the master connection', function(t) {
