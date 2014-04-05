@@ -6,4 +6,4 @@ browsers:
   - name: firefox
     version: 26..latest
 
-# server: ./test/server.js
+server: ./test/server.js
