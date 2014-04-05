@@ -13,7 +13,6 @@ var stateMappings = {
 var peerStateEvents = [
   'signalingstatechange',
   'iceconnectionstatechange',
-  'close'
 ];
 
 /**
@@ -46,14 +45,14 @@ module.exports = function(pc, targetId, signaller, opts) {
     var newState = getMappedState(pc.iceConnectionState);
     debug('state changed: ' + pc.iceConnectionState + ', mapped: ' + newState);
 
+    // flag the we had a state change
+    monitor.emit('change', pc);
+
     // if the active state has changed, then send the appopriate message
     if (state !== newState) {
       monitor.emit(newState);
       state = newState;
     }
-
-    // flag the we had a state change
-    monitor.emit('change', pc);
   }
 
   function handlePeerLeave(peerId) {
@@ -69,11 +68,13 @@ module.exports = function(pc, targetId, signaller, opts) {
     monitor.emit('closed');
   }
 
+  pc.onclose = monitor.emit.bind(monitor, 'closed');
   peerStateEvents.forEach(function(evtName) {
     pc['on' + evtName] = checkState;
   });
 
   monitor.stop = function() {
+    pc.onclose = null;
     peerStateEvents.forEach(function(evtName) {
       pc['on' + evtName] = null;
     });
