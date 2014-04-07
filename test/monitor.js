@@ -9,7 +9,7 @@ test('use peerpair to create a connected set of peers', function(t) {
   t.plan(1);
   pcs = peerpair();
   pcs.events.once('connected', t.pass.bind(t, 'connected'));
-  pcs.connect();
+  pcs.createChannelsAndConnect(['test']);
 });
 
 test('create monitors for the connections', function(t) {
