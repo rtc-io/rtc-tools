@@ -6,7 +6,7 @@
   "dependencies": {
     "rtc-core": "^1",
     "cog": "~0.5.3",
-    "async": "~0.6.2",
+    "async": "~0.6.2"
   },
   "peerDependencies": {
     "rtc-signaller": "^1"
