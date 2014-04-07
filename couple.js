@@ -6,6 +6,15 @@ var monitor = require('./monitor');
 var detect = require('./detect');
 var CLOSED_STATES = [ 'closed', 'failed' ];
 
+// track the various supported CreateOffer / CreateAnswer contraints
+// that we recognize and allow
+var OFFER_ANSWER_CONSTRAINTS = [
+  'offerToReceiveVideo',
+  'offerToReceiveAudio',
+  'voiceActivityDetection',
+  'iceRestart'
+];
+
 /**
   ### rtc/couple
 
@@ -175,7 +184,48 @@ function couple(pc, targetId, signaller, opts) {
     mon.stop();
   }
 
+  function generateConstraints(methodName) {
+    var constraints = {};
+
+    function reformatConstraints() {
+      var tweaked = {};
+
+      Object.keys(constraints).forEach(function(param) {
+        var sentencedCased = param.charAt(0).toUpperCase() + param.substr(1);
+        tweaked[sentencedCased] = constraints[param];
+      });
+
+      // update the constraints to match the expected format
+      constraints = {
+        mandatory: tweaked
+      };
+    }
+
+    // TODO: customize behaviour based on offer vs answer
+
+    // pull out any valid 
+    OFFER_ANSWER_CONSTRAINTS.forEach(function(param) {
+      var sentencedCased = param.charAt(0).toUpperCase() + param.substr(1);
+
+      // if the parameter has been defined, then add it to the constraints
+      if (opts[param] !== undefined) {
+        constraints[param] = opts[param];
+      }
+      // if the sentenced cased version has been added, then use that
+      else if (opts[sentencedCased] !== undefined) {
+        constraints[param] = opts[sentencedCased];
+      }
+    });
+
+    // TODO: only do this for the older browsers that require it
+    reformatConstraints();
+
+    return constraints;
+  }
+
   function prepNegotiate(methodName, allowed, preflightChecks) {
+    var constraints = generateConstraints(methodName);
+
     // ensure we have a valid preflightChecks array
     preflightChecks = [].concat(preflightChecks || []);
 
@@ -219,7 +269,10 @@ function couple(pc, targetId, signaller, opts) {
         },
 
         // on error, abort
-        abort(methodName, '', cb)
+        abort(methodName, '', cb),
+
+        // include the appropriate constraints
+        constraints
       );
     };
   }
