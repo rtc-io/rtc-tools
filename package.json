@@ -18,7 +18,8 @@
     "rtc-media": "^1",
     "rtc-signaller": "^1",
     "zuul": "^1",
-    "rtc-switchboard": "^0.10.1"
+    "rtc-switchboard": "^0.10.1",
+    "freeice": "^0.2.1"
   },
   "scripts": {
     "test": "zuul -- test/all.js",
