@@ -68,3 +68,19 @@ test('create a data channel on the master connection', function(t) {
 
   monitors[0].createOffer();
 });
+
+test('close the connections', function(t) {
+  t.plan(conns.length);
+  conns.forEach(function(conn, index) {
+    monitors[index].once('closed', t.pass.bind(t, 'closed connection: ' + index));
+    conn.close();
+  });
+});
+
+test('release references', function(t) {
+  t.plan(1);
+  conns = [];
+  monitors = [];
+  dcs = [];
+  t.pass('done');
+});
