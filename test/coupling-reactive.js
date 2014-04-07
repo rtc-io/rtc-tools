@@ -122,6 +122,14 @@ test('close the connections', function(t) {
   });
 });
 
+test('close the signallers', function(t) {
+  t.plan(signallers.length);
+  signallers.splice(0).forEach(function(sig) {
+    sig.once('disconnected', t.pass.bind(t, 'disconnected'));
+    sig.close();
+  });
+});
+
 test('release references', function(t) {
   t.plan(1);
   conns = [];
