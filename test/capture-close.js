@@ -84,3 +84,12 @@ test('close a, b aware', function(t) {
   monitors[1].once('closed', handleClose);
   conns[0].close();
 });
+
+test('release references', function(t) {
+  t.plan(1);
+
+  conns = [];
+  monitors = [];
+  dcs = [];
+  t.pass('done');
+});

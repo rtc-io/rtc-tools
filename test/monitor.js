@@ -26,3 +26,10 @@ test('monitor connection close', function(t) {
     pc.close();
   });
 });
+
+test('release references', function(t) {
+  t.plan(1);
+  pcs = [];
+  monitors = [];
+  t.pass('done');
+});

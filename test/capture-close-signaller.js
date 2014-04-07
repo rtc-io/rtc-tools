@@ -103,4 +103,17 @@ module.exports = function(suiteName, ids) {
     signallers[1].leave();
     t.pass('disconnected');
   });
+
+  test('release references', function(t) {
+    t.plan(1);
+
+    conns.forEach(function(conn) {
+      conn.close();
+    });
+
+    conns = [];
+    monitors = [];
+    dcs = [];
+    t.pass('done');
+  });
 };

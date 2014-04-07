@@ -77,3 +77,12 @@ test('close the connections', function(t) {
     conn.close();
   });
 });
+
+test('release references', function(t) {
+  t.plan(1);
+
+  conns = [];
+  monitors = [];
+  dcs = [];
+  t.pass('done');
+});
