@@ -15,9 +15,6 @@ var mappings = {
   }
 };
 
-// initialise known flags
-var knownFlags = ['video', 'audio', 'data'];
-
 /**
   ### rtc/generators
 
@@ -76,30 +73,4 @@ exports.connectionConstraints = function(flags, constraints) {
   debug('generated connection constraints: ', out);
 
   return out;
-};
-
-/**
-  #### generators.parseFlags(opts)
-
-  This is a helper function that will extract known flags from a generic
-  options object.
-**/
-exports.parseFlags = function(options) {
-  // ensure we have opts
-  var opts = options || {};
-
-  // default video and audio flags to true if undefined
-  opts.video = opts.video || typeof opts.video == 'undefined';
-  opts.audio = opts.audio || typeof opts.audio == 'undefined';
-
-  return Object.keys(opts || {})
-    .filter(function(flag) {
-      return opts[flag];
-    })
-    .map(function(flag) {
-      return flag.toLowerCase();
-    })
-    .filter(function(flag) {
-      return knownFlags.indexOf(flag) >= 0;
-    });
 };
