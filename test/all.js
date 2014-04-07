@@ -13,6 +13,8 @@ test('can import rtc module', function(t) {
 require('./generators');
 require('./generators-connection-constraints');
 require('./peerconnection');
+require('./monitor');
+
 require('./coupling');
 require('./coupling-constraints');
 require('./capture-close-localonly');
