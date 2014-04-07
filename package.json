@@ -4,9 +4,9 @@
   "author": "Damon Oehlman <damon.oehlman@nicta.com.au>",
   "version": "0.18.0",
   "dependencies": {
-    "rtc-core": "~0.7.1",
-    "cog": "^0.5.3",
-    "async": "^0.6.2"
+    "rtc-core": "^1",
+    "cog": "~0.5.3",
+    "async": "~0.6.2",
   },
   "peerDependencies": {
     "rtc-signaller": "^1"
