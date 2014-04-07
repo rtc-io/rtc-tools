@@ -78,7 +78,6 @@ function couple(pc, targetId, signaller, opts) {
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
 
-
   var createOffer = prepNegotiate(
     'createOffer',
     isMaster,
@@ -172,6 +171,10 @@ function couple(pc, targetId, signaller, opts) {
   function decouple() {
     debug('decoupling ' + signaller.id + ' from ' + targetId);
 
+    // stop the monitor
+    mon.removeAllListeners();
+    mon.stop();
+
     // remove local pc event handlers
     pc.onicecandidate = null;
     pc.onnegotiationneeded = null;
@@ -179,9 +182,7 @@ function couple(pc, targetId, signaller, opts) {
     // remove listeners
     signaller.removeListener('sdp', handleSdp);
     signaller.removeListener('candidate', handleRemoteCandidate);
-
-    // stop the monitor
-    mon.stop();
+    signaller.removeListener('negotiate', handleNegotiateRequest);
   }
 
   function generateConstraints(methodName) {
@@ -320,6 +321,13 @@ function couple(pc, targetId, signaller, opts) {
     }
   }
 
+  function handleNegotiateRequest(src) {
+    if (src.id === targetId) {
+      debug('got negotiate request from ' + targetId + ', creating offer');
+      q.push({ op: createOffer });
+    }
+  }
+
   function handleRemoteCandidate(data, src) {
     if ((! src) || (src.id !== targetId)) {
       return;
@@ -443,12 +451,7 @@ function couple(pc, targetId, signaller, opts) {
 
   // if this is a master connection, listen for negotiate events
   if (isMaster) {
-    signaller.on('negotiate', function(src) {
-      if (src.id === targetId) {
-        debug('got negotiate request from ' + targetId + ', creating offer');
-        q.push({ op: createOffer });
-      }
-    });
+    signaller.on('negotiate', handleNegotiateRequest);
   }
 
   // when the connection closes, remove event handlers
