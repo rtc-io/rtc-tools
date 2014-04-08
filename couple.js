@@ -2,6 +2,7 @@
 'use strict';
 
 var async = require('async');
+var cleanup = require('./cleanup');
 var monitor = require('./monitor');
 var detect = require('./detect');
 var CLOSED_STATES = [ 'closed', 'failed' ];
@@ -175,9 +176,8 @@ function couple(pc, targetId, signaller, opts) {
     mon.removeAllListeners();
     mon.stop();
 
-    // remove local pc event handlers
-    pc.onicecandidate = null;
-    pc.onnegotiationneeded = null;
+    // cleanup the peerconnection
+    cleanup(pc);
 
     // remove listeners
     signaller.removeListener('sdp', handleSdp);
