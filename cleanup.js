@@ -1,6 +1,8 @@
 /* jshint node: true */
 'use strict';
 
+var debug = require('cog/logger')('rtc/cleanup');
+
 var CANNOT_CLOSE_STATES = [
   'closed'
 ];
@@ -32,6 +34,7 @@ module.exports = function(pc) {
   var canClose = CANNOT_CLOSE_STATES.indexOf(currentState) < 0;
 
   if (canClose) {
+    debug('attempting connection close, current state: '+ pc.iceConnectionState);
     pc.close();
   }
 
