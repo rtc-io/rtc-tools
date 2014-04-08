@@ -1,5 +1,6 @@
 var test = require('tape');
 var peerpair = require('peerpair');
+var cleanup = require('../cleanup');
 var monitor = require('../monitor');
 var rtc = require('../');
 var pcs = [];
@@ -19,17 +20,9 @@ test('create monitors for the connections', function(t) {
   t.equal(typeof monitors[0].on, 'function', 'monitor:1 created');
 });
 
-test('monitor connection close', function(t) {
-  t.plan(pcs.length);
-  pcs.forEach(function(pc, index) {
-    monitors[index].once('closed', t.pass.bind(t, 'closed connection: ' + index));
-    pc.close();
-  });
-});
-
 test('release references', function(t) {
   t.plan(1);
-  pcs = [];
+  pcs.splice(0).forEach(cleanup);
   monitors = [];
   t.pass('done');
 });

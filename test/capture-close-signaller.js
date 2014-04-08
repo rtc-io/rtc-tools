@@ -1,4 +1,5 @@
 var couple = require('../couple');
+var cleanup = require('../cleanup');
 var signaller = require('rtc-signaller');
 var test = require('tape');
 var rtc = require('..');
@@ -106,12 +107,8 @@ module.exports = function(suiteName, ids) {
 
   test('release references', function(t) {
     t.plan(1);
+    conns.splice(0).forEach(cleanup);
 
-    conns.forEach(function(conn) {
-      conn.close();
-    });
-
-    conns = [];
     monitors = [];
     dcs = [];
     t.pass('done');
