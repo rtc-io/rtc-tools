@@ -366,8 +366,13 @@ function couple(pc, targetId, signaller, opts) {
 
     // prioritize setting the remote description operation
     q.push({ op: function(task, cb) {
+      if (isClosed()) {
+        return cb(new Error('pc closed: cannot set remote description'));
+      }
+
       // update the remote description
       // once successful, send the answer
+      debug('setting remote description');
       pc.setRemoteDescription(
         new RTCSessionDescription(data),
 
