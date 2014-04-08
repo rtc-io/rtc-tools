@@ -240,6 +240,11 @@ function couple(pc, targetId, signaller, opts) {
         return cb();
       }
 
+      // if the connection is closed, then abort
+      if (isClosed()) {
+        return cb(new Error('connection closed, cannot negotiate'));
+      }
+
       // run the preflight checks
       preflightChecks.forEach(function(check) {
         checksOK = checksOK && check(negotiate);
@@ -381,6 +386,10 @@ function couple(pc, targetId, signaller, opts) {
     }});
   }
 
+  function isClosed() {
+    return CLOSED_STATES.indexOf(pc.iceConnectionState) >= 0;
+  }
+
   function queue(negotiateTask) {
     return function() {
       q.push([
@@ -391,9 +400,12 @@ function couple(pc, targetId, signaller, opts) {
 
   function queueLocalDesc(desc) {
     return function setLocalDesc(task, cb) {
-      debug('setting local description');
+      if (isClosed()) {
+        return cb(new Error('connection closed, aborting'));
+      }
 
       // initialise the local description
+      debug('setting local description');
       pc.setLocalDescription(
         desc,
 
