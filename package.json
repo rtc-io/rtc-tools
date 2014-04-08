@@ -17,13 +17,13 @@
     "messenger-memory": "^1",
     "rtc-media": "^1",
     "rtc-signaller": "^1",
-    "zuul": "^1",
+    "testling": "^1",
     "rtc-switchboard": "^0.10.1",
     "freeice": "^0.2.1",
     "peerpair": "^0.4.1"
   },
   "scripts": {
-    "test": "zuul -- test/all.js",
+    "test": "testling -x ./.travis/start-$BROWSER.sh",
     "gendocs": "gendocs > README.md"
   },
   "main": "index.js",
@@ -41,5 +41,9 @@
   "license": "Apache 2.0",
   "bugs": {
     "url": "https://github.com/rtc-io/rtc/issues"
+  },
+  "testling": {
+    "files": "test/all.js",
+    "server": "test/server.js"
   }
 }
