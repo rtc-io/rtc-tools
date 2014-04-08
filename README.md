@@ -97,6 +97,15 @@ conn = rtc.createConnection({
 });
 ```
 
+### rtc/cleanup
+
+```
+cleanup(pc)
+```
+
+The `cleanup` function is used to ensure that a peer connection is properly
+closed and ready to be cleaned up by the browser.
+
 ### rtc/couple
 
 #### couple(pc, targetId, signaller, opts?)
@@ -166,11 +175,6 @@ data channels some additional options are required.  This function
 can generate those additional options and intelligently combine any
 user defined constraints (in `constraints`) with shorthand flags that
 might be passed while using the `rtc.createConnection` helper.
-
-#### generators.parseFlags(opts)
-
-This is a helper function that will extract known flags from a generic
-options object.
 
 ### rtc/monitor
 
