@@ -14,6 +14,7 @@ require('./generators');
 require('./generators-connection-constraints');
 require('./peerconnection');
 require('./monitor');
+require('./cleanup');
 
 require('./coupling');
 require('./coupling-constraints');
