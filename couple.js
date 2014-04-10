@@ -82,13 +82,13 @@ function couple(pc, targetId, signaller, opts) {
   var createOffer = prepNegotiate(
     'createOffer',
     isMaster,
-    [ checkStable, checkNotConnecting ]
+    [ checkStable ]
   );
 
   var createAnswer = prepNegotiate(
     'createAnswer',
     true,
-    [ checkNotConnecting ]
+    []
   );
 
   // initialise the processing queue (one at a time please)
