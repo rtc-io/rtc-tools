@@ -204,12 +204,16 @@ function couple(pc, targetId, signaller, opts) {
 
     // TODO: customize behaviour based on offer vs answer
 
-    // pull out any valid 
+    // pull out any valid
     OFFER_ANSWER_CONSTRAINTS.forEach(function(param) {
       var sentencedCased = param.charAt(0).toUpperCase() + param.substr(1);
 
+      // if we have no opts, do nothing
+      if (! opts) {
+        return;
+      }
       // if the parameter has been defined, then add it to the constraints
-      if (opts[param] !== undefined) {
+      else if (opts[param] !== undefined) {
         constraints[param] = opts[param];
       }
       // if the sentenced cased version has been added, then use that
