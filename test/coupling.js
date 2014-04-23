@@ -38,20 +38,14 @@ test('announce signallers', function(t) {
 test('couple a --> b', function(t) {
   t.plan(1);
 
-  monitors[0] = couple(conns[0], signallers[1].id, signallers[0], {
-    debugLabel: 'conn:0'
-  });
-
+  monitors[0] = couple(conns[0], signallers[1].id, signallers[0]);
   t.ok(monitors[0], 'ok');
 });
 
 test('couple b --> a', function(t) {
   t.plan(1);
 
-  monitors[1] = couple(conns[1], signallers[0].id, signallers[1], {
-    debugLabel: 'conn:1'
-  });
-
+  monitors[1] = couple(conns[1], signallers[0].id, signallers[1]);
   t.ok(monitors[1], 'ok');
 });
 
