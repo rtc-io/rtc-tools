@@ -18,9 +18,9 @@
     "rtc-media": "^1",
     "rtc-signaller": "^1",
     "testling": "^1",
-    "rtc-switchboard": "^0.10.1",
-    "freeice": "^0.2.1",
-    "peerpair": "^0.4.1"
+    "rtc-switchboard": "~0.10",
+    "freeice": "~0.2",
+    "peerpair": "~0.4"
   },
   "scripts": {
     "test": "testling -x ./.travis/start-$BROWSER.sh",
