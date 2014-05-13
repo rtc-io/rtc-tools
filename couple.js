@@ -450,11 +450,6 @@ function couple(pc, targetId, signaller, opts) {
     clearTimeout(disconnectTimer);
   }
 
-  // if the target id is not a string, then complain
-  if (typeof targetId != 'string' && (! (targetId instanceof String))) {
-    throw new Error('2nd argument (targetId) should be a string');
-  }
-
   // when regotiation is needed look for the peer
   if (reactive) {
     pc.onnegotiationneeded = function() {
