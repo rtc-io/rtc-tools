@@ -17,6 +17,7 @@ require('./monitor');
 require('./cleanup');
 
 require('./coupling');
+require('./coupling-customid');
 require('./coupling-constraints');
 require('./capture-close-localonly');
 
