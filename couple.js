@@ -5,6 +5,7 @@ var async = require('async');
 var cleanup = require('./cleanup');
 var monitor = require('./monitor');
 var detect = require('./detect');
+var findPlugin = require('rtc-core/plugin');
 var CLOSED_STATES = [ 'closed', 'failed' ];
 
 // track the various supported CreateOffer / CreateAnswer contraints
@@ -64,6 +65,7 @@ function couple(pc, targetId, signaller, opts) {
   var reactive = (opts || {}).reactive;
   var offerTimeout;
   var endOfCandidates = true;
+  var plugin = findPlugin((opts || {}).plugins);
 
   // configure the time to wait between receiving a 'disconnect'
   // iceConnectionState and determining that we are closed
@@ -167,6 +169,22 @@ function couple(pc, targetId, signaller, opts) {
     });
 
     return false;
+  }
+
+  function createIceCandidate(data) {
+    if (plugin && typeof plugin.createIceCandidate == 'function') {
+      return plugin.createIceCandidate(data);
+    }
+
+    return new RTCIceCandidate(data);
+  }
+
+  function createSessionDescription(data) {
+    if (plugin && typeof plugin.createSessionDescription == 'function') {
+      return plugin.createSessionDescription(data);
+    }
+
+    return new RTCSessionDescription(data);
   }
 
   function decouple() {
@@ -353,7 +371,7 @@ function couple(pc, targetId, signaller, opts) {
     }
 
     try {
-      pc.addIceCandidate(new RTCIceCandidate(data));
+      pc.addIceCandidate(createIceCandidate(data));
     }
     catch (e) {
       debug('invalidate candidate specified: ', data);
@@ -378,8 +396,7 @@ function couple(pc, targetId, signaller, opts) {
       // once successful, send the answer
       debug('setting remote description');
       pc.setRemoteDescription(
-        new RTCSessionDescription(data),
-
+        createSessionDescription(data),
         function() {
           // create the answer
           if (data.type === 'offer') {
