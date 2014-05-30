@@ -38,6 +38,7 @@ var gen = require('./generators');
 
 // export detect
 var detect = exports.detect = require('./detect');
+var findPlugin = require('rtc-core/plugin');
 
 // export cog logger for convenience
 exports.logger = require('cog/logger');
@@ -71,11 +72,20 @@ exports.couple = require('./couple');
   ```
 **/
 exports.createConnection = function(opts, constraints) {
-  return new ((opts || {}).RTCPeerConnection || RTCPeerConnection)(
-    // generate the config based on options provided
-    gen.config(opts),
+  var plugin = findPlugin((opts || {}).plugins);
 
-    // generate appropriate connection constraints
-    gen.connectionConstraints(opts, constraints)
-  );
+  // generate the config based on options provided
+  var config = gen.config(opts);
+
+  // generate appropriate connection constraints
+  var constraints = gen.connectionConstraints(opts, constraints);
+
+  if (plugin && typeof plugin.createConnection == 'function') {
+    return plugin.createConnection(config, constraints);
+  }
+  else {
+    return new ((opts || {}).RTCPeerConnection || RTCPeerConnection)(
+      config, constraints
+    );
+  }
 };
