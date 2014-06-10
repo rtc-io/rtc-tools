@@ -74,6 +74,7 @@ exports.couple = require('./couple');
 **/
 exports.createConnection = function(opts, constraints) {
   var plugin = findPlugin((opts || {}).plugins);
+  var normalize = (plugin ? plugin.normalizeIce : null) || normalizeIce;
 
   // generate the config based on options provided
   var config = gen.config(opts);
@@ -82,7 +83,7 @@ exports.createConnection = function(opts, constraints) {
   var constraints = gen.connectionConstraints(opts, constraints);
 
   // ensure we have valid iceServers
-  config.iceServers = (config.iceServers || []).map(normalizeIce);
+  config.iceServers = (config.iceServers || []).map(normalize);
 
   if (plugin && typeof plugin.createConnection == 'function') {
     return plugin.createConnection(config, constraints);
