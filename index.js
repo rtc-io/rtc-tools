@@ -39,6 +39,7 @@ var gen = require('./generators');
 // export detect
 var detect = exports.detect = require('./detect');
 var findPlugin = require('rtc-core/plugin');
+var normalizeIce = require('rtc-core/normalize-ice');
 
 // export cog logger for convenience
 exports.logger = require('cog/logger');
@@ -79,6 +80,9 @@ exports.createConnection = function(opts, constraints) {
 
   // generate appropriate connection constraints
   var constraints = gen.connectionConstraints(opts, constraints);
+
+  // ensure we have valid iceServers
+  config.iceServers = (config.iceServers || []).map(normalizeIce);
 
   if (plugin && typeof plugin.createConnection == 'function') {
     return plugin.createConnection(config, constraints);
