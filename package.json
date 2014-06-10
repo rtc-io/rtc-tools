@@ -8,9 +8,6 @@
     "cog": "~0.5.3",
     "async": "~0.9"
   },
-  "peerDependencies": {
-    "rtc-signaller": "^1"
-  },
   "devDependencies": {
     "tape": "^2",
     "uuid": "^1",
