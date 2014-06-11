@@ -132,7 +132,7 @@ function couple(pc, targetId, signaller, opts) {
         debug('applying queued candidate', data);
 
         try {
-          pc.addIceCandidate(new RTCIceCandidate(data));
+          pc.addIceCandidate(createIceCandidate(data));
         }
         catch (e) {
           debug('invalidate candidate specified: ', data);
