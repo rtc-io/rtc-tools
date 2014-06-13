@@ -280,9 +280,9 @@ function couple(pc, targetId, signaller, opts) {
 
       // create the offer
       debug('calling ' + methodName);
-      // debug('gathering state = ' + conn.iceGatheringState);
-      // debug('connection state = ' + conn.iceConnectionState);
-      // debug('signaling state = ' + conn.signalingState);
+      // debug('gathering state = ' + pc.iceGatheringState);
+      // debug('connection state = ' + pc.iceConnectionState);
+      // debug('signaling state = ' + pc.signalingState);
 
       pc[methodName](
         function(desc) {
@@ -383,7 +383,7 @@ function couple(pc, targetId, signaller, opts) {
 
     // if the source is unknown or not a match, then abort
     if ((! src) || (src.id !== targetId)) {
-      return;
+      return debug('received sdp but dropping due to unmatched src');
     }
 
     // prioritize setting the remote description operation
