@@ -1,6 +1,6 @@
-# rtc
+# rtc-tools
 
-The `rtc` module does most of the heavy lifting within the
+The `rtc-tools` module does most of the heavy lifting within the
 [rtc.io](http://rtc.io) suite.  Primarily it handles the logic of coupling
 a local `RTCPeerConnection` with it's remote counterpart via an
 [rtc-signaller](https://github.com/rtc-io/rtc-signaller) signalling
@@ -16,7 +16,7 @@ channel.
 
 ## Getting Started
 
-If you decide that the `rtc` module is a better fit for you than either
+If you decide that the `rtc-tools` module is a better fit for you than either
 [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect) or
 [rtc-glue](https://github.com/rtc-io/rtc-glue) then the code snippet below
 will provide you a guide on how to get started using it in conjunction with
@@ -76,7 +76,7 @@ This code definitely doesn't cover all the cases that you need to consider
 
 ## Reference
 
-### rtc.createConnection
+### createConnection
 
 ```
 createConnection(opts?, constraints?) => RTCPeerConnection
@@ -96,7 +96,7 @@ conn = rtc.createConnection({
 });
 ```
 
-### rtc/cleanup
+### rtc-tools/cleanup
 
 ```
 cleanup(pc)
@@ -105,7 +105,7 @@ cleanup(pc)
 The `cleanup` function is used to ensure that a peer connection is properly
 closed and ready to be cleaned up by the browser.
 
-### rtc/couple
+### rtc-tools/couple
 
 #### couple(pc, targetId, signaller, opts?)
 
@@ -140,12 +140,12 @@ couple(pc, '54879965-ce43-426e-a8ef-09ac1e39a16d', signaller, {
 });
 ```
 
-### rtc/detect
+### rtc-tools/detect
 
-Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
+Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect)
 functionality.
 
-### rtc/generators
+### rtc-tools/generators
 
 The generators package provides some utility methods for generating
 constraint objects and similar constructs.
@@ -175,7 +175,7 @@ can generate those additional options and intelligently combine any
 user defined constraints (in `constraints`) with shorthand flags that
 might be passed while using the `rtc.createConnection` helper.
 
-### rtc/monitor
+### rtc-tools/monitor
 
 ```
 monitor(pc, targetId, signaller, opts?) => EventEmitter

@@ -18,7 +18,7 @@ var EVENTNAMES = [
 ];
 
 /**
-  ### rtc/cleanup
+  ### rtc-tools/cleanup
 
   ```
   cleanup(pc)

@@ -16,7 +16,7 @@ var mappings = {
 };
 
 /**
-  ### rtc/generators
+  ### rtc-tools/generators
 
   The generators package provides some utility methods for generating
   constraint objects and similar constructs.

@@ -18,7 +18,7 @@ var OFFER_ANSWER_CONSTRAINTS = [
 ];
 
 /**
-  ### rtc/couple
+  ### rtc-tools/couple
 
   #### couple(pc, targetId, signaller, opts?)
 

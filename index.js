@@ -3,9 +3,9 @@
 'use strict';
 
 /**
-  # rtc
+  # rtc-tools
 
-  The `rtc` module does most of the heavy lifting within the
+  The `rtc-tools` module does most of the heavy lifting within the
   [rtc.io](http://rtc.io) suite.  Primarily it handles the logic of coupling
   a local `RTCPeerConnection` with it's remote counterpart via an
   [rtc-signaller](https://github.com/rtc-io/rtc-signaller) signalling
@@ -13,7 +13,7 @@
 
   ## Getting Started
 
-  If you decide that the `rtc` module is a better fit for you than either
+  If you decide that the `rtc-tools` module is a better fit for you than either
   [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect) or
   [rtc-glue](https://github.com/rtc-io/rtc-glue) then the code snippet below
   will provide you a guide on how to get started using it in conjunction with
@@ -52,7 +52,7 @@ exports.RTCPeerConnection = detect('RTCPeerConnection');
 exports.couple = require('./couple');
 
 /**
-  ### rtc.createConnection
+  ### createConnection
 
   ```
   createConnection(opts?, constraints?) => RTCPeerConnection

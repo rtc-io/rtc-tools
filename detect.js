@@ -2,9 +2,9 @@
 'use strict';
 
 /**
-  ### rtc/detect
+  ### rtc-tools/detect
 
-  Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect) 
+  Provide the [rtc-core/detect](https://github.com/rtc-io/rtc-core#detect)
   functionality.
 **/
 module.exports = require('rtc-core/detect');
