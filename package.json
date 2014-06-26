@@ -1,5 +1,5 @@
 {
-  "name": "rtc",
+  "name": "rtc-tools",
   "description": "Cross-browser WebRTC helpers",
   "author": "Damon Oehlman <damon.oehlman@nicta.com.au>",
   "version": "1.2.4",
