@@ -7,12 +7,11 @@ a local `RTCPeerConnection` with it's remote counterpart via an
 channel.
 
 
-[![NPM](https://nodei.co/npm/rtc.png)](https://nodei.co/npm/rtc/)
+[![NPM](https://nodei.co/npm/rtc-tools.png)](https://nodei.co/npm/rtc-tools/)
 
-[![Build Status](https://img.shields.io/travis/rtc-io/rtc.svg?branch=master)](https://travis-ci.org/rtc-io/rtc)
-![unstable](https://img.shields.io/badge/stability-unstable-yellowgreen.svg)
-
+[![Build Status](https://img.shields.io/travis/rtc-io/rtc-tools.svg?branch=master)](https://travis-ci.org/rtc-io/rtc-tools) [![unstable](https://img.shields.io/badge/stability-unstable-yellowgreen.svg)](https://github.com/dominictarr/stability#unstable) 
 [![Gitter chat](https://badges.gitter.im/rtc-io/discuss.png)](https://gitter.im/rtc-io/discuss)
+
 
 
 ## Getting Started
@@ -26,7 +25,7 @@ the [rtc-signaller](https://github.com/rtc-io/rtc-signaller) and
 
 ```js
 var signaller = require('rtc-signaller')('http://rtc.io/switchboard/');
-var rtc = require('rtc');
+var rtc = require('rtc-tools');
 var media = require('rtc-media');
 var localMedia = media();
 
