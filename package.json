@@ -11,15 +11,15 @@
     "rtc-core": "^3.0.0"
   },
   "devDependencies": {
-    "tape": "^2",
-    "uuid": "^1",
+    "freeice": "~0.2",
     "messenger-memory": "^1",
+    "peerpair": "^1.0.0",
     "rtc-media": "^1",
     "rtc-signaller": "^2",
-    "testling": "^1",
     "rtc-switchboard": "~0.10",
-    "freeice": "~0.2",
-    "peerpair": "~0.4"
+    "tape": "^2",
+    "testling": "^1",
+    "uuid": "^1"
   },
   "scripts": {
     "test": "testling -x ./.travis/start-$BROWSER.sh",
