@@ -6,6 +6,7 @@
   "dependencies": {
     "async": "~0.9",
     "cog": "^1.0.0",
+    "eventemitter3": "^0.1.2",
     "normalice": "^1.0.0",
     "rtc-core": "^2.0.0"
   },

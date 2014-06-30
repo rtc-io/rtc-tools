@@ -1,7 +1,7 @@
 /* jshint node: true */
 'use strict';
 
-var EventEmitter = require('events').EventEmitter;
+var EventEmitter = require('eventemitter3');
 
 // define some state mappings to simplify the events we generate
 var stateMappings = {
