@@ -5,7 +5,7 @@
   "version": "2.1.0",
   "dependencies": {
     "async": "~0.9",
-    "cog": "~0.5.3",
+    "cog": "^1.0.0",
     "normalice": "^1.0.0",
     "rtc-core": "^2.0.0"
   },
@@ -14,7 +14,7 @@
     "uuid": "^1",
     "messenger-memory": "^1",
     "rtc-media": "^1",
-    "rtc-signaller": "^1",
+    "rtc-signaller": "^2",
     "testling": "^1",
     "rtc-switchboard": "~0.10",
     "freeice": "~0.2",
