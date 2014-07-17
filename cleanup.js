@@ -7,14 +7,17 @@ var CANNOT_CLOSE_STATES = [
   'closed'
 ];
 
-var EVENTNAMES = [
+var EVENTS_DECOUPLE_BC = [
   'addstream',
   'datachannel',
   'icecandidate',
-  'iceconnectionstatechange',
   'negotiationneeded',
   'removestream',
   'signalingstatechange'
+];
+
+var EVENTS_DECOUPLE_AC = [
+  'iceconnectionstatechange'
 ];
 
 /**
@@ -33,6 +36,17 @@ module.exports = function(pc) {
   var currentState = pc.iceConnectionState;
   var canClose = CANNOT_CLOSE_STATES.indexOf(currentState) < 0;
 
+  function decouple(events) {
+    events.forEach(function(evtName) {
+      if (pc['on' + evtName]) {
+        pc['on' + evtName] = null;
+      }
+    });
+  }
+
+  // decouple "before close" events
+  decouple(EVENTS_DECOUPLE_BC);
+
   if (canClose) {
     debug('attempting connection close, current state: '+ pc.iceConnectionState);
     pc.close();
@@ -42,10 +56,6 @@ module.exports = function(pc) {
   // after a short delay giving the connection time to trigger
   // close and iceconnectionstatechange events
   setTimeout(function() {
-    EVENTNAMES.forEach(function(evtName) {
-      if (pc['on' + evtName]) {
-        pc['on' + evtName] = null;
-      }
-    });
+    decouple(EVENTS_DECOUPLE_AC);
   }, 100);
 };
