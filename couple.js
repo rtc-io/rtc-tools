@@ -113,6 +113,8 @@ function couple(pc, targetId, signaller, opts) {
 
   function abort(stage, sdp, cb) {
     return function(err) {
+      mon.emit('negotiate:abort', stage, sdp);
+
       // log the error
       console.error('rtc/couple error (' + stage + '): ', err);
 
@@ -130,13 +132,7 @@ function couple(pc, targetId, signaller, opts) {
       // apply any queued candidates
       queuedCandidates.splice(0).forEach(function(data) {
         debug('applying queued candidate', data);
-
-        try {
-          pc.addIceCandidate(createIceCandidate(data));
-        }
-        catch (e) {
-          debug('invalidate candidate specified: ', data);
-        }
+        addIceCandidate(data);
       });
     }
   }
@@ -283,6 +279,7 @@ function couple(pc, targetId, signaller, opts) {
       // debug('gathering state = ' + pc.iceGatheringState);
       // debug('connection state = ' + pc.iceConnectionState);
       // debug('signaling state = ' + pc.signalingState);
+      mon.emit('negotiate:' + methodName);
 
       pc[methodName](
         function(desc) {
@@ -292,6 +289,7 @@ function couple(pc, targetId, signaller, opts) {
             desc.sdp = sdpFilter(desc.sdp, pc, methodName);
           }
 
+          mon.emit('negotiate:' + methodName + ':created', desc);
           q.push({ op: queueLocalDesc(desc) });
           cb();
         },
@@ -338,12 +336,14 @@ function couple(pc, targetId, signaller, opts) {
     if (evt.candidate) {
       resetDisconnectTimer();
 
-      signaller.to(targetId).send('/candidate', evt.candidate);
+      mon.emit('icecandidate:local', evt.candidate);
+      signaller.to(targetId).send('/candidate', evt.candidate);      
       endOfCandidates = false;
     }
     else if (! endOfCandidates) {
       endOfCandidates = true;
       debug('ice gathering state complete');
+      mon.emit('icecandidate:gathered');
       signaller.to(targetId).send('/endofcandidates', {});
     }
   }
@@ -351,6 +351,7 @@ function couple(pc, targetId, signaller, opts) {
   function handleNegotiateRequest(src) {
     if (src.id === targetId) {
       debug('got negotiate request from ' + targetId + ', creating offer');
+      mon.emit('negotiate:request', src.id);
       q.push({ op: createOffer });
     }
   }
@@ -364,22 +365,21 @@ function couple(pc, targetId, signaller, opts) {
     if (pc.signalingState != 'stable' || (! pc.remoteDescription)) {
       debug('queuing candidate');
       queuedCandidates.push(data);
+      mon.emit('icecandidate:remote', data);
 
       mon.removeListener('change', applyCandidatesWhenStable);
       mon.on('change', applyCandidatesWhenStable);
       return;
     }
 
-    try {
-      pc.addIceCandidate(createIceCandidate(data));
-    }
-    catch (e) {
-      debug('invalidate candidate specified: ', data);
-    }
+    addIceCandidate(data);
   }
 
   function handleSdp(data, src) {
     var abortType = data.type === 'offer' ? 'createAnswer' : 'createOffer';
+
+    // Emit SDP
+    mon.emit('sdp:received', data);
 
     // if the source is unknown or not a match, then abort
     if ((! src) || (src.id !== targetId)) {
@@ -412,6 +412,17 @@ function couple(pc, targetId, signaller, opts) {
     }});
   }
 
+  function addIceCandidate(data) {
+    try {
+      pc.addIceCandidate(createIceCandidate(data));
+      mon.emit('icecandidate:added', data);
+    }
+    catch (e) {
+      debug('invalidate candidate specified: ', data);
+      mon.emit('icecandidate:added', data, e);
+    }
+  }
+
   function isClosed() {
     return CLOSED_STATES.indexOf(pc.iceConnectionState) >= 0;
   }
@@ -439,6 +450,7 @@ function couple(pc, targetId, signaller, opts) {
         function() {
           // send the sdp
           signaller.to(targetId).send('/sdp', desc);
+          mon.emit('negotiate:setlocaldescription', desc);
 
           // callback
           cb();
@@ -449,6 +461,7 @@ function couple(pc, targetId, signaller, opts) {
         function(err) {
           debug('error setting local description', err);
           debug(desc.sdp);
+          mon.emit('negotiate:setlocaldescription', desc, err);
           // setTimeout(function() {
           //   setLocalDesc(task, cb, (retryCount || 0) + 1);
           // }, 500);
@@ -470,6 +483,7 @@ function couple(pc, targetId, signaller, opts) {
   // when regotiation is needed look for the peer
   if (reactive) {
     pc.onnegotiationneeded = function() {
+      mon.emit('negotiate:renegotiate');
       debug('renegotiation required, will create offer in 50ms');
       clearTimeout(offerTimeout);
       offerTimeout = setTimeout(queue(createOffer), 50);
