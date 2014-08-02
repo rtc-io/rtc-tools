@@ -39,7 +39,7 @@ var mappings = {
   compliant W3C (RTCIceServer dictionary)[http://www.w3.org/TR/webrtc/#idl-def-RTCIceServer].
 
   If you pass in both a generator and iceServers, the iceServers _will be
-  removed_ and the generator used instead.
+  ignored and the generator used instead.
 **/
 
 var iceServerGenerator = function () {
