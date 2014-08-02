@@ -47,17 +47,10 @@ var iceServerGenerator = function () {
 }
 
 exports.config = function(config) {
-  if(config) {
-    if(config.iceServerGenerator) {
-      iceServerGenerator = config.iceServerGenerator;
-    }
-    if(config.hasOwnProperty('iceServerGenerator') && config.iceServers) {
-      config.iceServers = undefined;
-    }
-    config.iceServerGenerator = undefined;
-  }
-  return defaults(config, {
-    iceServers: iceServerGenerator()
+  var iceServerGenerator = (config || {}).iceServerGenerator;
+
+  return defaults({}, config, {
+    iceServers: typeof iceServerGenerator == 'function' ? iceServerGenerator() : []
   });
 };
 
