@@ -29,17 +29,17 @@ test('extend config with iceServers', function(t) {
 
 test('iceServer generator generates iceServers', function(t) {
   var i = 0;
-  var config = {
+  var template = {
     iceServerGenerator: function () {
       i += 1;
       return [{urls: 'turn:nowhere.com:' + i}];
     }
   };
+  var config = {};
 
-  t.plan(5);
-  t.ok(config = generators.config(config), 'generated config');
+  t.plan(4);
+  t.ok(config = generators.config(template), 'generated config');
   t.deepEqual(config.iceServers, [{urls: 'turn:nowhere.com:1'}], 'first generation succeeded');
-  t.ok(config = generators.config(config), 'generated new config');
+  t.ok(config = generators.config(template), 'generated new config');
   t.deepEqual(config.iceServers, [{urls: 'turn:nowhere.com:2'}], 'second generation succeeded');
-  t.equal(config.iceServerGenerator, undefined, 'it removed the generator function');
 });
