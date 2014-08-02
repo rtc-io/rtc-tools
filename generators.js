@@ -32,10 +32,32 @@ var mappings = {
 
   Generate a configuration object suitable for passing into an W3C
   RTCPeerConnection constructor first argument, based on our custom config.
+
+  In the event that you use short term authentication for TURN, and you want
+  to generate new `iceServers` regularly, you can specify an iceServerGenerator
+  that will be used prior to coupling. This generator should return a fully
+  compliant W3C (RTCIceServer dictionary)[http://www.w3.org/TR/webrtc/#idl-def-RTCIceServer].
+
+  If you pass in both a generator and iceServers, the iceServers _will be
+  removed_ and the generator used instead.
 **/
+
+var iceServerGenerator = function () {
+  return [];
+}
+
 exports.config = function(config) {
+  if(config) {
+    if(config.iceServerGenerator) {
+      iceServerGenerator = config.iceServerGenerator;
+    }
+    if(config.hasOwnProperty('iceServerGenerator') && config.iceServers) {
+      config.iceServers = undefined;
+    }
+    config.iceServerGenerator = undefined;
+  }
   return defaults(config, {
-    iceServers: []
+    iceServers: iceServerGenerator()
   });
 };
 

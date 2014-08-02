@@ -159,6 +159,14 @@ var generators = require('rtc/generators');
 Generate a configuration object suitable for passing into an W3C
 RTCPeerConnection constructor first argument, based on our custom config.
 
+In the event that you use short term authentication for TURN, and you want
+to generate new `iceServers` regularly, you can specify an iceServerGenerator
+that will be used prior to coupling. This generator should return a fully
+compliant W3C (RTCIceServer dictionary)[http://www.w3.org/TR/webrtc/#idl-def-RTCIceServer].
+
+If you pass in both a generator and iceServers, the iceServers _will be
+removed_ and the generator used instead.
+
 #### generators.connectionConstraints(flags, constraints)
 
 This is a helper function that will generate appropriate connection
