@@ -88,10 +88,41 @@ test('create a data channel on the master connection', function(t) {
 
   conns[masterIdx ^ 1].ondatachannel = function(evt) {
     dcs[masterIdx ^ 1] = evt.channel;
+
+    conns[masterIdx ^ 1].ondatachannel = null;
     t.pass('got data channel');
   };
 
   dcs[masterIdx] = conns[masterIdx].createDataChannel('test');
+});
+
+test('create additional data channels', function(t) {
+  var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
+  var channels = [ 'new_a', 'new_b', 'new_c', 'new_d', 'new_e' ];
+  var pendingChannels = [].concat(channels);
+
+  function addChannel() {
+    conns[masterIdx].createDataChannel(channels.shift());
+
+    if (channels.length > 0) {
+      setTimeout(addChannel, Math.random() * 200);
+    }
+  }
+
+  t.plan(pendingChannels.length + 1);
+
+  conns[masterIdx ^ 1].ondatachannel = function(evt) {
+    var channelIdx = pendingChannels.indexOf(evt && evt.channel && evt.channel.label);
+    t.ok(channelIdx >= 0, 'channel found');
+    pendingChannels.splice(channelIdx, 1);
+
+    if (pendingChannels.length === 0) {
+      conns[masterIdx ^ 1].ondatachannel = null;
+      t.pass('got all channels');
+    }
+  };
+
+  addChannel();
 });
 
 // test('create a data channel on a', function(t) {
