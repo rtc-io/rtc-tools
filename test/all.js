@@ -24,6 +24,7 @@ require('./capture-close-localonly');
 // only test reactive coupling in chrome
 if (! detect.moz) {
   require('./coupling-reactive');
+  require('./coupling-reactive-randomdelay');
   require('./capture-close');
 }
 
