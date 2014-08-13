@@ -68,16 +68,14 @@ test('create data channels', function(t) {
   var channels = [ 'new_a', 'new_b', 'new_c', 'new_d', 'new_e', 'new_f', 'new_g', 'new_h' ];
   var pendingChannels = [].concat(channels);
 
-  function addChannel() {
-    conns[masterIdx].createDataChannel(channels.shift());
-
-    // if we have more channels, create another on the non-master side
-    if (channels.length > 0) {
-      conns[masterIdx ^ 1].createDataChannel(channels.shift());
-    }
+  function addChannel(idx) {
+    idx = idx || 0;
+    conns[idx].createDataChannel(channels.shift());
 
     if (channels.length > 0) {
-      addChannel();
+      setTimeout(function() {
+        addChannel(idx ^ 1);
+      }, Math.random() * 200);
     }
   }
 
