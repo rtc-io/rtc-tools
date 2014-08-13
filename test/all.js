@@ -25,7 +25,7 @@ require('./capture-close-localonly');
 if (! detect.moz) {
   require('./coupling-reactive');
   require('./coupling-reactive-randomdelay');
-  require('./coupling-reactive-doubleanswer');
+  require('./coupling-reactive-randomdelaystreams');
   require('./capture-close');
 }
 
