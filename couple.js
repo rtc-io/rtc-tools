@@ -158,6 +158,7 @@ function couple(pc, targetId, signaller, opts) {
     debug('cannot create offer, signaling state != stable, will retry');
     mon.on('change', function waitForStable() {
       if (pc.signalingState === 'stable') {
+        debug('now stable, retrying');
         q.push({ op: negotiate });
       }
 
@@ -290,8 +291,24 @@ function couple(pc, targetId, signaller, opts) {
           }
 
           mon.emit('negotiate:' + methodName + ':created', desc);
-          q.push({ op: queueLocalDesc(desc) });
-          cb();
+
+          // initialise the local description
+          debug('setting local description');
+          pc.setLocalDescription(
+            desc,
+
+            // if successful, then send the sdp over the wire
+            function() {
+              // send the sdp
+              signaller.to(targetId).send('/sdp', desc);
+              mon.emit('negotiate:setlocaldescription', desc);
+
+              // callback
+              cb();
+            },
+
+            abort('setLocalDesc', desc.sdp, cb)
+          );
         },
 
         // on error, abort
@@ -337,7 +354,7 @@ function couple(pc, targetId, signaller, opts) {
       resetDisconnectTimer();
 
       mon.emit('icecandidate:local', evt.candidate);
-      signaller.to(targetId).send('/candidate', evt.candidate);      
+      signaller.to(targetId).send('/candidate', evt.candidate);
       endOfCandidates = false;
     }
     else if (! endOfCandidates) {
@@ -441,34 +458,7 @@ function couple(pc, targetId, signaller, opts) {
         return cb(new Error('connection closed, aborting'));
       }
 
-      // initialise the local description
-      debug('setting local description');
-      pc.setLocalDescription(
-        desc,
 
-        // if successful, then send the sdp over the wire
-        function() {
-          // send the sdp
-          signaller.to(targetId).send('/sdp', desc);
-          mon.emit('negotiate:setlocaldescription', desc);
-
-          // callback
-          cb();
-        },
-
-        // abort('setLocalDesc', desc.sdp, cb)
-        // on error, abort
-        function(err) {
-          debug('error setting local description', err);
-          debug(desc.sdp);
-          mon.emit('negotiate:setlocaldescription', desc, err);
-          // setTimeout(function() {
-          //   setLocalDesc(task, cb, (retryCount || 0) + 1);
-          // }, 500);
-
-          cb(err);
-        }
-      );
     };
   }
 
