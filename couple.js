@@ -441,7 +441,7 @@ function couple(pc, targetId, signaller, opts) {
       mon.emit('icecandidate:added', data);
     }
     catch (e) {
-      console.error('captured invalid candidate: ', e);
+      console.warn('captured invalid candidate: ', e);
       debug('invalidate candidate specified: ', data);
       mon.emit('icecandidate:added', data, e);
     }
