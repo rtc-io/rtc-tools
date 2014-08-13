@@ -72,6 +72,7 @@ test('couple b --> a', function(t) {
 test('create streams', function(t) {
   var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
   var ids = [ 'new_a', 'new_b', 'new_c', 'new_d', 'new_e', 'new_f', 'new_g', 'new_h' ];
+  var pendingCount = ids.length;
   var pendingIds = [];
 
   function addStream(idx) {
@@ -85,27 +86,31 @@ test('create streams', function(t) {
     conns[idx].addStream(stream);
 
     pendingIds.push(stream.id);
-    console.log('created stream: ' + stream.id);
+    console.log('created stream ' + stream.id + ' on connection: ' + idx + ' ' + ids.length + ' to go');
 
     if (ids.length > 0) {
       setTimeout(function() {
         addStream(idx ^ 1);
-      }, Math.random() * 200);
+      }, 0);
     }
   }
 
-  t.plan(ids.length + 1);
-
-  conns[masterIdx ^ 1].onaddstream = conns[masterIdx].onaddstream = function(evt) {
+  function handleStream(evt) {
     var streamIdx = pendingIds.indexOf(evt && evt.stream && evt.stream.id);
     t.ok(streamIdx >= 0, 'stream found: ' + evt.stream.id);
-    pendingIds.splice(streamIdx, 1);
+    pendingCount -= 1;
 
-    if (pendingIds.length === 0) {
-      conns[masterIdx ^ 1].onaddstream = conns[masterIdx].onaddstream = null;
+    if (pendingCount === 0) {
+      conns[masterIdx ^ 1].removeEventListener('addstream', handleStream);
+      conns[masterIdx].removeEventListener('addstream', handleStream);
       t.pass('got all channels');
     }
-  };
+  }
+
+  console.log('expect: ' + (ids.length + 1));
+  t.plan(ids.length + 1);
+  conns[masterIdx ^ 1].addEventListener('addstream', handleStream);
+  conns[masterIdx].addEventListener('addstream', handleStream);
 
   addStream();
 });
