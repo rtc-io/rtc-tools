@@ -184,6 +184,12 @@ function couple(pc, targetId, signaller, opts) {
     return new RTCSessionDescription(data);
   }
 
+  function debounceOffer() {
+    debug('debouncing offer');
+    clearTimeout(offerTimeout);
+    offerTimeout = setTimeout(queue(createOffer), 50);
+  }
+
   function decouple() {
     debug('decoupling ' + signaller.id + ' from ' + targetId);
 
@@ -293,7 +299,7 @@ function couple(pc, targetId, signaller, opts) {
           mon.emit('negotiate:' + methodName + ':created', desc);
 
           // initialise the local description
-          debug('setting local description');
+          debug(methodName + ': setting local description: ' + pc.signalingState);
           pc.setLocalDescription(
             desc,
 
@@ -369,7 +375,7 @@ function couple(pc, targetId, signaller, opts) {
     if (src.id === targetId) {
       debug('got negotiate request from ' + targetId + ', creating offer');
       mon.emit('negotiate:request', src.id);
-      q.push({ op: createOffer });
+      debounceOffer();
     }
   }
 
@@ -435,6 +441,7 @@ function couple(pc, targetId, signaller, opts) {
       mon.emit('icecandidate:added', data);
     }
     catch (e) {
+      console.error('captured invalid candidate: ', e);
       debug('invalidate candidate specified: ', data);
       mon.emit('icecandidate:added', data, e);
     }
@@ -474,9 +481,7 @@ function couple(pc, targetId, signaller, opts) {
   if (reactive) {
     pc.onnegotiationneeded = function() {
       mon.emit('negotiate:renegotiate');
-      debug('renegotiation required, will create offer in 50ms');
-      clearTimeout(offerTimeout);
-      offerTimeout = setTimeout(queue(createOffer), 50);
+      debounceOffer();
     };
   }
 
