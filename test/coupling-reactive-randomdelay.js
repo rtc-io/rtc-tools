@@ -63,46 +63,7 @@ test('couple b --> a', function(t) {
   t.ok(monitors[1], 'ok');
 });
 
-test('activate connection', function(t) {
-  t.plan(monitors.length);
-
-  monitors.forEach(function(mon, index) {
-    mon.once('connected', t.pass.bind(t, 'connection ' + index + ' active'));
-  });
-
-  monitors[0].createOffer();
-});
-
-test('create an offer from the other party', function(t) {
-
-  function handleChange(conn) {
-    if (conn.signalingState === 'stable') {
-      monitors[0].removeListener('change', handleChange);
-      t.pass('signaling state stable again');
-    }
-  }
-
-  t.plan(1);
-  monitors[0].on('change', handleChange);
-  monitors[1].createOffer();
-});
-
-test('create a data channel on the master connection', function(t) {
-  var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
-
-  t.plan(1);
-
-  conns[masterIdx ^ 1].ondatachannel = function(evt) {
-    dcs[masterIdx ^ 1] = evt.channel;
-
-    conns[masterIdx ^ 1].ondatachannel = null;
-    t.pass('got data channel');
-  };
-
-  dcs[masterIdx] = conns[masterIdx].createDataChannel('test');
-});
-
-test('create additional data channels', function(t) {
+test('create data channels', function(t) {
   var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
   var channels = [ 'new_a', 'new_b', 'new_c', 'new_d', 'new_e', 'new_f', 'new_g', 'new_h' ];
   var pendingChannels = [].concat(channels);
@@ -116,7 +77,7 @@ test('create additional data channels', function(t) {
     }
 
     if (channels.length > 0) {
-      setTimeout(addChannel, Math.random() * 200);
+      addChannel();
     }
   }
 
