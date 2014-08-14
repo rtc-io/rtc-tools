@@ -9,7 +9,7 @@ env:
     - BROWSER=chrome  BVER=unstable
     - BROWSER=firefox BVER=stable
     - BROWSER=firefox BVER=beta
-    - BROWSER=firefox BVER=aurora
+    - BROWSER=firefox BVER=nightly
 
   global:
   - secure: Xo5DDUYF9ieE9uzku88im0W/iQrDM/XMxdr4SsXQwVy+v6Y7gMQwPnIlBicgitq7B1ZoVnSrPO0XkNSsj2RYgPUDKLJzQPozp5LiiDOydBC2CpCr6DFlinovwQdm8U64zvvh8m8DIH8Ow1BZmfqHo616DBV1LRToXpMl/fj9+0w=
