@@ -23,10 +23,7 @@ require('./capture-close-localonly');
 
 // only test reactive coupling in chrome
 if (! detect.moz) {
-  require('./coupling-reactive');
-  require('./coupling-reactive-randomdelay');
-  require('./coupling-reactive-randomdelaystreams');
-  require('./capture-close');
+  require('./all-reactive');
 }
 
 // ensure that signaller disconnects properly close a connection
