@@ -18,11 +18,10 @@
     "rtc-switchboard": "~0.10",
     "tape": "^2",
     "testling": "^1",
-    "uuid": "^1",
-    "zuul": "^1.10.0"
+    "uuid": "^1"
   },
   "scripts": {
-    "test": "zuul -- test/all.js",
+    "test": "testling -x ./.travis/start-$BROWSER.sh",
     "gendocs": "gendocs > README.md"
   },
   "main": "index.js",

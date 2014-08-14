@@ -1,11 +1,32 @@
 language: node_js
 node_js:
 - 0.10
-notifications:
-  email:
-  - damon.oehlman@nicta.com.au
-  irc: irc.freenode.org#rtc.io
+
 env:
+  matrix:
+    - BROWSER=chrome  BVER=stable
+    - BROWSER=chrome  BVER=beta
+    - BROWSER=chrome  BVER=unstable
+    - BROWSER=firefox BVER=stable
+    - BROWSER=firefox BVER=beta
+    - BROWSER=firefox BVER=aurora
+
   global:
   - secure: Xo5DDUYF9ieE9uzku88im0W/iQrDM/XMxdr4SsXQwVy+v6Y7gMQwPnIlBicgitq7B1ZoVnSrPO0XkNSsj2RYgPUDKLJzQPozp5LiiDOydBC2CpCr6DFlinovwQdm8U64zvvh8m8DIH8Ow1BZmfqHo616DBV1LRToXpMl/fj9+0w=
   - secure: P120lzsmhYQZdFz6/sIDjeDpjJH7D8rID1JIf6AEfBbQ94urY5iJ15awQFp7G2b268ekHbyz0LwTgXVakf/WcclUNCPQxPj8wlRbdDE0zL6nmfMWyoM/gGnTrPjtfoONn1e9DIpNqIc/AXI+abcuaio+8OmkBfxAJvIcX5nB6iI=
+
+before_install:
+  - mkdir -p .travis
+  - curl -s https://codeload.github.com/rtc-io/webrtc-testing-on-travis/tar.gz/master | tar -xz --strip-components=1 --directory .travis
+  - ./.travis/setup.sh
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+
+after_failure:
+  - for file in *.log; do echo $file; echo "======================"; cat $file; done || true
+
+notifications:
+  email:
+  - damon.oehlman@nicta.com.au
+
+  irc: irc.freenode.org#rtc.io
