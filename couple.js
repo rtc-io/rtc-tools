@@ -230,7 +230,7 @@ function couple(pc, targetId, signaller, opts) {
   if (reactive) {
     pc.onnegotiationneeded = function() {
       mon.emit('negotiate:renegotiate');
-      debounceOffer();
+      createOrRequestOffer();
     };
   }
 
