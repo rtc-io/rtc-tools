@@ -1,7 +1,7 @@
 /* jshint node: true */
 'use strict';
 
-var async = require('async');
+var queue = require('rtc-taskqueue');
 var cleanup = require('./cleanup');
 var monitor = require('./monitor');
 var detect = require('./detect');
@@ -81,113 +81,21 @@ function couple(pc, targetId, signaller, opts) {
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
 
-  var createOffer = prepNegotiate(
-    'createOffer',
-    isMaster,
-    [ checkStable ]
-  );
-
-  var createAnswer = prepNegotiate(
-    'createAnswer',
-    true,
-    []
-  );
-
   // initialise the processing queue (one at a time please)
-  var q = async.queue(function(task, cb) {
-    // if the task has no operation, then trigger the callback immediately
-    if (typeof task.op != 'function') {
-      return cb();
+  var q = queue(pc, opts);
+
+  function createOrRequestOffer() {
+    if (! isMaster) {
+      return signaller.to(targetId).send('/negotiate');
     }
 
-    // process the task operation
-    task.op(task, cb);
-  }, 1);
-
-  // initialise session description and icecandidate objects
-  var RTCSessionDescription = (opts || {}).RTCSessionDescription ||
-    detect('RTCSessionDescription');
-
-  var RTCIceCandidate = (opts || {}).RTCIceCandidate ||
-    detect('RTCIceCandidate');
-
-  function abort(stage, sdp, cb) {
-    return function(err) {
-      mon.emit('negotiate:abort', stage, sdp);
-
-      // log the error
-      console.error('rtc/couple error (' + stage + '): ', err);
-
-      if (typeof cb == 'function') {
-        cb(err);
-      }
-    };
-  }
-
-  function applyCandidatesWhenStable() {
-    if (pc.signalingState == 'stable' && pc.remoteDescription) {
-      debug('signaling state = stable, applying queued candidates');
-      mon.removeListener('change', applyCandidatesWhenStable);
-
-      // apply any queued candidates
-      queuedCandidates.splice(0).forEach(function(data) {
-        debug('applying queued candidate', data);
-        addIceCandidate(data);
-      });
-    }
-  }
-
-  function checkNotConnecting(negotiate) {
-    if (pc.iceConnectionState != 'checking') {
-      return true;
-    }
-
-    debug('connection state is checking, will wait to create a new offer');
-    mon.once('connected', function() {
-      q.push({ op: negotiate });
-    });
-
-    return false;
-  }
-
-  function checkStable(negotiate) {
-    if (pc.signalingState === 'stable') {
-      return true;
-    }
-
-    debug('cannot create offer, signaling state != stable, will retry');
-    mon.on('change', function waitForStable() {
-      if (pc.signalingState === 'stable') {
-        debug('now stable, retrying');
-        q.push({ op: negotiate });
-      }
-
-      mon.removeListener('change', waitForStable);
-    });
-
-    return false;
-  }
-
-  function createIceCandidate(data) {
-    if (plugin && typeof plugin.createIceCandidate == 'function') {
-      return plugin.createIceCandidate(data);
-    }
-
-    return new RTCIceCandidate(data);
-  }
-
-  function createSessionDescription(data) {
-    if (plugin && typeof plugin.createSessionDescription == 'function') {
-      return plugin.createSessionDescription(data);
-    }
-
-    return new RTCSessionDescription(data);
+    q.createOffer();
   }
 
   function debounceOffer() {
     debug('debouncing offer');
     clearTimeout(offerTimeout);
-    offerTimeout = setTimeout(queue(createOffer), 50);
+    offerTimeout = setTimeout(q.createOffer, 50);
   }
 
   function decouple() {
@@ -201,8 +109,8 @@ function couple(pc, targetId, signaller, opts) {
     cleanup(pc);
 
     // remove listeners
-    signaller.removeListener('sdp', handleSdp);
-    signaller.removeListener('candidate', handleRemoteCandidate);
+    signaller.removeListener('sdp', q.setRemoteDescription);
+    signaller.removeListener('candidate', q.addIceCandidate);
     signaller.removeListener('negotiate', handleNegotiateRequest);
   }
 
@@ -379,96 +287,6 @@ function couple(pc, targetId, signaller, opts) {
     }
   }
 
-  function handleRemoteCandidate(data, src) {
-    if ((! src) || (src.id !== targetId)) {
-      return;
-    }
-
-    // queue candidates while the signaling state is not stable
-    if (pc.signalingState != 'stable' || (! pc.remoteDescription)) {
-      debug('queuing candidate');
-      queuedCandidates.push(data);
-      mon.emit('icecandidate:remote', data);
-
-      mon.removeListener('change', applyCandidatesWhenStable);
-      mon.on('change', applyCandidatesWhenStable);
-      return;
-    }
-
-    addIceCandidate(data);
-  }
-
-  function handleSdp(data, src) {
-    var abortType = data.type === 'offer' ? 'createAnswer' : 'createOffer';
-
-    // Emit SDP
-    mon.emit('sdp:received', data);
-
-    // if the source is unknown or not a match, then abort
-    if ((! src) || (src.id !== targetId)) {
-      return debug('received sdp but dropping due to unmatched src');
-    }
-
-    // prioritize setting the remote description operation
-    q.push({ op: function(task, cb) {
-      if (isClosed()) {
-        return cb(new Error('pc closed: cannot set remote description'));
-      }
-
-      // update the remote description
-      // once successful, send the answer
-      debug('setting remote description');
-      pc.setRemoteDescription(
-        createSessionDescription(data),
-        function() {
-          // create the answer
-          if (data.type === 'offer') {
-            queue(createAnswer)();
-          }
-
-          // trigger the callback
-          cb();
-        },
-
-        abort(abortType, data.sdp, cb)
-      );
-    }});
-  }
-
-  function addIceCandidate(data) {
-    try {
-      pc.addIceCandidate(createIceCandidate(data));
-      mon.emit('icecandidate:added', data);
-    }
-    catch (e) {
-      console.warn('captured invalid candidate: ', e);
-      debug('invalidate candidate specified: ', data);
-      mon.emit('icecandidate:added', data, e);
-    }
-  }
-
-  function isClosed() {
-    return CLOSED_STATES.indexOf(pc.iceConnectionState) >= 0;
-  }
-
-  function queue(negotiateTask) {
-    return function() {
-      q.push([
-        { op: negotiateTask }
-      ]);
-    };
-  }
-
-  function queueLocalDesc(desc) {
-    return function setLocalDesc(task, cb) {
-      if (isClosed()) {
-        return cb(new Error('connection closed, aborting'));
-      }
-
-
-    };
-  }
-
   function resetDisconnectTimer() {
     mon.removeListener('change', handleDisconnectAbort);
 
@@ -487,9 +305,14 @@ function couple(pc, targetId, signaller, opts) {
 
   pc.onicecandidate = handleLocalCandidate;
 
+  // when the task queue tells us we have sdp available, send that over the wire
+  q.on('sdp', function(desc) {
+    signaller.to(targetId).send('/sdp', desc);
+  });
+
   // when we receive sdp, then
-  signaller.on('sdp', handleSdp);
-  signaller.on('candidate', handleRemoteCandidate);
+  signaller.on('sdp', q.setRemoteDescription);
+  signaller.on('candidate', q.addIceCandidate);
 
   // if this is a master connection, listen for negotiate events
   if (isMaster) {
@@ -501,7 +324,7 @@ function couple(pc, targetId, signaller, opts) {
   mon.once('disconnected', handleDisconnect);
 
   // patch in the create offer functions
-  mon.createOffer = queue(createOffer);
+  mon.createOffer = createOrRequestOffer;
 
   return mon;
 }
