@@ -4,7 +4,6 @@
   "author": "Damon Oehlman <damon.oehlman@nicta.com.au>",
   "version": "3.2.0",
   "dependencies": {
-    "async": "~0.9",
     "cog": "^1.0.0",
     "eventemitter3": "^0.1.2",
     "rtc-core": "^3.0.0",
