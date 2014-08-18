@@ -109,8 +109,8 @@ function couple(pc, targetId, signaller, opts) {
     cleanup(pc);
 
     // remove listeners
-    signaller.removeListener('sdp', q.setRemoteDescription);
-    signaller.removeListener('candidate', q.addIceCandidate);
+    signaller.removeListener('sdp', handleSdp);
+    signaller.removeListener('candidate', handleCandidate);
     signaller.removeListener('negotiate', handleNegotiateRequest);
   }
 
@@ -155,6 +155,14 @@ function couple(pc, targetId, signaller, opts) {
     reformatConstraints();
 
     return constraints;
+  }
+
+  function handleCandidate(data) {
+    q.addIceCandidate(data);
+  }
+
+  function handleSdp(sdp) {
+    q.setRemoteDescription(sdp);
   }
 
   function prepNegotiate(methodName, allowed, preflightChecks) {
@@ -311,8 +319,8 @@ function couple(pc, targetId, signaller, opts) {
   });
 
   // when we receive sdp, then
-  signaller.on('sdp', q.setRemoteDescription);
-  signaller.on('candidate', q.addIceCandidate);
+  signaller.on('sdp', handleSdp);
+  signaller.on('candidate', handleCandidate);
 
   // if this is a master connection, listen for negotiate events
   if (isMaster) {
