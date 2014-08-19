@@ -6,8 +6,7 @@ var rtc = require('..');
 var messenger = require('messenger-memory');
 var times = require('whisk/times');
 
-
-module.exports = function(name, opts) {
+module.exports = function(name, contexts, opts) {
   var conns = [];
   var signallers = [];
   var monitors = [];
@@ -26,11 +25,6 @@ module.exports = function(name, opts) {
   var messengers = [
     messenger({ delay: randomDelay, scope: scope }),
     messenger({ delay: randomDelay, scope: scope })
-  ];
-
-  var contexts = [
-    new AudioContext(),
-    new AudioContext()
   ];
 
   function randomDelay() {
