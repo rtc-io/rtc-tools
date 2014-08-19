@@ -9,8 +9,10 @@ var scope = [];
 var messengers = [];
 var dcs = [];
 var roomId = require('uuid').v4();
+var times = require('whisk/times');
 
 // require('cog/logger').enable('*');
+require('cog/logger').enable('rtc-validator');
 
 test('create peer connections', function(t) {
   t.plan(2);
@@ -98,7 +100,9 @@ test('create a data channel on the master connection', function(t) {
 
 test('create additional data channels', function(t) {
   var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
-  var channels = [ 'new_a', 'new_b', 'new_c', 'new_d', 'new_e' ];
+  var channels = times(20).map(function(idx) {
+    return 'newdc_' + idx;
+  });
   var pendingChannels = [].concat(channels);
 
   function addChannel() {

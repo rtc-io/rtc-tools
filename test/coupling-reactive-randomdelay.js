@@ -10,6 +10,7 @@ var messengers = [];
 var dcs = [];
 var roomId = require('uuid').v4();
 var messenger = require('messenger-memory');
+var times = require('whisk/times');
 var scope = [];
 var messengers = [
   messenger({ delay: Math.random() * 500, scope: scope }),
@@ -65,7 +66,9 @@ test('couple b --> a', function(t) {
 
 test('create data channels', function(t) {
   var masterIdx = signallers[0].isMaster(signallers[1].id) ? 0 : 1;
-  var channels = [ 'new_a', 'new_b', 'new_c', 'new_d', 'new_e', 'new_f', 'new_g', 'new_h' ];
+  var channels = times(50).map(function(idx) {
+    return 'newdc_' + idx;
+  });
   var pendingChannels = [].concat(channels);
 
   function addChannel(idx) {
