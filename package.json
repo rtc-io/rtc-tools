@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "freeice": "~0.2",
-    "messenger-memory": "^1",
+    "messenger-memory": "^1.2.0",
     "peerpair": "^1.0.0",
     "rtc-media": "^1",
     "rtc-signaller": "^2",
