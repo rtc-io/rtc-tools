@@ -7,7 +7,7 @@
     "cog": "^1.0.0",
     "eventemitter3": "^0.1.2",
     "rtc-core": "^3.0.0",
-    "rtc-taskqueue": "^1.0.0"
+    "rtc-taskqueue": "^1.2.0"
   },
   "devDependencies": {
     "freeice": "~0.2",
