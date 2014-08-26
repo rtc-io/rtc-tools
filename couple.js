@@ -161,7 +161,15 @@ function couple(pc, targetId, signaller, opts) {
     q.addIceCandidate(data);
   }
 
-  function handleSdp(sdp) {
+  function handleSdp(sdp, src) {
+    // Emit SDP
+    mon.emit('sdp:received', data);
+
+    // if the source is unknown or not a match, then don't process
+    if ((! src) || (src.id !== targetId)) {
+      return;
+    }
+
     q.setRemoteDescription(sdp);
   }
 
