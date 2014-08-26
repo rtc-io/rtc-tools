@@ -163,7 +163,7 @@ function couple(pc, targetId, signaller, opts) {
 
   function handleSdp(sdp, src) {
     // Emit SDP
-    mon.emit('sdp:received', data);
+    mon.emit('sdp:received', sdp);
 
     // if the source is unknown or not a match, then don't process
     if ((! src) || (src.id !== targetId)) {
