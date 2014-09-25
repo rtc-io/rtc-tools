@@ -60,7 +60,7 @@ function couple(pc, targetId, signaller, opts) {
   var debug = require('cog/logger')(debugLabel + '/couple');
 
   // create a monitor for the connection
-  var mon = monitor(pc, targetId, signaller, opts);
+  var mon = monitor(pc, targetId, signaller, (opts || {}).logger);
   var emit = mbus('', mon);
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
