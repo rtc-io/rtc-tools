@@ -43,7 +43,7 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     var newState = getMappedState(pc.iceConnectionState);
 
     // flag the we had a state change
-    monitor('change', pc, newState);
+    monitor('statechange', pc, newState);
 
     // if the active state has changed, then send the appopriate message
     if (state !== newState) {

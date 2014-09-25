@@ -82,13 +82,13 @@ module.exports = function(name, opts) {
 
     function handleChange(conn) {
       if (conn.signalingState === 'stable') {
-        monitors[0].removeListener('change', handleChange);
+        monitors[0].removeListener('statechange', handleChange);
         t.pass('signaling state stable again');
       }
     }
 
     t.plan(1);
-    monitors[0].on('change', handleChange);
+    monitors[0].on('statechange', handleChange);
     monitors[1].createOffer();
   });
 

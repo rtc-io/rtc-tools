@@ -182,7 +182,7 @@ function couple(pc, targetId, signaller, opts) {
       pc.close();
     }, disconnectTimeout);
 
-    mon.on('change', handleDisconnectAbort);
+    mon.on('statechange', handleDisconnectAbort);
   }
 
   function handleDisconnectAbort() {
@@ -220,7 +220,7 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function resetDisconnectTimer() {
-    mon.off('change', handleDisconnectAbort);
+    mon.off('statechange', handleDisconnectAbort);
 
     // clear the disconnect timer
     debug('reset disconnect timer, state: ' + pc.iceConnectionState);
