@@ -52,6 +52,10 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     }
   }
 
+  function handleClose() {
+    monitor('closed');
+  }
+
   function handlePeerLeave(peerId) {
     // if the peer leaving is not the peer we are connected to
     // then we aren't interested
@@ -63,15 +67,15 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     monitor('closed');
   }
 
-  pc.onclose = monitor.emit.bind(monitor, 'closed');
+  pc.addEventListener('close', handleClose);
   peerStateEvents.forEach(function(evtName) {
-    pc['on' + evtName] = checkState;
+    pc.addEventListener(evtName, checkState);
   });
 
   monitor.stop = function() {
-    pc.onclose = null;
+    pc.removeEventListener('close', handleClose);
     peerStateEvents.forEach(function(evtName) {
-      pc['on' + evtName] = null;
+      pc.removeEventListener(evtName, checkState);
     });
 
     // remove the peer:leave listener
@@ -94,9 +98,6 @@ module.exports = function(pc, targetId, signaller, parentBus) {
   if (signaller && typeof signaller.on == 'function') {
     signaller.on('peer:leave', handlePeerLeave);
   }
-
-  // if we are active, trigger the connected state
-  // setTimeout(monitor.emit.bind(monitor, state), 0);
 
   return monitor;
 };
