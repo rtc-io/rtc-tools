@@ -36,7 +36,7 @@ var peerStateEvents = [
 
 **/
 module.exports = function(pc, targetId, signaller, parentBus) {
-  var monitor = mbus('pc', parentBus);
+  var monitor = mbus('', parentBus);
   var state;
 
   function checkState() {
