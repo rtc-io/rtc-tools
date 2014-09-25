@@ -5,9 +5,9 @@
   "version": "3.2.0",
   "dependencies": {
     "cog": "^1.0.0",
-    "eventemitter3": "^0.1.2",
+    "mbus": "^1.1.0",
     "rtc-core": "^3.0.0",
-    "rtc-taskqueue": "^1.2.0"
+    "rtc-taskqueue": "^2.0.0"
   },
   "devDependencies": {
     "freeice": "~0.2",
