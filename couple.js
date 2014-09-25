@@ -72,12 +72,6 @@ function couple(pc, targetId, signaller, opts) {
   var disconnectTimeout = (opts || {}).disconnectTimeout || 10000;
   var disconnectTimer;
 
-  // if the signaller does not support this isMaster function throw an
-  // exception
-  if (typeof signaller.isMaster != 'function') {
-    throw new Error('rtc-signaller instance >= 0.14.0 required');
-  }
-
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
 
