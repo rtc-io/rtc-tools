@@ -1,6 +1,7 @@
 /* jshint node: true */
 'use strict';
 
+var mbus = require('mbus');
 var queue = require('rtc-taskqueue');
 var cleanup = require('./cleanup');
 var monitor = require('./monitor');
@@ -60,6 +61,7 @@ function couple(pc, targetId, signaller, opts) {
 
   // create a monitor for the connection
   var mon = monitor(pc, targetId, signaller, opts);
+  var emit = mbus('', mon);
   var queuedCandidates = [];
   var sdpFilter = (opts || {}).sdpfilter;
   var reactive = (opts || {}).reactive;
@@ -96,7 +98,7 @@ function couple(pc, targetId, signaller, opts) {
     debug('decoupling ' + signaller.id + ' from ' + targetId);
 
     // stop the monitor
-    mon.removeAllListeners();
+//     mon.removeAllListeners();
     mon.stop();
 
     // cleanup the peerconnection
@@ -156,8 +158,7 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function handleSdp(sdp, src) {
-    // Emit SDP
-    mon.emit('sdp:received', sdp);
+    emit('sdp.remote', sdp);
 
     // if the source is unknown or not a match, then don't process
     if ((! src) || (src.id !== targetId)) {
@@ -190,7 +191,7 @@ function couple(pc, targetId, signaller, opts) {
 
     // if we have a closed or failed status, then close the connection
     if (CLOSED_STATES.indexOf(pc.iceConnectionState) >= 0) {
-      return mon.emit('closed');
+      return mon('closed');
     }
 
     mon.once('disconnect', handleDisconnect);
@@ -200,28 +201,26 @@ function couple(pc, targetId, signaller, opts) {
     if (evt.candidate) {
       resetDisconnectTimer();
 
-      mon.emit('icecandidate:local', evt.candidate);
+      emit('ice.local', evt.candidate);
       signaller.to(targetId).send('/candidate', evt.candidate);
       endOfCandidates = false;
     }
     else if (! endOfCandidates) {
       endOfCandidates = true;
-      debug('ice gathering state complete');
-      mon.emit('icecandidate:gathered');
+      emit('ice.gathercomplete');
       signaller.to(targetId).send('/endofcandidates', {});
     }
   }
 
   function handleNegotiateRequest(src) {
     if (src.id === targetId) {
-      debug('got negotiate request from ' + targetId + ', creating offer');
-      mon.emit('negotiate:request', src.id);
+      emit('negotiate.request', src.id);
       debounceOffer();
     }
   }
 
   function resetDisconnectTimer() {
-    mon.removeListener('change', handleDisconnectAbort);
+    mon.off('change', handleDisconnectAbort);
 
     // clear the disconnect timer
     debug('reset disconnect timer, state: ' + pc.iceConnectionState);
@@ -231,7 +230,7 @@ function couple(pc, targetId, signaller, opts) {
   // when regotiation is needed look for the peer
   if (reactive) {
     pc.onnegotiationneeded = function() {
-      mon.emit('negotiate:renegotiate');
+      emit('negotiate.renegotiate');
       createOrRequestOffer();
     };
   }
@@ -239,7 +238,7 @@ function couple(pc, targetId, signaller, opts) {
   pc.onicecandidate = handleLocalCandidate;
 
   // when the task queue tells us we have sdp available, send that over the wire
-  q.on('sdp', function(desc) {
+  q.on('sdp.local', function(desc) {
     signaller.to(targetId).send('/sdp', desc);
   });
 
