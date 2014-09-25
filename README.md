@@ -186,7 +186,7 @@ might be passed while using the `rtc.createConnection` helper.
 ### rtc-tools/monitor
 
 ```
-monitor(pc, targetId, signaller, opts?) => EventEmitter
+monitor(pc, targetId, signaller, parentBus) => mbus
 ```
 
 The monitor is a useful tool for determining the state of `pc` (an
@@ -197,7 +197,7 @@ connection and also the various
 to determine when the connection has been `connected` and when it has
 been `disconnected`.
 
-A monitor created `EventEmitter` is returned as the result of a
+A monitor created `mbus` is returned as the result of a
 [couple](https://github.com/rtc-io/rtc#rtccouple) between a local peer
 connection and it's remote counterpart.
 
