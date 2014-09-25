@@ -1,7 +1,7 @@
 /* jshint node: true */
 'use strict';
 
-var EventEmitter = require('eventemitter3');
+var mbus = require('mbus');
 
 // define some state mappings to simplify the events we generate
 var stateMappings = {
@@ -19,7 +19,7 @@ var peerStateEvents = [
   ### rtc-tools/monitor
 
   ```
-  monitor(pc, targetId, signaller, opts?) => EventEmitter
+  monitor(pc, targetId, signaller, parentBus) => mbus
   ```
 
   The monitor is a useful tool for determining the state of `pc` (an
@@ -30,34 +30,29 @@ var peerStateEvents = [
   to determine when the connection has been `connected` and when it has
   been `disconnected`.
 
-  A monitor created `EventEmitter` is returned as the result of a
+  A monitor created `mbus` is returned as the result of a
   [couple](https://github.com/rtc-io/rtc#rtccouple) between a local peer
   connection and it's remote counterpart.
 
 **/
-module.exports = function(pc, targetId, signaller, opts) {
-  var debugLabel = (opts || {}).debugLabel || 'rtc';
-  var debug = require('cog/logger')(debugLabel + '/monitor');
-  var monitor = new EventEmitter();
+module.exports = function(pc, targetId, signaller, parentBus) {
+  var monitor = mbus('pc', parentBus);
   var state;
 
   function checkState() {
     var newState = getMappedState(pc.iceConnectionState);
-    debug('state changed: ' + pc.iceConnectionState + ', mapped: ' + newState);
 
     // flag the we had a state change
-    monitor.emit('change', pc);
+    monitor('change', pc, newState);
 
     // if the active state has changed, then send the appopriate message
     if (state !== newState) {
-      monitor.emit(newState);
+      monitor(newState);
       state = newState;
     }
   }
 
   function handlePeerLeave(peerId) {
-    debug('captured peer leave for peer: ' + peerId);
-
     // if the peer leaving is not the peer we are connected to
     // then we aren't interested
     if (peerId !== targetId) {
@@ -65,7 +60,7 @@ module.exports = function(pc, targetId, signaller, opts) {
     }
 
     // trigger a closed event
-    monitor.emit('closed');
+    monitor('closed');
   }
 
   pc.onclose = monitor.emit.bind(monitor, 'closed');
