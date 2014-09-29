@@ -9,15 +9,6 @@ var detect = require('./detect');
 var findPlugin = require('rtc-core/plugin');
 var CLOSED_STATES = [ 'closed', 'failed' ];
 
-// track the various supported CreateOffer / CreateAnswer contraints
-// that we recognize and allow
-var OFFER_ANSWER_CONSTRAINTS = [
-  'offerToReceiveVideo',
-  'offerToReceiveAudio',
-  'voiceActivityDetection',
-  'iceRestart'
-];
-
 /**
   ### rtc-tools/couple
 
@@ -108,49 +99,6 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('sdp', handleSdp);
     signaller.removeListener('candidate', handleCandidate);
     signaller.removeListener('negotiate', handleNegotiateRequest);
-  }
-
-  function generateConstraints(methodName) {
-    var constraints = {};
-
-    function reformatConstraints() {
-      var tweaked = {};
-
-      Object.keys(constraints).forEach(function(param) {
-        var sentencedCased = param.charAt(0).toUpperCase() + param.substr(1);
-        tweaked[sentencedCased] = constraints[param];
-      });
-
-      // update the constraints to match the expected format
-      constraints = {
-        mandatory: tweaked
-      };
-    }
-
-    // TODO: customize behaviour based on offer vs answer
-
-    // pull out any valid
-    OFFER_ANSWER_CONSTRAINTS.forEach(function(param) {
-      var sentencedCased = param.charAt(0).toUpperCase() + param.substr(1);
-
-      // if we have no opts, do nothing
-      if (! opts) {
-        return;
-      }
-      // if the parameter has been defined, then add it to the constraints
-      else if (opts[param] !== undefined) {
-        constraints[param] = opts[param];
-      }
-      // if the sentenced cased version has been added, then use that
-      else if (opts[sentencedCased] !== undefined) {
-        constraints[param] = opts[sentencedCased];
-      }
-    });
-
-    // TODO: only do this for the older browsers that require it
-    reformatConstraints();
-
-    return constraints;
   }
 
   function handleCandidate(data) {
