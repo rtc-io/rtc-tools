@@ -7,6 +7,7 @@ var cleanup = require('./cleanup');
 var monitor = require('./monitor');
 var detect = require('./detect');
 var findPlugin = require('rtc-core/plugin');
+var throttle = require('cog/throttle');
 var CLOSED_STATES = [ 'closed', 'failed' ];
 
 /**
@@ -71,19 +72,15 @@ function couple(pc, targetId, signaller, opts) {
   // initialise the processing queue (one at a time please)
   var q = queue(pc, opts);
 
-  function createOrRequestOffer() {
+  var createOrRequestOffer = throttle(function() {
     if (! isMaster) {
       return signaller.to(targetId).send('/negotiate');
     }
 
     q.createOffer();
-  }
+  }, 100, { leading: false });
 
-  function debounceOffer() {
-    debug('debouncing offer');
-    clearTimeout(offerTimeout);
-    offerTimeout = setTimeout(q.createOffer, 50);
-  }
+  var debounceOffer = throttle(q.createOffer, 100, { leading: false });
 
   function decouple() {
     debug('decoupling ' + signaller.id + ' from ' + targetId);
