@@ -67,15 +67,15 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     monitor('closed');
   }
 
-  pc.addEventListener('close', handleClose);
+  pc.onclose = handleClose;
   peerStateEvents.forEach(function(evtName) {
-    pc.addEventListener(evtName, checkState);
+    pc['on' + evtName] = checkState;
   });
 
   monitor.stop = function() {
-    pc.removeEventListener('close', handleClose);
+    pc.onclose = null;
     peerStateEvents.forEach(function(evtName) {
-      pc.removeEventListener(evtName, checkState);
+      pc['on' + evtName] = null;
     });
 
     // remove the peer:leave listener
