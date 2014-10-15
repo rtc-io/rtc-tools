@@ -73,19 +73,17 @@ exports.couple = require('./couple');
 **/
 exports.createConnection = function(opts, constraints) {
   var plugin = findPlugin((opts || {}).plugins);
+  var PeerConnection = (opts || {}).RTCPeerConnection || RTCPeerConnection;
 
   // generate the config based on options provided
   var config = gen.config(opts);
 
   // generate appropriate connection constraints
-  var constraints = gen.connectionConstraints(opts, constraints);
+  constraints = gen.connectionConstraints(opts, constraints);
 
   if (plugin && typeof plugin.createConnection == 'function') {
     return plugin.createConnection(config, constraints);
   }
-  else {
-    return new ((opts || {}).RTCPeerConnection || RTCPeerConnection)(
-      config, constraints
-    );
-  }
+
+  return new PeerConnection(config, constraints);
 };
