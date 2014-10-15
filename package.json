@@ -22,6 +22,7 @@
     "whisk": "^0.6.2"
   },
   "scripts": {
+    "hint": "jshint *.js",
     "test": "testling -x ./.travis/start-$BROWSER.sh",
     "gendocs": "gendocs > README.md"
   },
