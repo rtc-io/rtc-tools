@@ -42,10 +42,6 @@ var mappings = {
   ignored and the generator used instead.
 **/
 
-var iceServerGenerator = function () {
-  return [];
-}
-
 exports.config = function(config) {
   var iceServerGenerator = (config || {}).iceServerGenerator;
 
