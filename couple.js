@@ -5,8 +5,6 @@ var mbus = require('mbus');
 var queue = require('rtc-taskqueue');
 var cleanup = require('./cleanup');
 var monitor = require('./monitor');
-var detect = require('./detect');
-var findPlugin = require('rtc-core/plugin');
 var throttle = require('cog/throttle');
 var CLOSED_STATES = [ 'closed', 'failed' ];
 
@@ -54,12 +52,8 @@ function couple(pc, targetId, signaller, opts) {
   // create a monitor for the connection
   var mon = monitor(pc, targetId, signaller, (opts || {}).logger);
   var emit = mbus('', mon);
-  var queuedCandidates = [];
-  var sdpFilter = (opts || {}).sdpfilter;
   var reactive = (opts || {}).reactive;
-  var offerTimeout;
   var endOfCandidates = true;
-  var plugin = findPlugin((opts || {}).plugins);
 
   // configure the time to wait between receiving a 'disconnect'
   // iceConnectionState and determining that we are closed
@@ -140,7 +134,7 @@ function couple(pc, targetId, signaller, opts) {
     }
 
     mon.once('disconnect', handleDisconnect);
-  };
+  }
 
   function handleLocalCandidate(evt) {
     if (evt.candidate) {
