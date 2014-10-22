@@ -56,17 +56,6 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     monitor('closed');
   }
 
-  function handlePeerLeave(peerId) {
-    // if the peer leaving is not the peer we are connected to
-    // then we aren't interested
-    if (peerId !== targetId) {
-      return;
-    }
-
-    // trigger a closed event
-    monitor('closed');
-  }
-
   pc.onclose = handleClose;
   peerStateEvents.forEach(function(evtName) {
     pc['on' + evtName] = checkState;
@@ -77,11 +66,6 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     peerStateEvents.forEach(function(evtName) {
       pc['on' + evtName] = null;
     });
-
-    // remove the peer:leave listener
-    if (signaller && typeof signaller.removeListener == 'function') {
-      signaller.removeListener('peer:leave', handlePeerLeave);
-    }
   };
 
   monitor.checkState = checkState;
@@ -93,11 +77,6 @@ module.exports = function(pc, targetId, signaller, parentBus) {
 
   // determine the initial is active state
   state = getMappedState(pc.iceConnectionState);
-
-  // if we've been provided a signaller, then watch for peer:leave events
-  if (signaller && typeof signaller.on == 'function') {
-    signaller.on('peer:leave', handlePeerLeave);
-  }
 
   return monitor;
 };

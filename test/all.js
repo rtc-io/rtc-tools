@@ -25,10 +25,3 @@ require('./capture-close-localonly');
 if (! detect.moz) {
   require('./all-reactive');
 }
-
-// ensure that signaller disconnects properly close a connection
-require('./capture-close-signaller')('peer:leave closes connection', ids);
-
-// ensure that the ids from the previous test can be successfully reused
-// to create new connections
-require('./capture-close-signaller')('peer id reuse', ids);
