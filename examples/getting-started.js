@@ -1,4 +1,5 @@
-var signaller = require('rtc-signaller')('http://rtc.io/switchboard/');
+var messenger = require('rtc-switchboard-messenger');
+var signaller = require('rtc-signaller')(messenger('http://rtc.io/switchboard/'));
 var rtc = require('..');
 var media = require('rtc-media');
 var localMedia = media();
@@ -23,7 +24,7 @@ localMedia.once('capture', function(localStream) {
     // once the connection is active, log a console message
     monitor.once('connected', function() {
       console.log('connection active to: ' + data.id);
-  
+
       pc.getRemoteStreams().forEach(function(stream) {
         media(stream).render(document.body);
       });
