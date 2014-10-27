@@ -18,13 +18,14 @@ channel.
 
 If you decide that the `rtc-tools` module is a better fit for you than either
 [rtc-quickconnect](https://github.com/rtc-io/rtc-quickconnect) or
-[rtc-glue](https://github.com/rtc-io/rtc-glue) then the code snippet below
+[rtc](https://github.com/rtc-io/rtc) then the code snippet below
 will provide you a guide on how to get started using it in conjunction with
-the [rtc-signaller](https://github.com/rtc-io/rtc-signaller) and
-[rtc-media](https://github.com/rtc-io/rtc-media) modules:
+the [rtc-signaller](https://github.com/rtc-io/rtc-signaller) (version 5.0 and above)
+and [rtc-media](https://github.com/rtc-io/rtc-media) modules:
 
 ```js
-var signaller = require('rtc-signaller')('http://rtc.io/switchboard/');
+var messenger = require('rtc-switchboard-messenger');
+var signaller = require('rtc-signaller')(messenger('http://rtc.io/switchboard/'));
 var rtc = require('rtc-tools');
 var media = require('rtc-media');
 var localMedia = media();
@@ -49,7 +50,7 @@ localMedia.once('capture', function(localStream) {
     // once the connection is active, log a console message
     monitor.once('connected', function() {
       console.log('connection active to: ' + data.id);
-  
+
       pc.getRemoteStreams().forEach(function(stream) {
         media(stream).render(document.body);
       });
