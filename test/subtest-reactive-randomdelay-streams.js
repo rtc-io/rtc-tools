@@ -1,9 +1,9 @@
 var couple = require('../couple');
 var signaller = require('rtc-signaller');
+var messenger = require('./helpers/messenger');
 var MediaStream = require('../detect')('MediaStream');
 var test = require('tape');
 var rtc = require('..');
-var messenger = require('messenger-memory');
 var times = require('whisk/times');
 
 module.exports = function(name, contexts, opts) {
@@ -11,7 +11,6 @@ module.exports = function(name, contexts, opts) {
   var signallers = [];
   var monitors = [];
   var scope = [];
-  var messengers = [];
   var dcs = [];
   var scope = [];
 
@@ -22,16 +21,9 @@ module.exports = function(name, contexts, opts) {
   var maxDelay = ((opts || {}).maxDelay || 500) - minDelay;
   var streamCount = (opts || {}).streamCount || 10;
 
-  var messengers = [
-    messenger({ delay: randomDelay, scope: scope }),
-    messenger({ delay: randomDelay, scope: scope })
-  ];
-
   function randomDelay() {
     return minDelay + (Math.random() * maxDelay);
   }
-
-  require('cog/logger').enable('rtc-validator');
 
   test(name + ': create peer connections', function(t) {
     t.plan(2);
@@ -42,7 +34,9 @@ module.exports = function(name, contexts, opts) {
 
   test(name + ': create signallers', function(t) {
     t.plan(2);
-    signallers = messengers.map(signaller);
+    signallers = times(2).map(function() {
+      return signaller(messenger);
+    });
     t.ok(signallers[0], 'created signaller a');
     t.ok(signallers[1], 'created signaller b');
   });

@@ -1,5 +1,6 @@
 var couple = require('../couple');
 var signaller = require('rtc-signaller');
+var messenger = require('./helpers/messenger');
 var test = require('tape');
 var rtc = require('..');
 var conns = [];
@@ -22,8 +23,8 @@ test('create peer connections', function(t) {
 test('create signallers', function(t) {
   t.plan(2);
 
-  t.ok(signallers[0] = signaller(location.origin), 'created signaller a');
-  t.ok(signallers[1] = signaller(location.origin), 'created signaller b');
+  t.ok(signallers[0] = signaller(messenger), 'created signaller a');
+  t.ok(signallers[1] = signaller(messenger), 'created signaller b');
 });
 
 test('announce signallers', function(t) {
