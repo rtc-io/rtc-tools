@@ -90,6 +90,11 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('sdp', handleSdp);
     signaller.removeListener('candidate', handleCandidate);
     signaller.removeListener('negotiate', handleNegotiateRequest);
+
+    // remove listeners (version >= 5)
+    signaller.removeListener('message:sdp', handleSdp);
+    signaller.removeListener('message:candidate', handleCandidate);
+    signaller.removeListener('message:negotiate', handleNegotiateRequest);
   }
 
   function handleCandidate(data) {
@@ -195,9 +200,14 @@ function couple(pc, targetId, signaller, opts) {
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleCandidate);
 
+  // listeners (signaller >= 5)
+  signaller.on('message:sdp', handleSdp);
+  signaller.on('message:candidate', handleCandidate);
+
   // if this is a master connection, listen for negotiate events
   if (isMaster) {
     signaller.on('negotiate', handleNegotiateRequest);
+    signaller.on('message:negotiate', handleNegotiateRequest); // signaller >= 5
   }
 
   // when the connection closes, remove event handlers
