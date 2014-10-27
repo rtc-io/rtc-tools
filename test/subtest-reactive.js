@@ -1,5 +1,6 @@
 var couple = require('../couple');
 var signaller = require('rtc-signaller');
+var messenger = require('./helpers/messenger');
 var test = require('tape');
 var rtc = require('..');
 var times = require('whisk/times');
@@ -33,8 +34,8 @@ module.exports = function(name, opts) {
   test(name + ': create signallers', function(t) {
     t.plan(2);
 
-    t.ok(signallers[0] = signaller(location.origin), 'created signaller a');
-    t.ok(signallers[1] = signaller(location.origin), 'created signaller b');
+    t.ok(signallers[0] = signaller(messenger), 'created signaller a');
+    t.ok(signallers[1] = signaller(messenger), 'created signaller b');
   });
 
   test(name + ': announce signallers', function(t) {

@@ -1,6 +1,7 @@
 var couple = require('../couple');
 var cleanup = require('../cleanup');
 var signaller = require('rtc-signaller');
+var messenger = require('./helpers/messenger');
 var test = require('tape');
 var rtc = require('..');
 var conns = [];
@@ -24,10 +25,10 @@ module.exports = function(suiteName, ids) {
   test(suiteName + ': create signallers', function(t) {
     t.plan(4);
 
-    t.ok(signallers[0] = signaller(location.origin, { id: ids[0] }), 'created signaller a');
+    t.ok(signallers[0] = signaller(messenger, { id: ids[0] }), 'created signaller a');
     t.equal(signallers[0].id, ids[0], 'id assigned');
 
-    t.ok(signallers[1] = signaller(location.origin, { id: ids[1] }), 'created signaller b');
+    t.ok(signallers[1] = signaller(messenger, { id: ids[1] }), 'created signaller b');
     t.equal(signallers[1].id, ids[1], 'id assigned');
   });
 

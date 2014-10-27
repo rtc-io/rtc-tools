@@ -1,5 +1,6 @@
 var couple = require('../couple');
 var signaller = require('rtc-signaller');
+var messenger = require('./helpers/messenger');
 var test = require('tape');
 var rtc = require('..');
 var conns = [];
@@ -9,13 +10,10 @@ var scope = [];
 var messengers = [];
 var dcs = [];
 var roomId = require('uuid').v4();
-var messenger = require('messenger-memory');
+var messenger = require('./helpers/messenger');
 var times = require('whisk/times');
 var scope = [];
-var messengers = [
-  messenger({ delay: Math.random() * 500, scope: scope }),
-  messenger({ delay: Math.random() * 500, scope: scope })
-];
+var messengers = [ messenger, messenger ];
 
 // require('cog/logger').enable('*');
 

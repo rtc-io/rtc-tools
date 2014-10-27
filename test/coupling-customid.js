@@ -1,5 +1,6 @@
 var couple = require('../couple');
 var signaller = require('rtc-signaller');
+var messenger = require('./helpers/messenger');
 var test = require('tape');
 var rtc = require('..');
 var conns = [];
@@ -22,10 +23,10 @@ test('create peer connections', function(t) {
 test('create signallers (using custom ids)', function(t) {
   t.plan(4);
 
-  t.ok(signallers[0] = signaller(location.origin, { id: 1 }), 'created signaller a (id = 1)');
+  t.ok(signallers[0] = signaller(messenger, { id: 1 }), 'created signaller a (id = 1)');
   t.equal(signallers[0].id, 1, 'id === 1');
 
-  t.ok(signallers[1] = signaller(location.origin, { id: 2 }), 'created signaller b');
+  t.ok(signallers[1] = signaller(messenger, { id: 2 }), 'created signaller b');
   t.equal(signallers[1].id, 2, 'id === 2');
 });
 
