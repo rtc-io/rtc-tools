@@ -123,7 +123,7 @@ function couple(pc, targetId, signaller, opts) {
     // start the disconnect timer
     disconnectTimer = setTimeout(function() {
       debug('manually closing connection after disconnect timeout');
-      pc.close();
+      cleanup(pc);
     }, disconnectTimeout);
 
     mon.on('statechange', handleDisconnectAbort);
