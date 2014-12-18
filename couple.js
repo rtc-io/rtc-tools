@@ -7,6 +7,7 @@ var cleanup = require('./cleanup');
 var monitor = require('./monitor');
 var throttle = require('cog/throttle');
 var CLOSED_STATES = [ 'closed', 'failed' ];
+var CHECKING_STATES = [ 'checking' ];
 
 /**
   ### rtc-tools/couple
@@ -131,6 +132,13 @@ function couple(pc, targetId, signaller, opts) {
 
   function handleDisconnectAbort() {
     debug('connection state changed to: ' + pc.iceConnectionState);
+
+    // if the state is checking, then do not reset the disconnect timer as
+    // we are doing our own checking
+    if (CHECKING_STATES.indexOf(pc.iceConnectionState) >= 0) {
+      return;
+    }
+
     resetDisconnectTimer();
 
     // if we have a closed or failed status, then close the connection
