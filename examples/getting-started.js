@@ -1,21 +1,21 @@
 var messenger = require('rtc-switchboard-messenger');
-var signaller = require('rtc-signaller')(messenger('http://rtc.io/switchboard/'));
+var signaller = require('rtc-signaller')(messenger('https://switchboard.rtc.io/'));
 var rtc = require('..');
-var media = require('rtc-media');
-var localMedia = media();
-
-// render the local media to the document body
-localMedia.render(document.body);
+var getUserMedia = require('getusermedia');
+var attachMedia = require('attachmediastream');
 
 // capture local media first as firefox
 // will want a local stream and doesn't support onnegotiationneeded event
-localMedia.once('capture', function(localStream) {
+getUserMedia({ video: true, audio: true }, function(err, localStream) {
+  if (err) {
+    return console.error('could not capture media: ', err);
+  }
+
+  document.body.appendChild(attachMedia(localStream));
+
   // look for friends
   signaller.on('peer:announce', function(data) {
-    // create a peer connection for our new friend
     var pc = rtc.createConnection();
-
-    // couple our connection via the signalling channel
     var monitor = rtc.couple(pc, data.id, signaller);
 
     // add the stream to the connection
@@ -26,7 +26,7 @@ localMedia.once('capture', function(localStream) {
       console.log('connection active to: ' + data.id);
 
       pc.getRemoteStreams().forEach(function(stream) {
-        media(stream).render(document.body);
+        document.body.appendChild(attachMedia(stream));
       });
     });
 
@@ -37,4 +37,3 @@ localMedia.once('capture', function(localStream) {
   // announce ourself in the rtc-getting-started room
   signaller.announce({ room: 'rtc-getting-started' });
 });
-
