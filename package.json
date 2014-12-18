@@ -10,10 +10,11 @@
     "rtc-taskqueue": "^2.2.0"
   },
   "devDependencies": {
+    "attachmediastream": "^1.0.1",
     "freeice": "^2.1.1",
+    "getusermedia": "^1.1.0",
     "messenger-memory": "^1.2.0",
     "peerpair": "^1.0.0",
-    "rtc-media": "^1",
     "rtc-signaller": "^5.0.0",
     "rtc-switchboard": "^2.1.0",
     "rtc-switchboard-messenger": "^1.0.0",
