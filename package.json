@@ -18,7 +18,7 @@
     "rtc-signaller": "^5.0.0",
     "rtc-switchboard": "^2.1.0",
     "rtc-switchboard-messenger": "^1.0.0",
-    "tape": "^3.0.1",
+    "rtc-tools-test": "^1.0.0",
     "testling": "^1",
     "uuid": "^2.0.1",
     "whisk": "^1.0.0"

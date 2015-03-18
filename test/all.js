@@ -1,27 +1,12 @@
-var test = require('tape');
-var detect = require('rtc-core/detect');
-var uuid = require('uuid');
+var signaller = require('rtc-signaller');
+var messenger = require('rtc-switchboard-messenger');
+var extend = require('cog/extend');
 
-// regenerate some signaller ids for the reuse tests
-var ids = [ uuid.v4(), uuid.v4() ];
-
-test('can import rtc module', function(t) {
-  t.plan(1);
-  t.ok(require('../'), 'imported successfully');
-});
-
-require('./generators');
-require('./generators-connection-constraints');
-require('./peerconnection');
-require('./monitor');
-require('./cleanup');
-
-require('./coupling');
-require('./coupling-customid');
-require('./coupling-constraints');
-require('./capture-close-localonly');
-
-// only test reactive coupling in chrome
-if (! detect.moz) {
-  require('./all-reactive');
+function createSignaller(opts) {
+  return signaller(messenger(location.origin), opts);
 }
+
+require('rtc-tools-test/')(
+  require('..'),
+  createSignaller
+);
