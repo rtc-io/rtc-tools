@@ -7,7 +7,8 @@
     "cog": "^1.0.0",
     "mbus": "^2.0.0",
     "rtc-core": "^4.0.0",
-    "rtc-taskqueue": "^2.2.0"
+    "rtc-taskqueue": "^2.2.0",
+    "whisk": "^1.1.0"
   },
   "devDependencies": {
     "attachmediastream": "^1.0.1",
@@ -21,8 +22,7 @@
     "rtc-tools-test": "^1.0.0",
     "testling": "^1",
     "travis-multirunner": "^2.0.9",
-    "uuid": "^2.0.1",
-    "whisk": "^1.0.0"
+    "uuid": "^2.0.1"
   },
   "scripts": {
     "hint": "jshint *.js",
