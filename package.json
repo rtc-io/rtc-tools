@@ -26,7 +26,7 @@
   },
   "scripts": {
     "hint": "jshint *.js",
-    "test": "testling -x ./.travis/start-$BROWSER.sh",
+    "test": "testling -x start-$BROWSER",
     "gendocs": "gendocs > README.md"
   },
   "main": "index.js",
