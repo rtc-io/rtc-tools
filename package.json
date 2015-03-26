@@ -20,6 +20,7 @@
     "rtc-switchboard-messenger": "^1.0.0",
     "rtc-tools-test": "^1.0.0",
     "testling": "^1",
+    "travis-multirunner": "^2.0.9",
     "uuid": "^2.0.1",
     "whisk": "^1.0.0"
   },
