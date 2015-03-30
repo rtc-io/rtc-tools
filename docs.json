@@ -3,6 +3,7 @@
     "nodeico": true,
     "travis": true,
     "stability": "unstable",
+    "bithound": true,
     "gitter": "rtc-io/discuss"
   },
 
