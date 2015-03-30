@@ -9,7 +9,7 @@ channel.
 
 [![NPM](https://nodei.co/npm/rtc-tools.png)](https://nodei.co/npm/rtc-tools/)
 
-[![Build Status](https://img.shields.io/travis/rtc-io/rtc-tools.svg?branch=master)](https://travis-ci.org/rtc-io/rtc-tools) [![unstable](https://img.shields.io/badge/stability-unstable-yellowgreen.svg)](https://github.com/dominictarr/stability#unstable) 
+[![Build Status](https://img.shields.io/travis/rtc-io/rtc-tools.svg?branch=master)](https://travis-ci.org/rtc-io/rtc-tools) [![unstable](https://img.shields.io/badge/stability-unstable-yellowgreen.svg)](https://github.com/dominictarr/stability#unstable) [![bitHound Score](https://www.bithound.io/github/rtc-io/rtc-tools/badges/score.svg)](https://www.bithound.io/github/rtc-io/rtc-tools) 
 [![Gitter chat](https://badges.gitter.im/rtc-io/discuss.png)](https://gitter.im/rtc-io/discuss)
 
 
