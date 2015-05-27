@@ -100,7 +100,12 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('message:negotiate', handleNegotiateRequest);
   }
 
-  function handleCandidate(data) {
+  function handleCandidate(data, src) {
+    // if the source is unknown or not a match, then don't process
+    if ((! src) || (src.id !== targetId)) {
+      return;
+    }
+
     q.addIceCandidate(data);
   }
 
