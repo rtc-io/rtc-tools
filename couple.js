@@ -110,13 +110,12 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function handleSdp(sdp, src) {
-    emit('sdp.remote', sdp);
-
     // if the source is unknown or not a match, then don't process
     if ((! src) || (src.id !== targetId)) {
       return;
     }
 
+    emit('sdp.remote', sdp);
     q.setRemoteDescription(sdp);
   }
 
