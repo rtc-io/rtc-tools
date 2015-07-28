@@ -100,18 +100,22 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('message:negotiate', handleNegotiateRequest);
   }
 
-  function handleCandidate(data) {
-    q.addIceCandidate(data);
-  }
-
-  function handleSdp(sdp, src) {
-    emit('sdp.remote', sdp);
-
+  function handleCandidate(data, src) {
     // if the source is unknown or not a match, then don't process
     if ((! src) || (src.id !== targetId)) {
       return;
     }
 
+    q.addIceCandidate(data);
+  }
+
+  function handleSdp(sdp, src) {
+    // if the source is unknown or not a match, then don't process
+    if ((! src) || (src.id !== targetId)) {
+      return;
+    }
+
+    emit('sdp.remote', sdp);
     q.setRemoteDescription(sdp);
   }
 
