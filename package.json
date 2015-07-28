@@ -12,21 +12,23 @@
   },
   "devDependencies": {
     "attachmediastream": "^1.0.1",
+    "broth": "^2.1.1",
+    "browserify": "^11.0.0",
     "freeice": "^2.1.1",
     "getusermedia": "^1.1.0",
     "messenger-memory": "^1.2.0",
     "peerpair": "^1.0.0",
-    "rtc-signaller": "^5.0.0",
-    "rtc-switchboard": "^2.1.0",
+    "rtc-signaller": "^6.2.1",
+    "rtc-switchboard": "^3.0.0",
     "rtc-switchboard-messenger": "^1.0.0",
-    "rtc-tools-test": "^1.0.0",
-    "testling": "^1",
+    "rtc-tools-test": "^2.0.0",
+    "tap-spec": "^4.0.2",
     "travis-multirunner": "^2.0.9",
     "uuid": "^2.0.1"
   },
   "scripts": {
     "hint": "jshint *.js",
-    "test": "testling -x start-$BROWSER",
+    "test": "browserify test/all.js | broth start-$BROWSER | tap-spec",
     "gendocs": "gendocs > README.md"
   },
   "main": "index.js",
