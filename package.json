@@ -7,7 +7,7 @@
     "cog": "^1.0.0",
     "mbus": "^2.0.0",
     "rtc-core": "^4.0.0",
-    "rtc-taskqueue": "^2.2.0",
+    "rtc-taskqueue": "^2.9.0",
     "whisk": "^1.1.0"
   },
   "devDependencies": {
@@ -28,7 +28,7 @@
   },
   "scripts": {
     "hint": "jshint *.js",
-    "test": "browserify test/all.js | broth start-$BROWSER | tap-spec",
+    "test": "browserify test/all.js | broth start | tap-spec",
     "gendocs": "gendocs > README.md"
   },
   "main": "index.js",

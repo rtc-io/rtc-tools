@@ -68,16 +68,24 @@ function couple(pc, targetId, signaller, opts) {
 
   // initialise the processing queue (one at a time please)
   var q = queue(pc, opts);
+  var coupling = false;
+  var negotiationRequired = false;
 
   var createOrRequestOffer = throttle(function() {
+    // If this is not the master, always send the negotiate request
+    // Redundant requests are eliminated on the master side
     if (! isMaster) {
       return signaller.to(targetId).send('/negotiate');
     }
 
+    // If coupling is already in progress, return
+    if (coupling) return;
+
+    // Otherwise, create the offer
+    coupling = true;
+    negotiationRequired = false;
     q.createOffer();
   }, 100, { leading: false });
-
-  var debounceOffer = throttle(q.createOffer, 100, { leading: false });
 
   function decouple() {
     debug('decoupling ' + signaller.id + ' from ' + targetId);
@@ -109,6 +117,10 @@ function couple(pc, targetId, signaller, opts) {
     q.addIceCandidate(data);
   }
 
+  // No op
+  function handleLastCandidate() {
+  }
+
   function handleSdp(sdp, src) {
     // if the source is unknown or not a match, then don't process
     if ((! src) || (src.id !== targetId)) {
@@ -116,7 +128,21 @@ function couple(pc, targetId, signaller, opts) {
     }
 
     emit('sdp.remote', sdp);
-    q.setRemoteDescription(sdp);
+
+    // To speed up things on the renegotiation side of things, determine whether we have
+    // finished the coupling (offer -> answer) cycle, and whether it is safe to start
+    // renegotiating prior to the iceConnectionState "completed" state
+    q.setRemoteDescription(sdp).then(function() {
+
+      // If this is the master, then we can assume that this description was the answer
+      // and assume that coupling (offer -> answer) process is complete, so we can
+      // now renegotiate without threat of interference
+      if (isMaster) {
+        debug('coupling complete, can now trigger any pending renegotiations');
+        coupling = false;
+        if (negotiationRequired) createOrRequestOffer();
+      }
+    });
   }
 
   function handleConnectionClose() {
@@ -171,11 +197,38 @@ function couple(pc, targetId, signaller, opts) {
     }
   }
 
+  function requestNegotiation() {
+    // This is a redundant request if not reactive
+    if (coupling && !reactive) return;
+
+    // If no coupling is occurring, regardless of reactive, start the offer process
+    if (!coupling) return createOrRequestOffer();
+
+    // If we are already coupling, we are reactive and renegotiation has not been indicated
+    // defer a negotiation request
+    if (coupling && reactive && !negotiationRequired) {
+      debug('renegotiation is required, but deferring until existing connection is established');
+      negotiationRequired = true;
+
+      // NOTE: This is commented out, as the functionality after the setRemoteDescription
+      // should adequately take care of this. But should it not, re-enable this
+      // mon.once('connectionstate:completed', function() {
+      //   createOrRequestOffer();
+      // });
+    }
+  }
+
   function handleNegotiateRequest(src) {
     if (src.id === targetId) {
       emit('negotiate.request', src.id);
-      debounceOffer();
+      requestNegotiation();
     }
+  }
+
+  function handleRenegotiateRequest() {
+    if (!reactive) return;
+    emit('negotiate.renegotiate');
+    requestNegotiation();
   }
 
   function resetDisconnectTimer() {
@@ -188,10 +241,7 @@ function couple(pc, targetId, signaller, opts) {
 
   // when regotiation is needed look for the peer
   if (reactive) {
-    pc.onnegotiationneeded = function() {
-      emit('negotiate.renegotiate');
-      createOrRequestOffer();
-    };
+    pc.onnegotiationneeded = handleRenegotiateRequest;
   }
 
   pc.onicecandidate = handleLocalCandidate;
@@ -204,10 +254,12 @@ function couple(pc, targetId, signaller, opts) {
   // when we receive sdp, then
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleCandidate);
+  signaller.on('endofcandidates', handleLastCandidate);
 
   // listeners (signaller >= 5)
   signaller.on('message:sdp', handleSdp);
   signaller.on('message:candidate', handleCandidate);
+  signaller.on('message:endofcandidates', handleLastCandidate);
 
   // if this is a master connection, listen for negotiate events
   if (isMaster) {
