@@ -38,17 +38,25 @@ var peerStateEvents = [
 module.exports = function(pc, targetId, signaller, parentBus) {
   var monitor = mbus('', parentBus);
   var state;
+  var connectionState;
 
   function checkState() {
-    var newState = getMappedState(pc.iceConnectionState);
+    var newConnectionState = pc.iceConnectionState;
+    var newState = getMappedState(newConnectionState);
 
     // flag the we had a state change
     monitor('statechange', pc, newState);
+    monitor('connectionstatechange', pc, newConnectionState);
 
     // if the active state has changed, then send the appopriate message
     if (state !== newState) {
       monitor(newState);
       state = newState;
+    }
+
+    if (connectionState !== newConnectionState) {
+      monitor('connectionstate:' + newConnectionState);
+      connectionState = newConnectionState;
     }
   }
 
