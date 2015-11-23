@@ -39,6 +39,7 @@ module.exports = function(pc, targetId, signaller, parentBus) {
   var monitor = mbus('', parentBus);
   var state;
   var connectionState;
+  var isClosed = false;
 
   function checkState() {
     var newConnectionState = pc.iceConnectionState;
@@ -58,9 +59,16 @@ module.exports = function(pc, targetId, signaller, parentBus) {
       monitor('connectionstate:' + newConnectionState);
       connectionState = newConnectionState;
     }
+
+    // As Firefox does not always support `onclose`, if the state is closed
+    // and we haven't already handled the close, do so now
+    if (newState === 'closed' && !isClosed) {
+      handleClose();
+    }
   }
 
   function handleClose() {
+    isClosed = true;
     monitor('closed');
   }
 
