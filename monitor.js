@@ -53,16 +53,17 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     if (state !== newState) {
       monitor(newState);
       state = newState;
-
-      // As Firefox does not always support `onclose`, handle closed state changes
-      if (state === 'closed' && !isClosed) {
-        handleClose();
-      }
     }
 
     if (connectionState !== newConnectionState) {
       monitor('connectionstate:' + newConnectionState);
       connectionState = newConnectionState;
+    }
+
+    // As Firefox does not always support `onclose`, if the state is closed
+    // and we haven't already handled the close, do so now
+    if (newState === 'closed' && !isClosed) {
+      handleClose();
     }
   }
 
