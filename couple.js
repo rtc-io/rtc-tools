@@ -63,6 +63,12 @@ function couple(pc, targetId, signaller, opts) {
   var disconnectTimeout = (opts || {}).disconnectTimeout || 10000;
   var disconnectTimer;
 
+  // Target ready indicates that the target peer has indicated it is
+  // ready to begin coupling
+  var targetReady = false;
+  var readyInterval = (opts || {}).readyInterval || 100;
+  var readyTimer;
+
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
 
@@ -72,6 +78,12 @@ function couple(pc, targetId, signaller, opts) {
   var negotiationRequired = false;
 
   var createOrRequestOffer = throttle(function() {
+    if (!targetReady) {
+      debug('Target not yet ready for offer');
+      return emit.once('target.ready', createOrRequestOffer);
+    }
+
+    debug('createOrRequestOffer');
     // If this is not the master, always send the negotiate request
     // Redundant requests are eliminated on the master side
     if (! isMaster) {
@@ -101,11 +113,13 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('sdp', handleSdp);
     signaller.removeListener('candidate', handleCandidate);
     signaller.removeListener('negotiate', handleNegotiateRequest);
+    signaller.removeListener('ready', handleReady);
 
     // remove listeners (version >= 5)
     signaller.removeListener('message:sdp', handleSdp);
     signaller.removeListener('message:candidate', handleCandidate);
     signaller.removeListener('message:negotiate', handleNegotiateRequest);
+    signaller.removeListener('message:ready', handleReady);
   }
 
   function handleCandidate(data, src) {
@@ -143,6 +157,15 @@ function couple(pc, targetId, signaller, opts) {
         if (negotiationRequired) createOrRequestOffer();
       }
     });
+  }
+
+  function handleReady(src) {
+    if (targetReady || !src || src.id !== targetId) {
+      return;
+    }
+    debug('target is ready for coupling');
+    targetReady = true;
+    emit('target.ready');
   }
 
   function handleConnectionClose() {
@@ -255,11 +278,13 @@ function couple(pc, targetId, signaller, opts) {
   signaller.on('sdp', handleSdp);
   signaller.on('candidate', handleCandidate);
   signaller.on('endofcandidates', handleLastCandidate);
+  signaller.on('ready', handleReady);
 
   // listeners (signaller >= 5)
   signaller.on('message:sdp', handleSdp);
   signaller.on('message:candidate', handleCandidate);
   signaller.on('message:endofcandidates', handleLastCandidate);
+  signaller.on('message:ready', handleReady);
 
   // if this is a master connection, listen for negotiate events
   if (isMaster) {
@@ -273,6 +298,19 @@ function couple(pc, targetId, signaller, opts) {
 
   // patch in the create offer functions
   mon.createOffer = createOrRequestOffer;
+
+  // A heavy handed approach to ensuring readiness across the coupling
+  // peers. Will periodically send the `ready` message to the target peer
+  // until the target peer has acknowledged that it also is ready - at which
+  // point the offer can be sent
+  function checkReady() {
+    clearTimeout(readyTimer);
+    if (targetReady) return;
+    signaller.to(targetId).send('/ready');
+    readyTimer = setTimeout(checkReady, readyInterval);
+  }
+  checkReady();
+  debug('ready for coupling');
 
   return mon;
 }
