@@ -69,6 +69,10 @@ function couple(pc, targetId, signaller, opts) {
   var readyInterval = (opts || {}).readyInterval || 100;
   var readyTimer;
 
+  // Failure timeout
+  var failTimeout = (opts || {}).failTimeout || 30000;
+  var failTimer;
+
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
 
@@ -311,6 +315,16 @@ function couple(pc, targetId, signaller, opts) {
   }
   checkReady();
   debug('ready for coupling');
+
+  // If we fail to connect within the given timeframe, trigger a failure
+  failTimer = setTimeout(function() {
+    mon('failed');
+    decouple();
+  }, failTimeout);
+
+  mon.once('connected', function() {
+    clearTimeout(failTimer);
+  });
 
   return mon;
 }
