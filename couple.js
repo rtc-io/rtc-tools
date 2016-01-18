@@ -309,8 +309,13 @@ function couple(pc, targetId, signaller, opts) {
   // point the offer can be sent
   function checkReady() {
     clearTimeout(readyTimer);
-    if (targetReady) return;
     signaller.to(targetId).send('/ready');
+
+    // If we are ready, they've told us they are ready, and we've told
+    // them we're ready, then exit
+    if (targetReady) return;
+
+    // Otherwise, keep telling them we're ready
     readyTimer = setTimeout(checkReady, readyInterval);
   }
   checkReady();
