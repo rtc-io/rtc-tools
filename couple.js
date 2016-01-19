@@ -187,6 +187,7 @@ function couple(pc, targetId, signaller, opts) {
     }, disconnectTimeout);
 
     mon.on('statechange', handleDisconnectAbort);
+    mon('failing');
   }
 
   function handleDisconnectAbort() {
@@ -259,11 +260,18 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function resetDisconnectTimer() {
+    var recovered = !!disconnectTimer;
     mon.off('statechange', handleDisconnectAbort);
 
     // clear the disconnect timer
     debug('reset disconnect timer, state: ' + pc.iceConnectionState);
     clearTimeout(disconnectTimer);
+    disconnectTimer = undefined;
+
+    // Trigger the recovered event if this is a recovery
+    if (recovered) {
+      mon('recovered');
+    }
   }
 
   // when regotiation is needed look for the peer
