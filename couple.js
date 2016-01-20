@@ -83,7 +83,7 @@ function couple(pc, targetId, signaller, opts) {
 
   var createOrRequestOffer = throttle(function() {
     if (!targetReady) {
-      debug('Target not yet ready for offer');
+      debug('[' + signaller.id + '] ' + targetId + ' not yet ready for offer');
       return emit.once('target.ready', createOrRequestOffer);
     }
 
@@ -167,7 +167,7 @@ function couple(pc, targetId, signaller, opts) {
     if (targetReady || !src || src.id !== targetId) {
       return;
     }
-    debug('target is ready for coupling');
+    debug('[' + signaller.id + '] ' + targetId + ' is ready for coupling');
     targetReady = true;
     emit('target.ready');
   }
@@ -183,6 +183,7 @@ function couple(pc, targetId, signaller, opts) {
     // start the disconnect timer
     disconnectTimer = setTimeout(function() {
       debug('manually closing connection after disconnect timeout');
+      mon('failed');
       cleanup(pc);
     }, disconnectTimeout);
 
@@ -327,7 +328,7 @@ function couple(pc, targetId, signaller, opts) {
     readyTimer = setTimeout(checkReady, readyInterval);
   }
   checkReady();
-  debug('ready for coupling');
+  debug('[' + signaller.id + '] ready for coupling to ' + targetId);
 
   // If we fail to connect within the given timeframe, trigger a failure
   failTimer = setTimeout(function() {
