@@ -83,7 +83,7 @@ function couple(pc, targetId, signaller, opts) {
 
   var createOrRequestOffer = throttle(function() {
     if (!targetReady) {
-      debug('Target not yet ready for offer');
+      debug('[' + signaller.id + '] ' + targetId + ' not yet ready for offer');
       return emit.once('target.ready', createOrRequestOffer);
     }
 
@@ -167,7 +167,7 @@ function couple(pc, targetId, signaller, opts) {
     if (targetReady || !src || src.id !== targetId) {
       return;
     }
-    debug('target is ready for coupling');
+    debug('[' + signaller.id + '] ' + targetId + ' is ready for coupling');
     targetReady = true;
     emit('target.ready');
   }
@@ -183,10 +183,12 @@ function couple(pc, targetId, signaller, opts) {
     // start the disconnect timer
     disconnectTimer = setTimeout(function() {
       debug('manually closing connection after disconnect timeout');
+      mon('failed');
       cleanup(pc);
     }, disconnectTimeout);
 
     mon.on('statechange', handleDisconnectAbort);
+    mon('failing');
   }
 
   function handleDisconnectAbort() {
@@ -259,11 +261,18 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function resetDisconnectTimer() {
+    var recovered = !!disconnectTimer && CLOSED_STATES.indexOf(pc.iceConnectionState) === -1;
     mon.off('statechange', handleDisconnectAbort);
 
     // clear the disconnect timer
     debug('reset disconnect timer, state: ' + pc.iceConnectionState);
     clearTimeout(disconnectTimer);
+    disconnectTimer = undefined;
+
+    // Trigger the recovered event if this is a recovery
+    if (recovered) {
+      mon('recovered');
+    }
   }
 
   // when regotiation is needed look for the peer
@@ -319,7 +328,7 @@ function couple(pc, targetId, signaller, opts) {
     readyTimer = setTimeout(checkReady, readyInterval);
   }
   checkReady();
-  debug('ready for coupling');
+  debug('[' + signaller.id + '] ready for coupling to ' + targetId);
 
   // If we fail to connect within the given timeframe, trigger a failure
   failTimer = setTimeout(function() {
