@@ -261,7 +261,7 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function resetDisconnectTimer() {
-    var recovered = !!disconnectTimer;
+    var recovered = !!disconnectTimer && pc.iceConnectionState !== 'closed';
     mon.off('statechange', handleDisconnectAbort);
 
     // clear the disconnect timer
