@@ -340,6 +340,17 @@ function couple(pc, targetId, signaller, opts) {
     clearTimeout(failTimer);
   });
 
+  /**
+    Aborts the coupling process
+   **/
+  mon.abort = function() {
+    if (failTimer) {
+      clearTimeout(failTimer);
+    }
+    decouple();
+    mon('aborted');
+  };
+
   return mon;
 }
 
