@@ -2,7 +2,7 @@
   "name": "rtc-tools",
   "description": "Cross-browser WebRTC helpers",
   "author": "Damon Oehlman <damon.oehlman@nicta.com.au>",
-  "version": "5.1.2",
+  "version": "5.2.0",
   "dependencies": {
     "cog": "^1.0.0",
     "mbus": "^2.0.0",
