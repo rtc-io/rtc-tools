@@ -32,9 +32,12 @@ var EVENTS_DECOUPLE_AC = [
 
 **/
 module.exports = function(pc) {
+  if (!pc) return;
+
   // see if we can close the connection
   var currentState = pc.iceConnectionState;
-  var canClose = CANNOT_CLOSE_STATES.indexOf(currentState) < 0;
+  var currentSignaling = pc.signalingState;
+  var canClose = CANNOT_CLOSE_STATES.indexOf(currentState) < 0 && CANNOT_CLOSE_STATES.indexOf(currentSignaling) < 0;
 
   function decouple(events) {
     events.forEach(function(evtName) {
@@ -49,7 +52,11 @@ module.exports = function(pc) {
 
   if (canClose) {
     debug('attempting connection close, current state: '+ pc.iceConnectionState);
-    pc.close();
+    try {
+      pc.close();
+    } catch (e) {
+      console.warn('Could not close connection', e);
+    }
   }
 
   // remove the event listeners
