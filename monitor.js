@@ -39,11 +39,13 @@ module.exports = function(pc, targetId, signaller, parentBus) {
   var monitor = mbus('', parentBus);
   var state;
   var connectionState;
+  var signalingState;
   var isClosed = false;
 
   function checkState() {
     var newConnectionState = pc.iceConnectionState;
     var newState = getMappedState(newConnectionState);
+    var newSignalingState = pc.signalingState;
 
     // flag the we had a state change
     monitor('statechange', pc, newState);
@@ -64,6 +66,13 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     // and we haven't already handled the close, do so now
     if (newState === 'closed' && !isClosed) {
       handleClose();
+    }
+
+    // Check the signalling state to see if it has also changed
+    if (signalingState !== newSignalingState) {
+      monitor('signalingchange', pc, newSignalingState, signalingState);
+      monitor('signaling:' + newSignalingState, pc, newSignalingState, signalingState);
+      signalingState = newSignalingState;
     }
   }
 
