@@ -81,6 +81,10 @@ function couple(pc, targetId, signaller, opts) {
   var coupling = false;
   var negotiationRequired = false;
 
+  function isStable() {
+    return pc.signalingState === 'stable';
+  }
+
   var createOrRequestOffer = throttle(function() {
     if (!targetReady) {
       debug('[' + signaller.id + '] ' + targetId + ' not yet ready for offer');
@@ -88,17 +92,10 @@ function couple(pc, targetId, signaller, opts) {
     }
 
     debug('createOrRequestOffer');
-    // If this is not the master, always send the negotiate request
-    // Redundant requests are eliminated on the master side
-    if (! isMaster) {
-      return signaller.to(targetId).send('/negotiate');
-    }
-
-    // If coupling is already in progress, return
-    if (coupling) return;
+    // Ensure that the connection is in a state ready for an offer
+    if (!isStable()) return;
 
     // Otherwise, create the offer
-    coupling = true;
     negotiationRequired = false;
     q.createOffer();
   }, 100, { leading: false });
@@ -157,7 +154,6 @@ function couple(pc, targetId, signaller, opts) {
       // now renegotiate without threat of interference
       if (isMaster) {
         debug('coupling complete, can now trigger any pending renegotiations');
-        coupling = false;
         if (negotiationRequired) createOrRequestOffer();
       }
     });
@@ -227,15 +223,17 @@ function couple(pc, targetId, signaller, opts) {
   }
 
   function requestNegotiation() {
+    var stable = isStable();
     // This is a redundant request if not reactive
-    if (coupling && !reactive) return;
+    if (!stable && !reactive) return;
 
+    debug('not coupling so create or request offer');
     // If no coupling is occurring, regardless of reactive, start the offer process
-    if (!coupling) return createOrRequestOffer();
+    if (stable) return createOrRequestOffer();
 
     // If we are already coupling, we are reactive and renegotiation has not been indicated
     // defer a negotiation request
-    if (coupling && reactive && !negotiationRequired) {
+    if (!stable && reactive && !negotiationRequired) {
       debug('renegotiation is required, but deferring until existing connection is established');
       negotiationRequired = true;
 
@@ -338,6 +336,13 @@ function couple(pc, targetId, signaller, opts) {
 
   mon.once('connected', function() {
     clearTimeout(failTimer);
+  });
+
+  mon.on('signaling:stable', function() {
+    if (negotiationRequired) {
+      debug('signaling state is now stable, handling queued renegotiation');
+      createOrRequestOffer();
+    }
   });
 
   /**
