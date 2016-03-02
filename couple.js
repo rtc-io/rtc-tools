@@ -124,6 +124,10 @@ function couple(pc, targetId, signaller, opts) {
     // Redundant requests are eliminated on the master side
     if (! isMaster) {
       debug('[' + signaller.id + '] ' + 'Requesting negotiation from ' + targetId + ' (requesting offerer? ' + renegotiateRequired + ')');
+      // Due to https://bugs.chromium.org/p/webrtc/issues/detail?id=2782 which involves incompatibilities between
+      // Chrome and Firefox created offers by default client offers are disabled to ensure that all offers are coming
+      // from the same source. By passing `allowReactiveInterop` you can reallow this, then use the `filtersdp` option
+      // to provide a munged SDP that might be able to work
       return signaller.to(targetId).send('/negotiate', {
         requestOfferer: (allowReactiveInterop || !interoperating) && renegotiateRequired
       });
