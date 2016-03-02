@@ -73,6 +73,9 @@ function couple(pc, targetId, signaller, opts) {
   var failTimeout = (opts || {}).failTimeout || 30000;
   var failTimer;
 
+  // Request offer timer
+  var requestOfferTimer;
+
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
 
@@ -80,6 +83,31 @@ function couple(pc, targetId, signaller, opts) {
   var q = queue(pc, opts);
   var coupling = false;
   var negotiationRequired = false;
+  var renegotiateRequired = false;
+  var creatingOffer = false;
+
+  /**
+    Indicates whether this peer connection is in a state where it is able to have new offers created
+   **/
+  function isReadyForOffer() {
+    return !coupling && pc.signalingState === 'stable';
+  }
+
+  function createOffer() {
+    // If coupling is already in progress, return
+    if (!isReadyForOffer()) return;
+
+    debug('[' + signaller.id + '] ' + 'Creating new offer for connection to ' + targetId);
+    // Otherwise, create the offer
+    coupling = true;
+    creatingOffer = true;
+    negotiationRequired = false;
+    q.createOffer().then(function() {
+      creatingOffer = false;
+    }).catch(function() {
+      creatingOffer = false;
+    });
+  }
 
   var createOrRequestOffer = throttle(function() {
     if (!targetReady) {
@@ -87,20 +115,14 @@ function couple(pc, targetId, signaller, opts) {
       return emit.once('target.ready', createOrRequestOffer);
     }
 
-    debug('createOrRequestOffer');
     // If this is not the master, always send the negotiate request
     // Redundant requests are eliminated on the master side
     if (! isMaster) {
-      return signaller.to(targetId).send('/negotiate');
+      debug('[' + signaller.id + '] ' + 'Requesting negotiation from ' + targetId + ' (requesting offerer? ' + renegotiateRequired + ')');
+      return signaller.to(targetId).send('/negotiate', { requestOfferer: renegotiateRequired });
     }
 
-    // If coupling is already in progress, return
-    if (coupling) return;
-
-    // Otherwise, create the offer
-    coupling = true;
-    negotiationRequired = false;
-    q.createOffer();
+    return createOffer();
   }, 100, { leading: false });
 
   function decouple() {
@@ -152,13 +174,13 @@ function couple(pc, targetId, signaller, opts) {
     // renegotiating prior to the iceConnectionState "completed" state
     q.setRemoteDescription(sdp).then(function() {
 
-      // If this is the master, then we can assume that this description was the answer
-      // and assume that coupling (offer -> answer) process is complete, so we can
-      // now renegotiate without threat of interference
-      if (isMaster) {
+      // If this is the peer that is coupling, and we have received the answer so we can
+      // and assume that coupling (offer -> answer) process is complete, so we can clear the coupling flag
+      if (coupling && sdp.type === 'answer') {
         debug('coupling complete, can now trigger any pending renegotiations');
         coupling = false;
-        if (negotiationRequired) createOrRequestOffer();
+        // If this is the master and negotiation is required, process the next offers
+        if (isMaster && negotiationRequired) createOrRequestOffer();
       }
     });
   }
@@ -247,16 +269,46 @@ function couple(pc, targetId, signaller, opts) {
     }
   }
 
-  function handleNegotiateRequest(src) {
-    if (src.id === targetId) {
-      emit('negotiate.request', src.id);
-      requestNegotiation();
+
+  /**
+    This allows the master to request the client to send an offer
+   **/
+  function requestOfferFromClient() {
+    if (requestOfferTimer) clearTimeout(requestOfferTimer);
+    if (pc.signalingState === 'closed') return;
+
+    // Check if we are ready for a new offer, otherwise delay
+    if (!isReadyForOffer()) {
+      debug('[' + signaller.id + '] negotiation request denied, not in a state to accept new offers [coupling = ' + coupling + ', ' + pc.signalingState + ']');
+      requestOfferTimer = setTimeout(requestOfferFromClient, 500);
+    } else {
+       // Flag as coupling and request the client send the offer
+      debug('[' + signaller.id + '] ' + targetId + ' has requested the ability to create the offer');
+      coupling = true;
+      return signaller.to(targetId).send('/requestoffer');
     }
+  }
+
+  function handleNegotiateRequest(data, src) {
+    debug('[' + signaller.id + '] ' + src.id + ' has requested a negotiation');
+
+    // Sanity check that this is for the target
+    if (!src || src.id !== targetId) return;
+    emit('negotiate.request', src.id, data);
+
+    // Check if the client is requesting the ability to create the offer themselves
+    if (data && data.requestOfferer) {
+      return requestOfferFromClient();
+    }
+
+    // Otherwise, begin the traditional master driven negotiation process
+    requestNegotiation();
   }
 
   function handleRenegotiateRequest() {
     if (!reactive) return;
     emit('negotiate.renegotiate');
+    renegotiateRequired = true;
     requestNegotiation();
   }
 
@@ -273,6 +325,13 @@ function couple(pc, targetId, signaller, opts) {
     if (recovered) {
       mon('recovered');
     }
+  }
+
+  /**
+    Allow clients to send offers
+   **/
+  function handleRequestOffer(src) {
+    return createOffer();
   }
 
   // when regotiation is needed look for the peer
@@ -303,6 +362,9 @@ function couple(pc, targetId, signaller, opts) {
   if (isMaster) {
     signaller.on('negotiate', handleNegotiateRequest);
     signaller.on('message:negotiate', handleNegotiateRequest); // signaller >= 5
+  } else {
+    signaller.on('requestoffer', handleRequestOffer);
+    signaller.on('message:requestoffer', handleRequestOffer);
   }
 
   // when the connection closes, remove event handlers
@@ -338,6 +400,22 @@ function couple(pc, targetId, signaller, opts) {
 
   mon.once('connected', function() {
     clearTimeout(failTimer);
+  });
+
+  mon.on('signalingchange', function(pc, state) {
+    debug('[' + signaller.id + '] signaling state ' + state + ' to ' + targetId);
+  });
+
+  mon.on('signaling:stable', function() {
+    // Check if the coupling process is over
+    // creatingOffer is required due to the delay between the creation of the offer and the signaling
+    // state changing to have-local-offer
+    if (!creatingOffer && coupling) coupling = false;
+
+    // Check if we have any pending negotiations
+    if (negotiationRequired) {
+      createOrRequestOffer();
+    }
   });
 
   /**
