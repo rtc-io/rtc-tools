@@ -66,6 +66,7 @@ function couple(pc, targetId, signaller, opts) {
   // Target ready indicates that the target peer has indicated it is
   // ready to begin coupling
   var targetReady = false;
+  var targetInfo = undefined;
   var readyInterval = (opts || {}).readyInterval || 100;
   var readyTimer;
 
@@ -76,6 +77,9 @@ function couple(pc, targetId, signaller, opts) {
   // Request offer timer
   var requestOfferTimer;
 
+  // Interoperability flags
+  var allowReactiveInterop = (opts || {}).allowReactiveInterop;
+
   // initilaise the negotiation helpers
   var isMaster = signaller.isMaster(targetId);
 
@@ -85,6 +89,7 @@ function couple(pc, targetId, signaller, opts) {
   var negotiationRequired = false;
   var renegotiateRequired = false;
   var creatingOffer = false;
+  var interoperating = false;
 
   /**
     Indicates whether this peer connection is in a state where it is able to have new offers created
@@ -119,7 +124,9 @@ function couple(pc, targetId, signaller, opts) {
     // Redundant requests are eliminated on the master side
     if (! isMaster) {
       debug('[' + signaller.id + '] ' + 'Requesting negotiation from ' + targetId + ' (requesting offerer? ' + renegotiateRequired + ')');
-      return signaller.to(targetId).send('/negotiate', { requestOfferer: renegotiateRequired });
+      return signaller.to(targetId).send('/negotiate', {
+        requestOfferer: (allowReactiveInterop || !interoperating) && renegotiateRequired
+      });
     }
 
     return createOffer();
@@ -192,6 +199,8 @@ function couple(pc, targetId, signaller, opts) {
     }
     debug('[' + signaller.id + '] ' + targetId + ' is ready for coupling');
     targetReady = true;
+    targetInfo = src.data;
+    interoperating = (targetInfo.browser !== signaller.attributes.browser);
     emit('target.ready');
   }
 
