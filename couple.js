@@ -332,6 +332,7 @@ function couple(pc, targetId, signaller, opts) {
     Allow clients to send offers
    **/
   function handleRequestOffer(src) {
+    debug('[' + signaller.id + '] ' + targetId + ' has requested that the offer be sent');
     return createOffer();
   }
 
