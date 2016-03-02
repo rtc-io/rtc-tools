@@ -178,8 +178,6 @@ function couple(pc, targetId, signaller, opts) {
       // and assume that coupling (offer -> answer) process is complete, so we can clear the coupling flag
       if (coupling && sdp.type === 'answer') {
         debug('coupling complete, can now trigger any pending renegotiations');
-        coupling = false;
-        // If this is the master and negotiation is required, process the next offers
         if (isMaster && negotiationRequired) createOrRequestOffer();
       }
     });
