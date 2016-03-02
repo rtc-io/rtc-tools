@@ -86,7 +86,7 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     pc['on' + evtName] = checkState;
   });
 
-  monitor.stop = function() {
+  monitor.close = function() {
     pc.onclose = null;
     peerStateEvents.forEach(function(evtName) {
       pc['on' + evtName] = null;

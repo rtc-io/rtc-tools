@@ -130,7 +130,7 @@ function couple(pc, targetId, signaller, opts) {
 
     // stop the monitor
 //     mon.removeAllListeners();
-    mon.stop();
+    mon.close();
 
     // cleanup the peerconnection
     cleanup(pc);
@@ -140,12 +140,15 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('candidate', handleCandidate);
     signaller.removeListener('negotiate', handleNegotiateRequest);
     signaller.removeListener('ready', handleReady);
+    signaller.removeListener('requestoffer', handleRequestOffer);
 
     // remove listeners (version >= 5)
     signaller.removeListener('message:sdp', handleSdp);
     signaller.removeListener('message:candidate', handleCandidate);
     signaller.removeListener('message:negotiate', handleNegotiateRequest);
     signaller.removeListener('message:ready', handleReady);
+    signaller.removeListener('message:requestoffer', handleRequestOffer);
+
   }
 
   function handleCandidate(data, src) {
@@ -415,6 +418,8 @@ function couple(pc, targetId, signaller, opts) {
       createOrRequestOffer();
     }
   });
+
+  mon.stop = decouple;
 
   /**
     Aborts the coupling process
