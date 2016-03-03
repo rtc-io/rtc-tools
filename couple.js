@@ -139,6 +139,12 @@ function couple(pc, targetId, signaller, opts) {
   function decouple() {
     debug('decoupling ' + signaller.id + ' from ' + targetId);
 
+    // Clear any outstanding timers
+    clearTimeout(readyTimer);
+    clearTimeout(disconnectTimer);
+    clearTimeout(requestOfferTimer);
+    clearTimeout(failTimer);
+
     // stop the monitor
 //     mon.removeAllListeners();
     mon.close();
@@ -149,6 +155,7 @@ function couple(pc, targetId, signaller, opts) {
     // remove listeners
     signaller.removeListener('sdp', handleSdp);
     signaller.removeListener('candidate', handleCandidate);
+    signaller.removeListener('endofcandidates', handleLastCandidate);
     signaller.removeListener('negotiate', handleNegotiateRequest);
     signaller.removeListener('ready', handleReady);
     signaller.removeListener('requestoffer', handleRequestOffer);
@@ -156,6 +163,7 @@ function couple(pc, targetId, signaller, opts) {
     // remove listeners (version >= 5)
     signaller.removeListener('message:sdp', handleSdp);
     signaller.removeListener('message:candidate', handleCandidate);
+    signaller.removeListener('message:endofcandidates', handleLastCandidate);
     signaller.removeListener('message:negotiate', handleNegotiateRequest);
     signaller.removeListener('message:ready', handleReady);
     signaller.removeListener('message:requestoffer', handleRequestOffer);
