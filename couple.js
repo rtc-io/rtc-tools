@@ -148,6 +148,11 @@ function couple(pc, targetId, signaller, opts) {
     // stop the monitor
 //     mon.removeAllListeners();
     mon.close();
+    mon = undefined;
+
+    // clean up the task queue
+    q.clear();
+    q = undefined;
 
     // cleanup the peerconnection
     cleanup(pc);
@@ -167,7 +172,6 @@ function couple(pc, targetId, signaller, opts) {
     signaller.removeListener('message:negotiate', handleNegotiateRequest);
     signaller.removeListener('message:ready', handleReady);
     signaller.removeListener('message:requestoffer', handleRequestOffer);
-
   }
 
   function handleCandidate(data, src) {
@@ -228,7 +232,7 @@ function couple(pc, targetId, signaller, opts) {
     disconnectTimer = setTimeout(function() {
       debug('manually closing connection after disconnect timeout');
       mon('failed');
-      cleanup(pc);
+      decouple();
     }, disconnectTimeout);
 
     mon.on('statechange', handleDisconnectAbort);

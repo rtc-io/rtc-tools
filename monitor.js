@@ -77,6 +77,7 @@ module.exports = function(pc, targetId, signaller, parentBus) {
   }
 
   function handleClose() {
+    if (isClosed) return;
     isClosed = true;
     monitor('closed');
   }
@@ -91,9 +92,10 @@ module.exports = function(pc, targetId, signaller, parentBus) {
     peerStateEvents.forEach(function(evtName) {
       pc['on' + evtName] = null;
     });
-  };
 
-  monitor.checkState = checkState;
+    monitor.clear();
+    monitor = undefined;
+  };
 
   // if we haven't been provided a valid peer connection, abort
   if (! pc) {
