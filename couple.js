@@ -455,6 +455,12 @@ function couple(pc, targetId, signaller, opts) {
     mon('aborted');
   };
 
+  // Override destroy to clear the task queue as well
+  mon.destroy = function() {
+    mon.clear();
+    q.clear();
+  };
+
   return mon;
 }
 
