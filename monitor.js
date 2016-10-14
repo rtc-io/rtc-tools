@@ -95,6 +95,10 @@ module.exports = function(pc, targetId, signaller, parentBus) {
 
   monitor.checkState = checkState;
 
+  monitor.destroy = function() {
+    monitor.clear();
+  };
+
   // if we haven't been provided a valid peer connection, abort
   if (! pc) {
     return monitor;
