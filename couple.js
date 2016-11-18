@@ -89,6 +89,7 @@ function couple(pc, targetId, signaller, opts) {
   var negotiationRequired = false;
   var renegotiateRequired = false;
   var creatingOffer = false;
+  var awaitingAnswer = false;
   var interoperating = false;
 
   /**
@@ -106,15 +107,22 @@ function couple(pc, targetId, signaller, opts) {
     // Otherwise, create the offer
     coupling = true;
     creatingOffer = true;
+    awaitingAnswer = true;
     negotiationRequired = false;
     q.createOffer().then(function() {
       creatingOffer = false;
     }).catch(function() {
       creatingOffer = false;
+      awaitingAnswer = true;
     });
   }
 
   var createOrRequestOffer = throttle(function() {
+    if (awaitingAnswer) {
+      debug('[' + signaller.id + '] awaiting answer from ' + targetId + ' before sending new offer');
+      return;
+    }
+
     if (!targetReady) {
       debug('[' + signaller.id + '] ' + targetId + ' not yet ready for offer');
       return emit.once('target.ready', createOrRequestOffer);
@@ -133,11 +141,17 @@ function couple(pc, targetId, signaller, opts) {
       });
     }
 
+    debug('[' + signaller.id + '] Creating new offer for ' + targetId);
     return createOffer();
   }, 100, { leading: false });
 
   function decouple() {
     debug('decoupling ' + signaller.id + ' from ' + targetId);
+
+    // Reset values
+    coupling = false;
+    creatingOffer = false;
+    awaitingAnswer = false;
 
     // Clear any outstanding timers
     clearTimeout(readyTimer);
@@ -199,6 +213,11 @@ function couple(pc, targetId, signaller, opts) {
       // If this is the peer that is coupling, and we have received the answer so we can
       // and assume that coupling (offer -> answer) process is complete, so we can clear the coupling flag
       if (coupling && sdp.type === 'answer') {
+        awaitingAnswer = false;
+
+        // Check if the coupling is complete
+        checkIfCouplingComplete();
+
         debug('coupling complete, can now trigger any pending renegotiations');
         if (isMaster && negotiationRequired) createOrRequestOffer();
       }
@@ -358,6 +377,17 @@ function couple(pc, targetId, signaller, opts) {
     return createOffer();
   }
 
+  function checkIfCouplingComplete() {
+    // Check if the coupling process is over
+    // The coupling process should be check whenever the signaling state is stable
+    // or when a remote answer has been received
+    // A coupling is considered over when the offer is no longer being created, and
+    // there is no answer being waited for
+    if (!coupling || creatingOffer || awaitingAnswer) return;
+    debug('[' + signaller.id + '] coupling completed to ' + targetId);
+    coupling = false;
+  }
+
   // when regotiation is needed look for the peer
   if (reactive) {
     pc.onnegotiationneeded = handleRenegotiateRequest;
@@ -418,6 +448,7 @@ function couple(pc, targetId, signaller, opts) {
 
   // If we fail to connect within the given timeframe, trigger a failure
   failTimer = setTimeout(function() {
+    debug('[' + signaller.id + '] failed to connect to ' + targetId + ' within allocated time');
     mon('failed');
     decouple();
   }, failTimeout);
@@ -431,13 +462,12 @@ function couple(pc, targetId, signaller, opts) {
   });
 
   mon.on('signaling:stable', function() {
-    // Check if the coupling process is over
-    // creatingOffer is required due to the delay between the creation of the offer and the signaling
-    // state changing to have-local-offer
-    if (!creatingOffer && coupling) coupling = false;
+    // Check if the coupling if complete
+    checkIfCouplingComplete();
 
     // Check if we have any pending negotiations
     if (negotiationRequired) {
+      debug('signalling stable and a negotiation is required, so creating one');
       createOrRequestOffer();
     }
   });
