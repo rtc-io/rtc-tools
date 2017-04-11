@@ -73,7 +73,7 @@ exports.couple = require('./couple');
 **/
 exports.createConnection = function(opts, constraints) {
   var plugin = findPlugin((opts || {}).plugins);
-  var PeerConnection = (opts || {}).RTCPeerConnection || (RTCPeerConnection || window.RTCPeerConnection); //use window so the variable will not be parsed by the minificator engine and it will not be an undefined variable when running this onios
+  var PeerConnection = (opts || {}).RTCPeerConnection || RTCPeerConnection;
 
   // generate the config based on options provided
   var config = gen.config(opts);
@@ -85,5 +85,5 @@ exports.createConnection = function(opts, constraints) {
     return plugin.createConnection(config, constraints);
   }
 
-  return new PeerConnection(config, constraints);
+  return new PeerConnection(config, constraints);//if you find an exception here creating an instance of PeerConnection, try passing RTCPeerConnection option to the options on the quickconnect initialization
 };
