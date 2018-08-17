@@ -219,7 +219,7 @@ function couple(pc, targetId, signaller, opts) {
         checkIfCouplingComplete();
 
         debug('coupling complete, can now trigger any pending renegotiations');
-        if (isMaster && negotiationRequired) createOrRequestOffer();
+        if (negotiationRequired) createOrRequestOffer();
       }
     });
   }
@@ -320,7 +320,10 @@ function couple(pc, targetId, signaller, opts) {
 
     // Check if we are ready for a new offer, otherwise delay
     if (!isReadyForOffer()) {
-      debug('[' + signaller.id + '] negotiation request denied, not in a state to accept new offers [coupling = ' + coupling + ', ' + pc.signalingState + ']');
+      debug('[' + signaller.id + '] negotiation request denied, not in a state to accept new offers [coupling = ' + coupling + ', creatingOffer = ' + creatingOffer + ', awaitingAnswer = ' + awaitingAnswer + ', ' + pc.signalingState + ']');
+      // Do a check to see if the coupling is complete
+      checkIfCouplingComplete();
+      // Do a recheck of the request
       requestOfferTimer = setTimeout(requestOfferFromClient, 500);
     } else {
        // Flag as coupling and request the client send the offer
