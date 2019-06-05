@@ -478,6 +478,11 @@ function couple(pc, targetId, signaller, opts) {
   mon.stop = decouple;
 
   /**
+    Allows for manually triggering a renegotiation
+   */
+  mon.requestRenegotiation = handleRenegotiateRequest;
+
+  /**
     Aborts the coupling process
    **/
   mon.abort = function() {
