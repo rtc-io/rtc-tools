@@ -85,5 +85,5 @@ exports.createConnection = function(opts, constraints) {
     return plugin.createConnection(config, constraints);
   }
 
-  return new PeerConnection(config, constraints);
+  return new PeerConnection(config, constraints);//if you find an exception here creating an instance of PeerConnection, try passing RTCPeerConnection option to the options on the quickconnect initialization
 };
